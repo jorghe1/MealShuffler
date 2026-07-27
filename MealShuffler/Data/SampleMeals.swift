@@ -4,208 +4,208 @@ enum SampleMeals {
     static let all: [Meal] = [
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
-            name: "Laks med ovnsgrønnsaker",
-            subtitle: "Sitron, potet og urter",
+            name: L10n.string("Baked salmon with roasted vegetables"),
+            subtitle: L10n.string("Lemon, potatoes and herbs"),
             emoji: "🐟",
             prepMinutes: 35,
             tags: [.fish],
             ingredients: [
-                .init(name: "Laksefilet", quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: "Poteter", quantity: 800, unit: "g", aisle: .produce),
-                .init(name: "Brokkoli", quantity: 1, unit: "stk", aisle: .produce),
-                .init(name: "Sitron", quantity: 1, unit: "stk", aisle: .produce)
+                .init(name: L10n.string("Salmon fillet"), quantity: 600, unit: "g", aisle: .meatAndFish),
+                .init(name: L10n.string("Potatoes"), quantity: 800, unit: "g", aisle: .produce),
+                .init(name: L10n.string("Broccoli"), quantity: 1, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Lemon"), quantity: 1, unit: "pcs", aisle: .produce)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
-            name: "Fisketaco",
-            subtitle: "Sprø torsk og frisk kålsalat",
+            name: L10n.string("Fish tacos"),
+            subtitle: L10n.string("Crispy cod and fresh cabbage slaw"),
             emoji: "🌮",
             prepMinutes: 30,
             tags: [.fish, .taco],
             ingredients: [
-                .init(name: "Torskefilet", quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: "Tortillalefser", quantity: 8, unit: "stk", aisle: .bread),
-                .init(name: "Rødkål", quantity: 0.5, unit: "stk", aisle: .produce),
-                .init(name: "Rømme", quantity: 1, unit: "beger", aisle: .dairy),
-                .init(name: "Lime", quantity: 2, unit: "stk", aisle: .produce)
+                .init(name: L10n.string("Cod fillet"), quantity: 600, unit: "g", aisle: .meatAndFish),
+                .init(name: L10n.string("Tortilla wraps"), quantity: 8, unit: "pcs", aisle: .bread),
+                .init(name: L10n.string("Red cabbage"), quantity: 0.5, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Sour cream"), quantity: 1, unit: "tub", aisle: .dairy),
+                .init(name: L10n.string("Lime"), quantity: 2, unit: "pcs", aisle: .produce)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
-            name: "Kyllingwok",
-            subtitle: "Grønnsaker, nudler og ingefær",
+            name: L10n.string("Chicken stir-fry"),
+            subtitle: L10n.string("Vegetables, noodles and ginger"),
             emoji: "🥢",
             prepMinutes: 25,
             tags: [.chicken, .quick],
             ingredients: [
-                .init(name: "Kyllingfilet", quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: "Eggnudler", quantity: 300, unit: "g", aisle: .pantry),
-                .init(name: "Wokgrønnsaker", quantity: 1, unit: "pose", aisle: .frozen),
-                .init(name: "Soyasaus", quantity: 1, unit: "flaske", aisle: .pantry)
+                .init(name: L10n.string("Chicken breast"), quantity: 600, unit: "g", aisle: .meatAndFish),
+                .init(name: L10n.string("Egg noodles"), quantity: 300, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Stir-fry vegetables"), quantity: 1, unit: "bag", aisle: .frozen),
+                .init(name: L10n.string("Soy sauce"), quantity: 1, unit: "bottle", aisle: .pantry)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!,
-            name: "Kremet kyllingpasta",
-            subtitle: "Spinat og parmesan",
+            name: L10n.string("Creamy chicken pasta"),
+            subtitle: L10n.string("Spinach and Parmesan"),
             emoji: "🍝",
             prepMinutes: 30,
             tags: [.chicken, .pasta],
             ingredients: [
-                .init(name: "Kyllingfilet", quantity: 500, unit: "g", aisle: .meatAndFish),
-                .init(name: "Pasta", quantity: 400, unit: "g", aisle: .pantry),
-                .init(name: "Matfløte", quantity: 3, unit: "dl", aisle: .dairy),
-                .init(name: "Spinat", quantity: 200, unit: "g", aisle: .produce),
-                .init(name: "Parmesan", quantity: 100, unit: "g", aisle: .dairy)
+                .init(name: L10n.string("Chicken breast"), quantity: 500, unit: "g", aisle: .meatAndFish),
+                .init(name: L10n.string("Pasta"), quantity: 400, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Cooking cream"), quantity: 3, unit: "dl", aisle: .dairy),
+                .init(name: L10n.string("Spinach"), quantity: 200, unit: "g", aisle: .produce),
+                .init(name: L10n.string("Parmesan"), quantity: 100, unit: "g", aisle: .dairy)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000005")!,
-            name: "Margherita-pizza",
-            subtitle: "Tomat, mozzarella og basilikum",
+            name: L10n.string("Margherita pizza"),
+            subtitle: L10n.string("Tomato, mozzarella and basil"),
             emoji: "🍕",
             prepMinutes: 45,
             tags: [.pizza, .vegetarian, .weekend],
             ingredients: [
-                .init(name: "Pizzadeig", quantity: 2, unit: "stk", aisle: .bread),
-                .init(name: "Pizzasaus", quantity: 1, unit: "glass", aisle: .pantry),
-                .init(name: "Mozzarella", quantity: 300, unit: "g", aisle: .dairy),
-                .init(name: "Basilikum", quantity: 1, unit: "potte", aisle: .produce)
+                .init(name: L10n.string("Pizza dough"), quantity: 2, unit: "pcs", aisle: .bread),
+                .init(name: L10n.string("Pizza sauce"), quantity: 1, unit: "jar", aisle: .pantry),
+                .init(name: L10n.string("Mozzarella"), quantity: 300, unit: "g", aisle: .dairy),
+                .init(name: L10n.string("Basil"), quantity: 1, unit: "pot", aisle: .produce)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000006")!,
             name: "Taco",
-            subtitle: "Den klassiske familiefavoritten",
+            subtitle: L10n.string("The classic family favorite"),
             emoji: "🌮",
             prepMinutes: 25,
             tags: [.meat, .taco, .quick],
             ingredients: [
-                .init(name: "Kjøttdeig", quantity: 500, unit: "g", aisle: .meatAndFish),
-                .init(name: "Tortillalefser", quantity: 8, unit: "stk", aisle: .bread),
-                .init(name: "Tacokrydder", quantity: 1, unit: "pose", aisle: .pantry),
-                .init(name: "Mais", quantity: 1, unit: "boks", aisle: .pantry),
-                .init(name: "Tomater", quantity: 4, unit: "stk", aisle: .produce),
-                .init(name: "Revet ost", quantity: 200, unit: "g", aisle: .dairy)
+                .init(name: L10n.string("Minced beef"), quantity: 500, unit: "g", aisle: .meatAndFish),
+                .init(name: L10n.string("Tortilla wraps"), quantity: 8, unit: "pcs", aisle: .bread),
+                .init(name: L10n.string("Taco seasoning"), quantity: 1, unit: "bag", aisle: .pantry),
+                .init(name: L10n.string("Corn"), quantity: 1, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Tomatoes"), quantity: 4, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Grated cheese"), quantity: 200, unit: "g", aisle: .dairy)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000007")!,
-            name: "Linsegryte",
-            subtitle: "Kokosmelk, tomat og varme krydder",
+            name: L10n.string("Lentil curry"),
+            subtitle: L10n.string("Coconut milk, tomato and warming spices"),
             emoji: "🍛",
             prepMinutes: 30,
             tags: [.vegetarian],
             ingredients: [
-                .init(name: "Røde linser", quantity: 300, unit: "g", aisle: .pantry),
-                .init(name: "Kokosmelk", quantity: 2, unit: "boks", aisle: .pantry),
-                .init(name: "Hakkede tomater", quantity: 2, unit: "boks", aisle: .pantry),
-                .init(name: "Gul løk", quantity: 1, unit: "stk", aisle: .produce),
-                .init(name: "Ris", quantity: 300, unit: "g", aisle: .pantry)
+                .init(name: L10n.string("Red lentils"), quantity: 300, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Coconut milk"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000008")!,
-            name: "Tomatsuppe med egg",
-            subtitle: "Rask, varm og enkel",
+            name: L10n.string("Tomato soup with egg"),
+            subtitle: L10n.string("Quick, warm and simple"),
             emoji: "🥣",
             prepMinutes: 20,
             tags: [.vegetarian, .soup, .quick],
             ingredients: [
-                .init(name: "Hakkede tomater", quantity: 3, unit: "boks", aisle: .pantry),
-                .init(name: "Egg", quantity: 4, unit: "stk", aisle: .dairy),
-                .init(name: "Matfløte", quantity: 2, unit: "dl", aisle: .dairy),
-                .init(name: "Gul løk", quantity: 1, unit: "stk", aisle: .produce),
-                .init(name: "Brød", quantity: 1, unit: "stk", aisle: .bread)
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 3, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Eggs"), quantity: 4, unit: "pcs", aisle: .dairy),
+                .init(name: L10n.string("Cooking cream"), quantity: 2, unit: "dl", aisle: .dairy),
+                .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Bread"), quantity: 1, unit: "pcs", aisle: .bread)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000009")!,
             name: "Spaghetti bolognese",
-            subtitle: "En trygg hverdagsklassiker",
+            subtitle: L10n.string("A reliable weeknight classic"),
             emoji: "🍝",
             prepMinutes: 35,
             tags: [.meat, .pasta],
             ingredients: [
-                .init(name: "Kjøttdeig", quantity: 500, unit: "g", aisle: .meatAndFish),
-                .init(name: "Spaghetti", quantity: 400, unit: "g", aisle: .pantry),
-                .init(name: "Hakkede tomater", quantity: 2, unit: "boks", aisle: .pantry),
-                .init(name: "Gulrøtter", quantity: 2, unit: "stk", aisle: .produce),
-                .init(name: "Gul løk", quantity: 1, unit: "stk", aisle: .produce)
+                .init(name: L10n.string("Minced beef"), quantity: 500, unit: "g", aisle: .meatAndFish),
+                .init(name: L10n.string("Spaghetti"), quantity: 400, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Carrots"), quantity: 2, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000010")!,
-            name: "Blomkålsuppe",
-            subtitle: "Kremet suppe med sprø topping",
+            name: L10n.string("Cauliflower soup"),
+            subtitle: L10n.string("Creamy soup with a crispy topping"),
             emoji: "🥣",
             prepMinutes: 25,
             tags: [.vegetarian, .soup, .quick],
             ingredients: [
-                .init(name: "Blomkål", quantity: 1, unit: "stk", aisle: .produce),
-                .init(name: "Poteter", quantity: 300, unit: "g", aisle: .produce),
-                .init(name: "Matfløte", quantity: 3, unit: "dl", aisle: .dairy),
-                .init(name: "Brød", quantity: 1, unit: "stk", aisle: .bread)
+                .init(name: L10n.string("Cauliflower"), quantity: 1, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Potatoes"), quantity: 300, unit: "g", aisle: .produce),
+                .init(name: L10n.string("Cooking cream"), quantity: 3, unit: "dl", aisle: .dairy),
+                .init(name: L10n.string("Bread"), quantity: 1, unit: "pcs", aisle: .bread)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000011")!,
-            name: "Kylling i pita",
-            subtitle: "Salat, dressing og varme pitabrød",
+            name: L10n.string("Chicken pita"),
+            subtitle: L10n.string("Salad, dressing and warm pita bread"),
             emoji: "🥙",
             prepMinutes: 25,
             tags: [.chicken, .quick],
             ingredients: [
-                .init(name: "Kyllingfilet", quantity: 500, unit: "g", aisle: .meatAndFish),
-                .init(name: "Pitabrød", quantity: 6, unit: "stk", aisle: .bread),
-                .init(name: "Hjertesalat", quantity: 1, unit: "stk", aisle: .produce),
-                .init(name: "Agurk", quantity: 1, unit: "stk", aisle: .produce),
-                .init(name: "Yoghurt naturell", quantity: 1, unit: "beger", aisle: .dairy)
+                .init(name: L10n.string("Chicken breast"), quantity: 500, unit: "g", aisle: .meatAndFish),
+                .init(name: L10n.string("Pita bread"), quantity: 6, unit: "pcs", aisle: .bread),
+                .init(name: L10n.string("Romaine lettuce"), quantity: 1, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Cucumber"), quantity: 1, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Plain yogurt"), quantity: 1, unit: "tub", aisle: .dairy)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000012")!,
-            name: "Vegetarburger",
-            subtitle: "Sprø ovnspoteter og salat",
+            name: L10n.string("Veggie burger"),
+            subtitle: L10n.string("Crispy oven potatoes and salad"),
             emoji: "🍔",
             prepMinutes: 35,
             tags: [.vegetarian, .weekend],
             ingredients: [
-                .init(name: "Vegetarburgere", quantity: 4, unit: "stk", aisle: .frozen),
-                .init(name: "Burgerbrød", quantity: 4, unit: "stk", aisle: .bread),
-                .init(name: "Poteter", quantity: 800, unit: "g", aisle: .produce),
-                .init(name: "Hjertesalat", quantity: 1, unit: "stk", aisle: .produce),
-                .init(name: "Tomater", quantity: 2, unit: "stk", aisle: .produce)
+                .init(name: L10n.string("Veggie burgers"), quantity: 4, unit: "pcs", aisle: .frozen),
+                .init(name: L10n.string("Burger buns"), quantity: 4, unit: "pcs", aisle: .bread),
+                .init(name: L10n.string("Potatoes"), quantity: 800, unit: "g", aisle: .produce),
+                .init(name: L10n.string("Romaine lettuce"), quantity: 1, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Tomatoes"), quantity: 2, unit: "pcs", aisle: .produce)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000013")!,
-            name: "Fiskegrateng",
-            subtitle: "Med råkost og kokte poteter",
+            name: L10n.string("Fish gratin"),
+            subtitle: L10n.string("With carrot slaw and boiled potatoes"),
             emoji: "🐟",
             prepMinutes: 40,
             tags: [.fish],
             ingredients: [
-                .init(name: "Fiskegrateng", quantity: 1, unit: "stk", aisle: .frozen),
-                .init(name: "Poteter", quantity: 700, unit: "g", aisle: .produce),
-                .init(name: "Gulrøtter", quantity: 4, unit: "stk", aisle: .produce),
-                .init(name: "Sitron", quantity: 1, unit: "stk", aisle: .produce)
+                .init(name: L10n.string("Fish gratin"), quantity: 1, unit: "pcs", aisle: .frozen),
+                .init(name: L10n.string("Potatoes"), quantity: 700, unit: "g", aisle: .produce),
+                .init(name: L10n.string("Carrots"), quantity: 4, unit: "pcs", aisle: .produce),
+                .init(name: L10n.string("Lemon"), quantity: 1, unit: "pcs", aisle: .produce)
             ]
         ),
         Meal(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000014")!,
-            name: "Kjøttboller i tomatsaus",
-            subtitle: "Med potetmos og grønne erter",
+            name: L10n.string("Meatballs in tomato sauce"),
+            subtitle: L10n.string("With mashed potatoes and green peas"),
             emoji: "🍲",
             prepMinutes: 35,
             tags: [.meat],
             ingredients: [
-                .init(name: "Kjøttboller", quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: "Poteter", quantity: 900, unit: "g", aisle: .produce),
-                .init(name: "Hakkede tomater", quantity: 2, unit: "boks", aisle: .pantry),
-                .init(name: "Grønne erter", quantity: 1, unit: "pose", aisle: .frozen),
-                .init(name: "Melk", quantity: 3, unit: "dl", aisle: .dairy)
+                .init(name: L10n.string("Meatballs"), quantity: 600, unit: "g", aisle: .meatAndFish),
+                .init(name: L10n.string("Potatoes"), quantity: 900, unit: "g", aisle: .produce),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Green peas"), quantity: 1, unit: "bag", aisle: .frozen),
+                .init(name: L10n.string("Milk"), quantity: 3, unit: "dl", aisle: .dairy)
             ]
         )
     ]

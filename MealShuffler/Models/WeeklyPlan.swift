@@ -65,10 +65,10 @@ enum DayDinnerMode: String, Codable, CaseIterable, Identifiable {
 
     var name: String {
         switch self {
-        case .cook: "Lag middag"
-        case .leftovers: "Spis rester"
-        case .away: "Ingen hjemme"
-        case .takeaway: "Takeaway"
+        case .cook: L10n.string("Cook dinner")
+        case .leftovers: L10n.string("Eat leftovers")
+        case .away: L10n.string("Nobody home")
+        case .takeaway: L10n.string("Takeaway")
         }
     }
 }
@@ -89,11 +89,11 @@ enum MealSwapIntent: String, CaseIterable, Identifiable {
 
     var name: String {
         switch self {
-        case .different: "Noe annet"
-        case .quicker: "Noe raskere"
-        case .cheaper: "Noe billigere"
-        case .favorite: "En favoritt"
-        case .surprise: "Overrask meg"
+        case .different: L10n.string("Something else")
+        case .quicker: L10n.string("Something quicker")
+        case .cheaper: L10n.string("Something cheaper")
+        case .favorite: L10n.string("A favorite")
+        case .surprise: L10n.string("Surprise me")
         }
     }
 

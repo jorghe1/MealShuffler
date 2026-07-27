@@ -1,0 +1,4 @@
+/*
+ English is the development language. User-facing English strings are used as
+ localization keys, so missing entries safely fall back to the source text.
+*/

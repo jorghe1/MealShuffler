@@ -14,7 +14,7 @@ enum MealMatcher: Codable, Hashable {
     func label(meals: [Meal]) -> String {
         switch self {
         case .tag(let tag): tag.name
-        case .exactMeal(let id): meals.first(where: { $0.id == id })?.name ?? "Valgt rett"
+        case .exactMeal(let id): meals.first(where: { $0.id == id })?.name ?? L10n.string("Selected meal")
         }
     }
 }
@@ -32,7 +32,9 @@ enum RuleStrength: String, Codable, CaseIterable, Identifiable {
     case preferred
 
     var id: String { rawValue }
-    var name: String { self == .required ? "Må følges" : "Prøv å følge" }
+    var name: String {
+        self == .required ? L10n.string("Required") : L10n.string("Preferred")
+    }
 }
 
 struct PlanningRule: Identifiable, Codable, Hashable {
@@ -72,15 +74,15 @@ struct PlanningRule: Identifiable, Codable, Hashable {
     func summary(meals: [Meal]) -> String {
         switch constraint {
         case .requiredOn(let day, let matcher):
-            "\(matcher.label(meals: meals)) på \(day.name.lowercased())"
+            L10n.string("%@ on %@", matcher.label(meals: meals), day.name.lowercased())
         case .excludedOn(let day, let matcher):
-            "Ingen \(matcher.label(meals: meals).lowercased()) på \(day.name.lowercased())"
+            L10n.string("No %@ on %@", matcher.label(meals: meals).lowercased(), day.name.lowercased())
         case .maximumPerWeek(let matcher, let count):
-            "Maks \(count) × \(matcher.label(meals: meals).lowercased()) per uke"
+            L10n.string("Maximum %ld × %@ per week", count, matcher.label(meals: meals).lowercased())
         case .minimumPerWeek(let matcher, let count):
-            "Minst \(count) × \(matcher.label(meals: meals).lowercased()) per uke"
+            L10n.string("At least %ld × %@ per week", count, matcher.label(meals: meals).lowercased())
         case .maximumPrepTime(let day, let minutes):
-            "Maks \(minutes) min på \(day.name.lowercased())"
+            L10n.string("Maximum %ld min on %@", minutes, day.name.lowercased())
         }
     }
 }
@@ -89,12 +91,12 @@ extension PlanningRule {
     static func starterRules(meals: [Meal]) -> [PlanningRule] {
         let pizzaID = meals.first(where: { $0.tags.contains(.pizza) })?.id
         var rules = [
-            PlanningRule(title: "Fisketirsdag", constraint: .requiredOn(day: .tuesday, matcher: .tag(.fish))),
-            PlanningRule(title: "Fisketorsdag", constraint: .requiredOn(day: .thursday, matcher: .tag(.fish))),
-            PlanningRule(title: "Variert protein", constraint: .maximumPerWeek(matcher: .tag(.chicken), count: 2))
+            PlanningRule(title: L10n.string("Fish on Tuesday"), constraint: .requiredOn(day: .tuesday, matcher: .tag(.fish))),
+            PlanningRule(title: L10n.string("Fish on Thursday"), constraint: .requiredOn(day: .thursday, matcher: .tag(.fish))),
+            PlanningRule(title: L10n.string("Varied protein"), constraint: .maximumPerWeek(matcher: .tag(.chicken), count: 2))
         ]
         if let pizzaID {
-            rules.append(PlanningRule(title: "Lørdagspizza", constraint: .requiredOn(day: .saturday, matcher: .exactMeal(pizzaID))))
+            rules.append(PlanningRule(title: L10n.string("Saturday pizza"), constraint: .requiredOn(day: .saturday, matcher: .exactMeal(pizzaID))))
         }
         return rules
     }

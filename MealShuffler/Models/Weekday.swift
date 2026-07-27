@@ -7,13 +7,13 @@ enum Weekday: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var name: String {
         switch self {
-        case .monday: "Mandag"
-        case .tuesday: "Tirsdag"
-        case .wednesday: "Onsdag"
-        case .thursday: "Torsdag"
-        case .friday: "Fredag"
-        case .saturday: "Lørdag"
-        case .sunday: "Søndag"
+        case .monday: L10n.string("Monday")
+        case .tuesday: L10n.string("Tuesday")
+        case .wednesday: L10n.string("Wednesday")
+        case .thursday: L10n.string("Thursday")
+        case .friday: L10n.string("Friday")
+        case .saturday: L10n.string("Saturday")
+        case .sunday: L10n.string("Sunday")
         }
     }
 

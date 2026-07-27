@@ -3,14 +3,20 @@ import Foundation
 
 enum PlanTextExporter {
     static func weeklyPlan(_ plan: WeeklyPlan, meals: [Meal]) -> String {
-        (["MIDDAGSPLAN"] + Weekday.allCases.compactMap { day in
+        ([L10n.string("MEAL PLAN")] + Weekday.allCases.compactMap { day in
             guard let item = plan[day] else { return nil }
             let title: String
             switch item.kind {
-            case .away: title = "Ingen middag hjemme"
-            case .takeaway: title = "Takeaway"
-            case .leftovers: title = item.mealID.flatMap { id in meals.first(where: { $0.id == id }) }.map { "Rester: \($0.name)" } ?? "Rester"
-            case .meal: title = item.mealID.flatMap { id in meals.first(where: { $0.id == id }) }?.name ?? "Ikke planlagt"
+            case .away: title = L10n.string("No dinner at home")
+            case .takeaway: title = L10n.string("Takeaway")
+            case .leftovers:
+                title = item.mealID
+                    .flatMap { id in meals.first(where: { $0.id == id }) }
+                    .map { L10n.string("Leftovers: %@", $0.name) }
+                    ?? L10n.string("Leftovers")
+            case .meal:
+                title = item.mealID.flatMap { id in meals.first(where: { $0.id == id }) }?.name
+                    ?? L10n.string("Not planned")
             }
             return "\(day.name): \(title)"
         }).joined(separator: "\n")
@@ -36,7 +42,7 @@ struct RemindersExportService {
             let reminder = EKReminder(eventStore: eventStore)
             reminder.calendar = calendar
             reminder.title = "\(item.name) – \(item.quantityText)"
-            reminder.notes = item.mealNames.isEmpty ? nil : "Til: \(item.mealNames.sorted().joined(separator: ", "))"
+            reminder.notes = item.mealNames.isEmpty ? nil : L10n.string("For: %@", item.mealNames.sorted().joined(separator: ", "))
             try eventStore.save(reminder, commit: false)
         }
         try eventStore.commit()
@@ -58,8 +64,8 @@ enum RemindersExportError: LocalizedError {
     case accessDenied, noDefaultList
     var errorDescription: String? {
         switch self {
-        case .accessDenied: "Tilgang til Påminnelser ble ikke gitt."
-        case .noDefaultList: "Opprett en standardliste i Påminnelser først."
+        case .accessDenied: L10n.string("Access to Reminders was not granted.")
+        case .noDefaultList: L10n.string("Create a default list in Reminders first.")
         }
     }
 }

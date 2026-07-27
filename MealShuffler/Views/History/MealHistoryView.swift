@@ -12,15 +12,15 @@ struct MealHistoryView: View {
         List {
             Section {
                 HStack(spacing: 12) {
-                    stat(title: "Laget", value: events.filter { $0.kind == .cooked }.count, symbol: "checkmark.seal.fill")
-                    stat(title: "Pauset", value: events.filter { $0.kind == .snoozed }.count, symbol: "calendar.badge.minus")
+                    stat(title: L10n.string("Cooked"), value: events.filter { $0.kind == .cooked }.count, symbol: "checkmark.seal.fill")
+                    stat(title: L10n.string("Paused"), value: events.filter { $0.kind == .snoozed }.count, symbol: "calendar.badge.minus")
                 }.listRowBackground(Color.clear)
-                Text("Historikken påvirker shuffle lokalt: retter dere lager får litt høyere relevans, men det som nylig er laget får en midlertidig repetisjonsstraff.")
+                Text("History affects shuffle locally: meals you cook become slightly more relevant, while recently cooked meals temporarily receive a repetition penalty.")
                     .font(.caption).foregroundStyle(AppTheme.muted).listRowBackground(Color.clear)
             }
 
-            Section("Aktivitet") {
-                if events.isEmpty { Text("Ingen aktivitet ennå.").foregroundStyle(.secondary) }
+            Section("Activity") {
+                if events.isEmpty { Text("No activity yet.").foregroundStyle(.secondary) }
                 ForEach(events) { event in
                     if let meal = store.meal(id: event.mealID) {
                         HStack(spacing: 12) {
@@ -36,13 +36,13 @@ struct MealHistoryView: View {
                 }
             }
             if !events.isEmpty {
-                Section { Button("Tøm historikk", role: .destructive) { showingClear = true } }
+                Section { Button("Clear history", role: .destructive) { showingClear = true } }
             }
         }
-        .navigationTitle("Historikk")
+        .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("Tømme historikken?", isPresented: $showingClear) {
-            Button("Tøm", role: .destructive) { store.clearHistory() }
+        .confirmationDialog("Clear history?", isPresented: $showingClear) {
+            Button("Clear", role: .destructive) { store.clearHistory() }
         }
     }
 
@@ -56,7 +56,11 @@ struct MealHistoryView: View {
 
     private func eventLabel(_ event: MealFeedbackEvent) -> String {
         let action: String
-        switch event.kind { case .cooked: action = "Laget"; case .skipped: action = "Byttet bort"; case .snoozed: action = "Pauset i 28 dager" }
-        return event.weekday.map { "\(action) på \($0.name.lowercased())" } ?? action
+        switch event.kind {
+        case .cooked: action = L10n.string("Cooked")
+        case .skipped: action = L10n.string("Replaced")
+        case .snoozed: action = L10n.string("Paused for 28 days")
+        }
+        return event.weekday.map { L10n.string("%@ on %@", action, $0.name.lowercased()) } ?? action
     }
 }

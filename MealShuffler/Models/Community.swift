@@ -62,11 +62,11 @@ enum CommunityReportReason: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     var name: String {
         switch self {
-        case .copyright: "Opphavsrett"
-        case .unsafe: "Utrygg oppskrift"
-        case .offensive: "Upassende innhold"
-        case .inaccurate: "Feil eller mangler"
-        case .other: "Annet"
+        case .copyright: L10n.string("Copyright")
+        case .unsafe: L10n.string("Unsafe recipe")
+        case .offensive: L10n.string("Offensive content")
+        case .inaccurate: L10n.string("Errors or omissions")
+        case .other: L10n.string("Other")
         }
     }
 }

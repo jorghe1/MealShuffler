@@ -50,10 +50,10 @@ private struct WelcomeStepView: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("Middagene bestemmer seg selv.")
+                Text("Dinner plans itself.")
                     .font(.system(size: 42, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.ink)
-                Text("Fortell oss hva dere liker og hvilke regler som gjelder. Så lager vi en gjennomtenkt uke på ett trykk.")
+                Text("Tell us what you like and which rules matter. Then we'll create a thoughtful week in one tap.")
                     .font(.title3)
                     .foregroundStyle(AppTheme.muted)
                     .lineSpacing(5)
@@ -62,7 +62,7 @@ private struct WelcomeStepView: View {
             Spacer()
 
             Button(action: next) {
-                Text("Kom i gang")
+                Text("Get started")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 17)
@@ -85,15 +85,15 @@ private struct TasteSwipeView: View {
     var body: some View {
         VStack(spacing: 18) {
             VStack(spacing: 6) {
-                Text("Hva liker dere?")
+                Text("What do you like?")
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.ink)
-                Text("Sveip til høyre eller venstre")
+                Text("Swipe right or left")
                     .foregroundStyle(AppTheme.muted)
             }
             .padding(.top, 22)
 
-            Text("\(min(index + 1, onboardingMeals.count)) av \(onboardingMeals.count)")
+            Text(L10n.string("%ld of %ld", min(index + 1, onboardingMeals.count), onboardingMeals.count))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(AppTheme.muted)
 
@@ -121,8 +121,8 @@ private struct TasteSwipeView: View {
             Spacer(minLength: 6)
 
             HStack(spacing: 22) {
-                ChoiceButton(symbol: "xmark", label: "Nei takk", color: .red) { choose(.disliked) }
-                ChoiceButton(symbol: "heart.fill", label: "Liker", color: AppTheme.accent) { choose(.liked) }
+                ChoiceButton(symbol: "xmark", label: L10n.string("No thanks"), color: .red) { choose(.disliked) }
+                ChoiceButton(symbol: "heart.fill", label: L10n.string("Like"), color: AppTheme.accent) { choose(.liked) }
             }
             .padding(.bottom, 24)
         }
@@ -162,7 +162,7 @@ private struct TasteCard: View {
                     .shadow(color: .black.opacity(0.08), radius: 12, y: 8)
 
                 if abs(offset.width) > 35 {
-                    Text(offset.width > 0 ? "LIKER" : "NEI TAKK")
+                    Text(offset.width > 0 ? L10n.string("LIKE") : L10n.string("NO THANKS"))
                         .font(.title2.bold())
                         .foregroundStyle(offset.width > 0 ? AppTheme.accent : .red)
                         .padding(.horizontal, 14)
@@ -185,7 +185,7 @@ private struct TasteCard: View {
                 Text(meal.subtitle)
                     .font(.body)
                     .foregroundStyle(AppTheme.muted)
-                Label("Ca. \(meal.prepMinutes) min", systemImage: "clock")
+                Label(L10n.string("About %ld min", meal.prepMinutes), systemImage: "clock")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.accent)
                     .padding(.top, 4)
@@ -230,10 +230,10 @@ private struct StarterRulesStepView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Noen regler å starte med")
+                Text("A few rules to get started")
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.ink)
-                Text("Skru av det som ikke passer. Du kan lage langt mer detaljerte regler senere.")
+                Text("Turn off anything that doesn't fit. You can create much more detailed rules later.")
                     .foregroundStyle(AppTheme.muted)
                     .lineSpacing(4)
             }
@@ -241,7 +241,7 @@ private struct StarterRulesStepView: View {
 
             VStack(spacing: 12) {
                 HStack {
-                    Label("Personer til middag", systemImage: "person.2")
+                    Label("People at dinner", systemImage: "person.2")
                         .font(.headline)
                     Spacer()
                     Stepper("\(store.householdSize)", value: $store.householdSize, in: 1...12)
@@ -280,7 +280,7 @@ private struct StarterRulesStepView: View {
 
             Button(action: finished) {
                 HStack {
-                    Text("Lag min første uke")
+                    Text("Create my first week")
                     Image(systemName: "shuffle")
                 }
                 .font(.headline)

@@ -84,8 +84,8 @@ actor LocalCommunityRepository: CommunityRepository {
     }
 
     private static let seedRecipes: [CommunityRecipe] = {
-        let nordli = CommunityAuthor(id: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!, displayName: "Familien Nordli")
-        let berg = CommunityAuthor(id: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!, displayName: "Bergs kjøkken")
+        let nordli = CommunityAuthor(id: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!, displayName: L10n.string("The Nordli family"))
+        let berg = CommunityAuthor(id: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!, displayName: L10n.string("Berg's kitchen"))
         let sol = CommunityAuthor(id: UUID(uuidString: "10000000-0000-0000-0000-000000000003")!, displayName: "Sol & Co")
         return [
             CommunityRecipe(meal: SampleMeals.all[1], author: nordli, publishedAt: .now.addingTimeInterval(-86_400 * 2), averageRating: 4.8, ratingCount: 12, cookedCount: 31),

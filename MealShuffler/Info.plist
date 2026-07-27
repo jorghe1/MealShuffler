@@ -25,7 +25,7 @@
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSRemindersFullAccessUsageDescription</key>
-    <string>Meal Shuffler trenger tilgang for å eksportere handlelisten du velger.</string>
+    <string>Meal Shuffler needs access to export the grocery list you choose.</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

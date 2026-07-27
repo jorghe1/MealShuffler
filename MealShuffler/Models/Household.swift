@@ -23,8 +23,8 @@ struct Household: Identifiable, Codable, Hashable {
 
     init(
         id: UUID = UUID(),
-        name: String = "Min familie",
-        members: [HouseholdMember] = [HouseholdMember(displayName: "Meg", role: .owner)],
+        name: String = L10n.string("My family"),
+        members: [HouseholdMember] = [HouseholdMember(displayName: L10n.string("Me"), role: .owner)],
         inviteCode: String = String(UUID().uuidString.prefix(8)).uppercased()
     ) {
         self.id = id

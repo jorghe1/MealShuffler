@@ -19,6 +19,7 @@ En native SwiftUI-MVP for enkel, regelstyrt middagsplanlegging.
 - Eksport av handleliste til Apple Påminnelser eller vanlig iOS-deling.
 - Lokal historikk og forsiktig preferanselæring med repetisjonskontroll.
 - Et repository-basert testcommunity med testfamilier, publisering, vurdering og rapportering.
+- Engelsk som utviklings- og standardspråk, med komplett norsk Bokmål-lokalisering.
 
 MVP-en leveres med tre aktive startregler:
 
@@ -40,6 +41,10 @@ Velg en iPhone-simulator og kjør `MealShuffler`-scheme. Testene ligger i
 Prosjektet har også Codemagic-workflows for usignert simulator-test og signert
 TestFlight-opplasting. Se [docs/IPHONE_TESTING.md](docs/IPHONE_TESTING.md) for
 engangsoppsett og første test på en fysisk iPhone.
+
+Appen følger språkinnstillingen i iOS. Engelsk innhold er kildetekst, mens norsk
+Bokmål ligger i `nb.lproj`. Dynamisk tekst fra planmotor, eksport og feilmeldinger
+går gjennom samme lokaliseringslag som SwiftUI-visningene.
 
 ## Arkitektur og videre backend
 

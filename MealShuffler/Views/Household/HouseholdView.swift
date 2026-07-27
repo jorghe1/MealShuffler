@@ -8,8 +8,8 @@ struct HouseholdView: View {
 
     var body: some View {
         List {
-            Section("Husholdning") {
-                TextField("Navn", text: $householdName)
+            Section("Household") {
+                TextField("Name", text: $householdName)
                     .onSubmit { store.renameHousehold(householdName) }
                 ForEach(store.household.members) { member in
                     HStack {
@@ -17,32 +17,32 @@ struct HouseholdView: View {
                             .foregroundStyle(AppTheme.accent).frame(width: 28)
                         Text(member.displayName)
                         Spacer()
-                        if member.role == .owner { Text("EIER").font(.caption2.bold()).foregroundStyle(AppTheme.muted) }
+                        if member.role == .owner { Text("OWNER").font(.caption2.bold()).foregroundStyle(AppTheme.muted) }
                     }
                 }.onDelete(perform: store.removeHouseholdMembers)
-                Button { showingAddMember = true } label: { Label("Legg til medlem", systemImage: "person.badge.plus") }
+                Button { showingAddMember = true } label: { Label("Add member", systemImage: "person.badge.plus") }
             }
 
-            Section("Del") {
+            Section("Share") {
                 ShareLink(item: store.household.inviteURL) {
-                    Label("Del invitasjon", systemImage: "link")
+                    Label("Share invitation", systemImage: "link")
                 }
                 ShareLink(item: PlanTextExporter.weeklyPlan(store.plan, meals: store.meals)) {
-                    Label("Del ukens middagsplan", systemImage: "square.and.arrow.up")
+                    Label("Share this week's meal plan", systemImage: "square.and.arrow.up")
                 }
-                LabeledContent("Invitasjonskode", value: store.household.inviteCode)
+                LabeledContent("Invite code", value: store.household.inviteCode)
             } footer: {
-                Text("MVP-en lager en stabil invitasjonsidentitet lokalt. Synkronisering kobles senere til repository/backend uten å endre husholdningsmodellen.")
+                Text("The MVP creates a stable invitation identity locally. Sync can later connect to a repository or backend without changing the household model.")
             }
         }
-        .navigationTitle("Familie")
+        .navigationTitle("Family")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { householdName = store.household.name }
         .onDisappear { store.renameHousehold(householdName) }
-        .alert("Nytt familiemedlem", isPresented: $showingAddMember) {
-            TextField("Navn", text: $newMemberName)
-            Button("Legg til") { store.addHouseholdMember(named: newMemberName); newMemberName = "" }
-            Button("Avbryt", role: .cancel) { newMemberName = "" }
+        .alert("New family member", isPresented: $showingAddMember) {
+            TextField("Name", text: $newMemberName)
+            Button("Add") { store.addHouseholdMember(named: newMemberName); newMemberName = "" }
+            Button("Cancel", role: .cancel) { newMemberName = "" }
         }
     }
 }

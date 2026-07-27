@@ -271,7 +271,7 @@ final class AppStore: ObservableObject {
     }
 
     func renameHousehold(_ name: String) {
-        household.name = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Min familie" : name
+        household.name = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? L10n.string("My family") : name
     }
 
     func addHouseholdMember(named name: String, role: HouseholdRole = .adult) {
@@ -291,7 +291,10 @@ final class AppStore: ObservableObject {
         guard url.scheme == "mealshuffler", url.host == "join" else { return }
         let code = url.pathComponents.last?.uppercased() ?? ""
         guard !code.isEmpty else { return }
-        inviteNotice = "Invitasjonskode \(code) er mottatt. Koden er klar for synkronisering når en ekstern household-adapter kobles til."
+        inviteNotice = L10n.string(
+            "Invite code %@ was received. It is ready to sync when an external household adapter is connected.",
+            code
+        )
     }
 
     func toggleGroceryItem(_ item: GroceryItem) {
@@ -310,9 +313,10 @@ final class AppStore: ObservableObject {
     func explanation(for day: Weekday) -> String? {
         guard let item = plan[day] else { return nil }
         switch item.kind {
-        case .away: return "Ingen er hjemme til middag."
-        case .takeaway: return "Denne dagen er satt av til takeaway."
-        case .leftovers(let source): return "Rester fra \(source.name.lowercased()) reduserer både arbeid og matsvinn."
+        case .away: return L10n.string("Nobody is home for dinner.")
+        case .takeaway: return L10n.string("This day is set aside for takeaway.")
+        case .leftovers(let source):
+            return L10n.string("Leftovers from %@ reduce both work and food waste.", source.name.lowercased())
         case .meal: break
         }
         guard let mealID = item.mealID, let meal = meal(id: mealID) else { return nil }
@@ -324,9 +328,15 @@ final class AppStore: ObservableObject {
             default: return false
             }
         }
-        if let rule = matching.first { return "Valgt fordi regelen «\(rule.title)» gjelder denne dagen." }
-        if context(for: day).maximumPrepMinutes != nil { return "Passer tidsgrensen du satte for \(day.name.lowercased())." }
-        return favoriteMealIDs.contains(meal.id) ? "En av familiens favoritter." : "Gir variasjon fra resten av uken."
+        if let rule = matching.first {
+            return L10n.string("Chosen because the rule “%@” applies on this day.", rule.summary(meals: meals))
+        }
+        if context(for: day).maximumPrepMinutes != nil {
+            return L10n.string("Fits the time limit you set for %@.", day.name.lowercased())
+        }
+        return favoriteMealIDs.contains(meal.id)
+            ? L10n.string("One of the family's favorites.")
+            : L10n.string("Adds variety to the rest of the week.")
     }
 
     private var resolvedContexts: [Weekday: DayPlanContext] {

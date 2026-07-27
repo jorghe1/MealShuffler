@@ -12,9 +12,9 @@ struct GroceryListView: View {
             LazyVStack(alignment: .leading, spacing: 18) {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Klar til butikken")
+                        Text("Ready to shop")
                             .font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(AppTheme.ink)
-                        Text("\(remainingCount) av \(store.groceryItems.count) varer gjenstår")
+                        Text(L10n.string("%ld of %ld items remaining", remainingCount, store.groceryItems.count))
                             .font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
@@ -53,19 +53,19 @@ struct GroceryListView: View {
             }.padding(.horizontal, 16)
         }
         .appBackground()
-        .navigationTitle("Handleliste")
+        .navigationTitle("Grocery list")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Eksport", isPresented: Binding(get: { exportMessage != nil }, set: { if !$0 { exportMessage = nil } })) {
+        .alert("Export", isPresented: Binding(get: { exportMessage != nil }, set: { if !$0 { exportMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(exportMessage ?? "") }
     }
 
     private var exportMenu: some View {
         Menu {
-            ShareLink(item: shareText) { Label("Del som tekst", systemImage: "square.and.arrow.up") }
+            ShareLink(item: shareText) { Label("Share as text", systemImage: "square.and.arrow.up") }
             Button {
                 Task { await exportToReminders() }
-            } label: { Label("Apple Påminnelser", systemImage: "checklist") }
+            } label: { Label("Apple Reminders", systemImage: "checklist") }
             .disabled(isExporting || store.groceryItems.isEmpty)
         } label: {
             if isExporting { ProgressView().frame(width: 48, height: 48) }
@@ -85,7 +85,7 @@ struct GroceryListView: View {
         defer { isExporting = false }
         do {
             let count = try await RemindersExportService().export(store.groceryItems)
-            exportMessage = "La til \(count) varer i listen «Meal Shuffler» i Påminnelser."
+            exportMessage = L10n.string("Added %ld items to the “Meal Shuffler” list in Reminders.", count)
         } catch { exportMessage = error.localizedDescription }
     }
 }

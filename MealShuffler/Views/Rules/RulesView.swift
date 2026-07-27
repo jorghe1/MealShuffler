@@ -9,17 +9,17 @@ struct RulesView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Regler som vanlige setninger")
+                    Text("Rules written as plain sentences")
                         .font(.system(size: 25, weight: .bold, design: .rounded))
                         .foregroundStyle(AppTheme.ink)
-                    Text("Harde regler må følges. Myke regler påvirker valget, men blokkerer aldri en ellers god uke.")
+                    Text("Required rules must be followed. Preferred rules influence the choice, but never block an otherwise good week.")
                         .font(.subheadline).foregroundStyle(AppTheme.muted).lineSpacing(3)
                 }
                 .padding(.vertical, 8)
                 .listRowBackground(Color.clear)
             }
 
-            Section("Dine regler") {
+            Section("Your rules") {
                 ForEach(store.rules) { rule in
                     HStack(spacing: 12) {
                         Image(systemName: symbol(for: rule.constraint))
@@ -30,8 +30,8 @@ struct RulesView: View {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(rule.summary(meals: store.meals)).font(.headline).foregroundStyle(AppTheme.ink)
                             Menu {
-                                Button("Må følges") { store.setRuleStrength(.required, ruleID: rule.id) }
-                                Button("Prøv å følge") { store.setRuleStrength(.preferred, ruleID: rule.id) }
+                                Button("Required") { store.setRuleStrength(.required, ruleID: rule.id) }
+                                Button("Preferred") { store.setRuleStrength(.preferred, ruleID: rule.id) }
                             } label: {
                                 Label(rule.strength.name, systemImage: rule.strength == .required ? "exclamationmark.shield.fill" : "sparkles")
                                     .font(.caption.weight(.semibold))
@@ -51,27 +51,27 @@ struct RulesView: View {
 
             Section {
                 Button { showingAddRule = true } label: {
-                    Label("Lag en ny regel", systemImage: "plus.circle.fill").font(.headline)
+                    Label("Create a new rule", systemImage: "plus.circle.fill").font(.headline)
                 }
             }
 
-            Section("Innstillinger") {
+            Section("Settings") {
                 NavigationLink { HouseholdView() } label: {
-                    Label("Familie og deling", systemImage: "person.2")
+                    Label("Family and sharing", systemImage: "person.2")
                 }
-                Button("Vis onboarding på nytt") { showingResetConfirmation = true }
+                Button("Show onboarding again") { showingResetConfirmation = true }
                     .foregroundStyle(AppTheme.warning)
             }
         }
         .scrollContentBackground(.hidden)
         .appBackground()
-        .navigationTitle("Regler")
+        .navigationTitle("Rules")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAddRule) { AddRuleView().environmentObject(store) }
-        .confirmationDialog("Starte onboarding på nytt?", isPresented: $showingResetConfirmation) {
-            Button("Start på nytt", role: .destructive) { store.resetForPreview() }
-            Button("Avbryt", role: .cancel) {}
-        } message: { Text("Reglene og egne retter beholdes, men smakssvar og ukeplan nullstilles.") }
+        .confirmationDialog("Start onboarding again?", isPresented: $showingResetConfirmation) {
+            Button("Start over", role: .destructive) { store.resetForPreview() }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Rules and custom meals are kept, but taste choices and the weekly plan are reset.") }
     }
 
     private func symbol(for constraint: RuleConstraint) -> String {
@@ -102,9 +102,9 @@ private struct AddRuleView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("Hva skal regelen gjøre?")
+                        Text("What should the rule do?")
                             .font(.system(size: 27, weight: .bold, design: .rounded))
-                        Text("Velg en mal og trykk på de grønne ordene for å endre setningen.")
+                        Text("Choose a template and tap the green words to change the sentence.")
                             .foregroundStyle(AppTheme.muted)
                     }
 
@@ -126,19 +126,22 @@ private struct AddRuleView: View {
                     sentenceCard
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Hvor strengt?").font(.headline)
-                        Picker("Styrke", selection: $strength) {
+                        Text("How strict?").font(.headline)
+                        Picker("Strength", selection: $strength) {
                             ForEach(RuleStrength.allCases) { item in Text(item.name).tag(item) }
                         }
                         .pickerStyle(.segmented)
                         Text(strength == .required
-                             ? "Planen viser en konflikt hvis regelen ikke kan følges."
-                             : "Regelen gir høyere prioritet, men kan vike for harde regler.")
+                             ? "The plan shows a conflict if the rule cannot be followed."
+                             : "The rule gets higher priority, but can yield to required rules.")
                             .font(.caption).foregroundStyle(AppTheme.muted)
                     }
                     .padding(18).mealCard()
 
-                    Label("\(matchingMealCount) av \(store.meals.count) retter kan brukes med dette valget", systemImage: "checkmark.circle.fill")
+                    Label(
+                        L10n.string("%ld of %ld meals work with this choice", matchingMealCount, store.meals.count),
+                        systemImage: "checkmark.circle.fill"
+                    )
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(matchingMealCount == 0 ? AppTheme.warning : AppTheme.accent)
 
@@ -146,7 +149,7 @@ private struct AddRuleView: View {
                         store.addRule(previewRule)
                         dismiss()
                     } label: {
-                        Text("Legg til regelen").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
+                        Text("Add rule").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.roundedRectangle(radius: 18))
@@ -155,36 +158,36 @@ private struct AddRuleView: View {
                 .padding(20)
             }
             .appBackground()
-            .navigationTitle("Ny regel")
+            .navigationTitle("New rule")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Avbryt") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
     }
 
     private var sentenceCard: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("REGEL").font(.caption.bold()).tracking(1).foregroundStyle(AppTheme.accent)
+            Text("RULE").font(.caption.bold()).tracking(1).foregroundStyle(AppTheme.accent)
             Group {
                 switch mode {
                 case .requiredDay:
-                    HStack(spacing: 7) { Text("På"); dayMenu; Text("skal vi ha") }
+                    HStack(spacing: 7) { Text("On"); dayMenu; Text("we'll have") }
                     targetMenu
                 case .excludedDay:
-                    HStack(spacing: 7) { Text("På"); dayMenu; Text("skal vi ikke ha") }
+                    HStack(spacing: 7) { Text("On"); dayMenu; Text("we won't have") }
                     targetMenu
                 case .maximumPerWeek:
-                    HStack(spacing: 7) { Text("Maks"); countMenu; targetMenu; Text("per uke") }
+                    HStack(spacing: 7) { Text("Maximum"); countMenu; targetMenu; Text("per week") }
                 case .minimumPerWeek:
-                    HStack(spacing: 7) { Text("Minst"); countMenu; targetMenu; Text("per uke") }
+                    HStack(spacing: 7) { Text("At least"); countMenu; targetMenu; Text("per week") }
                 case .maximumPrepTime:
-                    HStack(spacing: 7) { Text("På"); dayMenu; Text("skal middagen ta") }
-                    HStack(spacing: 7) { Text("maks"); minuteMenu }
+                    HStack(spacing: 7) { Text("On"); dayMenu; Text("dinner should take") }
+                    HStack(spacing: 7) { Text("at most"); minuteMenu }
                 }
             }
             .font(.title3.weight(.semibold))
 
             if mode.usesMatcher {
-                Picker("Mål", selection: $targetKind) {
+                Picker("Target", selection: $targetKind) {
                     ForEach(TargetKind.allCases) { Text($0.name).tag($0) }
                 }.pickerStyle(.segmented)
             }
@@ -216,7 +219,7 @@ private struct AddRuleView: View {
 
     private var minuteMenu: some View {
         Menu { ForEach(Array(stride(from: 15, through: 120, by: 5)), id: \.self) { value in Button("\(value) min") { minutes = value } } } label: {
-            SentenceToken(text: "\(minutes) minutter")
+            SentenceToken(text: L10n.string("%ld minutes", minutes))
         }
     }
 
@@ -263,11 +266,11 @@ private enum RuleMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var shortName: String {
         switch self {
-        case .requiredDay: "Fast dag"
-        case .excludedDay: "Unngå"
-        case .maximumPerWeek: "Maks"
-        case .minimumPerWeek: "Minst"
-        case .maximumPrepTime: "Tid"
+        case .requiredDay: L10n.string("Set day")
+        case .excludedDay: L10n.string("Avoid")
+        case .maximumPerWeek: L10n.string("Maximum")
+        case .minimumPerWeek: L10n.string("Minimum")
+        case .maximumPrepTime: L10n.string("Time")
         }
     }
     var symbol: String {
@@ -283,11 +286,11 @@ private enum RuleMode: String, CaseIterable, Identifiable {
     func generatedTitle(matcher: MealMatcher, meals: [Meal]) -> String {
         let target = matcher.label(meals: meals).lowercased()
         switch self {
-        case .requiredDay: "Fast \(target)"
-        case .excludedDay: "Uten \(target)"
-        case .maximumPerWeek: "Begrens \(target)"
-        case .minimumPerWeek: "Nok \(target)"
-        case .maximumPrepTime: "Rask middag"
+        case .requiredDay: L10n.string("Set %@", target)
+        case .excludedDay: L10n.string("Without %@", target)
+        case .maximumPerWeek: L10n.string("Limit %@", target)
+        case .minimumPerWeek: L10n.string("Enough %@", target)
+        case .maximumPrepTime: L10n.string("Quick dinner")
         }
     }
 }
@@ -295,5 +298,7 @@ private enum RuleMode: String, CaseIterable, Identifiable {
 private enum TargetKind: String, CaseIterable, Identifiable {
     case category, exactMeal
     var id: String { rawValue }
-    var name: String { self == .category ? "Kategori" : "Bestemt rett" }
+    var name: String {
+        self == .category ? L10n.string("Category") : L10n.string("Specific meal")
+    }
 }

@@ -10,9 +10,9 @@ struct CommunityView: View {
             LazyVStack(spacing: 14) {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Fra andre middagsbord")
+                        Text("From other dinner tables")
                             .font(.system(size: 27, weight: .bold, design: .rounded))
-                        Text("Et lokalt testcommunity – klart for en ekstern backend senere.")
+                        Text("A local test community – ready for an external backend later.")
                             .font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
@@ -39,7 +39,7 @@ struct CommunityView: View {
         .sheet(isPresented: $showingPublish) { PublishRecipeView().environmentObject(store).environmentObject(community) }
         .alert("Community", isPresented: Binding(get: { community.errorMessage != nil }, set: { if !$0 { community.errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
-        } message: { Text(community.errorMessage ?? "Ukjent feil") }
+        } message: { Text(community.errorMessage ?? L10n.string("Unknown error")) }
     }
 }
 
@@ -53,10 +53,10 @@ private struct CommunityRecipeCard: View {
             }.frame(height: 150).clipShape(RoundedRectangle(cornerRadius: 20))
             VStack(alignment: .leading, spacing: 6) {
                 Text(recipe.meal.name).font(.title3.bold()).foregroundStyle(AppTheme.ink)
-                Text("av \(recipe.author.displayName)").font(.caption).foregroundStyle(AppTheme.muted)
+                Text(L10n.string("by %@", recipe.author.displayName)).font(.caption).foregroundStyle(AppTheme.muted)
                 HStack {
-                    Label(recipe.ratingCount == 0 ? "Ny" : recipe.averageRating.formatted(.number.precision(.fractionLength(1))), systemImage: "star.fill")
-                    Label("Laget \(recipe.cookedCount) ganger", systemImage: "fork.knife")
+                    Label(recipe.ratingCount == 0 ? L10n.string("New") : recipe.averageRating.formatted(.number.precision(.fractionLength(1))), systemImage: "star.fill")
+                    Label(L10n.string("Cooked %ld times", recipe.cookedCount), systemImage: "fork.knife")
                 }.font(.caption.weight(.semibold)).foregroundStyle(AppTheme.accent)
             }.padding(.horizontal, 4)
         }.padding(12).mealCard()
@@ -83,55 +83,65 @@ private struct CommunityRecipeDetail: View {
                     ZStack { RoundedRectangle(cornerRadius: 28).fill(AppTheme.accentSoft); Text(recipe.meal.emoji).font(.system(size: 105)) }.frame(height: 230)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(recipe.meal.name).font(.system(size: 30, weight: .bold, design: .rounded))
-                        Text("Delt av \(recipe.author.displayName)").foregroundStyle(AppTheme.muted)
-                        Label("\(recipe.averageRating.formatted(.number.precision(.fractionLength(1)))) fra \(recipe.ratingCount) vurderinger", systemImage: "star.fill").foregroundStyle(AppTheme.accent)
+                        Text(L10n.string("Shared by %@", recipe.author.displayName)).foregroundStyle(AppTheme.muted)
+                        Label(
+                            L10n.string(
+                                "%@ from %ld ratings",
+                                recipe.averageRating.formatted(.number.precision(.fractionLength(1))),
+                                recipe.ratingCount
+                            ),
+                            systemImage: "star.fill"
+                        ).foregroundStyle(AppTheme.accent)
                         if let attribution = recipe.attribution, let url = URL(string: attribution) {
-                            Link("Se originalkilde", destination: url).font(.caption)
+                            Link("View original source", destination: url).font(.caption)
                         }
                     }
 
                     Button { add(recipe) } label: {
-                        Label(added ? "Lagt til i mine retter" : "Legg til i mine retter", systemImage: added ? "checkmark" : "plus")
+                        Label(
+                            added ? L10n.string("Added to my meals") : L10n.string("Add to my meals"),
+                            systemImage: added ? "checkmark" : "plus"
+                        )
                             .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
                     }.buttonStyle(.borderedProminent).disabled(added)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Vurder retten").font(.title3.bold())
+                        Text("Rate this meal").font(.title3.bold())
                         HStack {
                             ForEach(1...5, id: \.self) { value in
                                 Button { stars = value } label: { Image(systemName: value <= stars ? "star.fill" : "star").font(.title2).foregroundStyle(.yellow) }
                             }
                         }
-                        Toggle("Ville laget igjen", isOn: $wouldCookAgain)
-                        Button("Send vurdering") {
+                        Toggle("Would cook again", isOn: $wouldCookAgain)
+                        Button("Submit rating") {
                             Task { await community.rate(recipeID: recipe.id, householdID: store.household.id, stars: stars, wouldCookAgain: wouldCookAgain) }
                         }.buttonStyle(.bordered)
                     }.padding(18).mealCard()
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Ingredienser").font(.title3.bold())
+                        Text("Ingredients").font(.title3.bold())
                         ForEach(recipe.meal.ingredients) { item in
                             HStack { Text(item.name); Spacer(); Text(IngredientUnits.display(quantity: item.quantity, unit: item.unit)).foregroundStyle(AppTheme.muted) }
                         }
                     }
-                    Button("Rapporter oppskrift", role: .destructive) { showingReport = true }
+                    Button("Report recipe", role: .destructive) { showingReport = true }
                         .font(.caption)
                 }.padding(16)
             }
         }
-        .appBackground().navigationTitle("Oppskrift").navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("Hvorfor rapporterer du?", isPresented: $showingReport) {
+        .appBackground().navigationTitle("Recipe").navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("Why are you reporting this?", isPresented: $showingReport) {
             ForEach(CommunityReportReason.allCases) { reason in
                 Button(reason.name) {
                     reportReason = reason
                     Task { reportSent = await community.report(recipeID: recipeID, householdID: store.household.id, reason: reason) }
                 }
             }
-            Button("Avbryt", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         }
-        .alert("Takk for meldingen", isPresented: $reportSent) {
+        .alert("Thanks for letting us know", isPresented: $reportSent) {
             Button("OK", role: .cancel) {}
-        } message: { Text("Rapporten er lagret for moderering.") }
+        } message: { Text("The report has been saved for moderation.") }
     }
 
     private func add(_ recipe: CommunityRecipe) {
@@ -157,32 +167,32 @@ private struct PublishRecipeView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Velg en av dine retter") {
+                Section("Choose one of your meals") {
                     if store.customMeals.isEmpty {
-                        Text("Lag eller importer en egen rett først.").foregroundStyle(.secondary)
+                        Text("Create or import your own meal first.").foregroundStyle(.secondary)
                     } else {
-                        Picker("Rett", selection: $selectedMealID) {
-                            Text("Velg…").tag(nil as UUID?)
+                        Picker("Meal", selection: $selectedMealID) {
+                            Text("Choose…").tag(nil as UUID?)
                             ForEach(store.customMeals) { Text("\($0.emoji) \($0.name)").tag($0.id as UUID?) }
                         }
                     }
                 }
-                Section("Før publisering") {
-                    Toggle("Jeg har rett til å dele tekst og eventuelle bilder", isOn: $confirmsRights)
-                    Text("Kilde og kreditering må beholdes. Moderering og rapportering kobles på før et åpent community lanseres.")
+                Section("Before publishing") {
+                    Toggle("I have the right to share the text and any images", isOn: $confirmsRights)
+                    Text("Sources and attribution must be preserved. Moderation and reporting will be enabled before the community opens publicly.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Section {
                     Button {
                         Task { await publish() }
                     } label: {
-                        HStack { Text("Publiser for testfamiliene"); Spacer(); if isPublishing { ProgressView() } }
+                        HStack { Text("Publish for test families"); Spacer(); if isPublishing { ProgressView() } }
                     }.disabled(selectedMealID == nil || !confirmsRights || isPublishing)
                 }
             }
-            .navigationTitle("Del oppskrift")
+            .navigationTitle("Share recipe")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Avbryt") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
     }
 

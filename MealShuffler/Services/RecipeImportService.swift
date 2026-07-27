@@ -20,9 +20,9 @@ enum RecipeImportError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL: "Lenken er ikke gyldig."
-        case .recipeNotFound: "Fant ingen strukturert oppskrift på denne siden."
-        case .unreadableImage: "Kunne ikke lese tekst fra bildet."
+        case .invalidURL: L10n.string("The link is not valid.")
+        case .recipeNotFound: L10n.string("No structured recipe was found on this page.")
+        case .unreadableImage: L10n.string("Could not read text from the image.")
         }
     }
 }
@@ -42,8 +42,8 @@ struct RecipeImportService {
         let ingredients = recipe["recipeIngredient"] as? [String] ?? []
         let instructions = parseInstructions(recipe["recipeInstructions"])
         return ImportedRecipeDraft(
-            name: recipe["name"] as? String ?? "Importert oppskrift",
-            subtitle: recipe["description"] as? String ?? url.host ?? "Fra nettet",
+            name: recipe["name"] as? String ?? L10n.string("Imported recipe"),
+            subtitle: recipe["description"] as? String ?? url.host ?? L10n.string("From the web"),
             emoji: "🍽️",
             prepMinutes: parseDuration(recipe["totalTime"] as? String ?? recipe["prepTime"] as? String),
             servings: parseServings(recipe["recipeYield"]),
@@ -124,7 +124,10 @@ struct RecipeOCRService {
                 continuation.resume(returning: text)
             }
             request.recognitionLevel = .accurate
-            request.recognitionLanguages = ["nb-NO", "nn-NO", "en-US"]
+            let norwegianFirst = Bundle.main.preferredLocalizations.first?.hasPrefix("nb") == true
+            request.recognitionLanguages = norwegianFirst
+                ? ["nb-NO", "nn-NO", "en-US"]
+                : ["en-US", "nb-NO", "nn-NO"]
             request.usesLanguageCorrection = true
             DispatchQueue.global(qos: .userInitiated).async {
                 do { try VNImageRequestHandler(cgImage: cgImage).perform([request]) }
@@ -134,7 +137,7 @@ struct RecipeOCRService {
         guard let title = lines.first, !title.isEmpty else { throw RecipeImportError.unreadableImage }
         return ImportedRecipeDraft(
             name: title,
-            subtitle: "Importert fra bilde – kontroller teksten før lagring",
+            subtitle: L10n.string("Imported from photo – check the text before saving"),
             emoji: "📷",
             ingredientLines: Array(lines.dropFirst()),
             source: .photo
@@ -143,7 +146,16 @@ struct RecipeOCRService {
 }
 
 enum IngredientParser {
-    private static let knownUnits = ["g", "kg", "ml", "dl", "cl", "l", "liter", "ss", "ts", "stk", "boks", "pose", "beger", "glass", "potte"]
+    private static let knownUnits = Set([
+        "g", "kg", "ml", "dl", "cl", "l", "liter", "litre",
+        "ss", "tbsp", "tablespoon", "tablespoons",
+        "ts", "tsp", "teaspoon", "teaspoons",
+        "stk", "pc", "pcs", "piece", "pieces",
+        "boks", "can", "cans", "tin", "tins",
+        "pose", "bag", "bags", "beger", "tub", "tubs",
+        "glass", "jar", "jars", "potte", "pot", "pots",
+        "flaske", "bottle", "bottles"
+    ])
 
     static func parse(lines: [String]) -> [Ingredient] {
         lines.compactMap(parse)
@@ -181,11 +193,13 @@ enum IngredientParser {
 
     private static func inferAisle(from name: String) -> GroceryAisle {
         let value = name.lowercased()
-        if ["kylling", "kjøtt", "laks", "torsk", "fisk"].contains(where: value.contains) { return .meatAndFish }
-        if ["melk", "fløte", "ost", "smør", "yoghurt", "egg"].contains(where: value.contains) { return .dairy }
-        if ["brød", "deig", "lefse", "pita"].contains(where: value.contains) { return .bread }
-        if ["frossen", "erter", "wokgrønnsaker"].contains(where: value.contains) { return .frozen }
-        if ["løk", "potet", "tomat", "salat", "agurk", "sitron", "lime", "gulrot", "brokkoli", "spinat", "kål"].contains(where: value.contains) { return .produce }
+        if ["kylling", "kjøtt", "laks", "torsk", "fisk", "chicken", "meat", "beef", "pork", "salmon", "cod", "fish"].contains(where: value.contains) { return .meatAndFish }
+        if ["melk", "fløte", "ost", "smør", "yoghurt", "egg", "milk", "cream", "cheese", "butter"].contains(where: value.contains) { return .dairy }
+        if ["brød", "deig", "lefse", "pita", "bread", "dough", "tortilla"].contains(where: value.contains) { return .bread }
+        if ["frossen", "erter", "wokgrønnsaker", "frozen", "peas", "stir-fry vegetables"].contains(where: value.contains) { return .frozen }
+        if ["løk", "potet", "tomat", "salat", "agurk", "sitron", "lime", "gulrot", "brokkoli", "spinat", "kål",
+            "onion", "potato", "tomato", "lettuce", "cucumber", "lemon", "carrot", "broccoli", "spinach", "cabbage"
+        ].contains(where: value.contains) { return .produce }
         return .pantry
     }
 }

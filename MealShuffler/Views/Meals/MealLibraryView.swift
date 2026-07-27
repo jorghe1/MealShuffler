@@ -35,11 +35,13 @@ struct MealLibraryView: View {
                         showingEditor = true
                     }
                     .contextMenu {
-                        Button(store.favoriteMealIDs.contains(meal.id) ? "Fjern familiefavoritt" : "Merk som familiefavoritt") {
+                        Button(store.favoriteMealIDs.contains(meal.id)
+                            ? L10n.string("Remove family favorite")
+                            : L10n.string("Mark as family favorite")) {
                             store.toggleFavorite(meal)
                         }
                         if !meal.isBuiltIn {
-                            Button("Slett", role: .destructive) { store.deleteMeal(meal) }
+                            Button("Delete", role: .destructive) { store.deleteMeal(meal) }
                         }
                     }
                 }
@@ -48,9 +50,9 @@ struct MealLibraryView: View {
             .padding(16)
         }
         .appBackground()
-        .navigationTitle("Mine retter")
+        .navigationTitle("My meals")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "Søk i retter")
+        .searchable(text: $searchText, prompt: "Search meals")
         .sheet(isPresented: $showingEditor) {
             RecipeEditorView(existingMeal: editingMeal, draft: draft)
                 .environmentObject(store)
@@ -63,10 +65,10 @@ struct MealLibraryView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showingEditor = true }
             }
         }
-        .alert("Importen stoppet", isPresented: Binding(
+        .alert("Import stopped", isPresented: Binding(
             get: { importError != nil },
             set: { if !$0 { importError = nil } }
-        )) { Button("OK", role: .cancel) {} } message: { Text(importError ?? "Ukjent feil") }
+        )) { Button("OK", role: .cancel) {} } message: { Text(importError ?? L10n.string("Unknown error")) }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task { await importPhoto(item) }
@@ -77,9 +79,9 @@ struct MealLibraryView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Bygg familiens meny")
+                    Text("Build your family's menu")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
-                    Text("En rett kan være komplett eller bare et navn med ingredienser.")
+                    Text("A meal can be complete or simply a name with ingredients.")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.muted)
                 }
@@ -88,14 +90,14 @@ struct MealLibraryView: View {
             }
 
             HStack(spacing: 9) {
-                ActionChip(title: "Ny", symbol: "plus") {
+                ActionChip(title: L10n.string("New"), symbol: "plus") {
                     editingMeal = nil
                     draft = ImportedRecipeDraft()
                     showingEditor = true
                 }
-                ActionChip(title: "Lenke", symbol: "link") { showingLinkImporter = true }
+                ActionChip(title: L10n.string("Link"), symbol: "link") { showingLinkImporter = true }
                 PhotosPicker(selection: $photoItem, matching: .images) {
-                    Label("Bilde", systemImage: "text.viewfinder")
+                    Label("Photo", systemImage: "text.viewfinder")
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
@@ -154,10 +156,10 @@ private struct MealLibraryRow: View {
                 HStack(spacing: 6) {
                     Text(meal.name).font(.headline).lineLimit(1)
                     if !meal.isBuiltIn {
-                        Text("MIN").font(.caption2.bold()).foregroundStyle(AppTheme.accent)
+                        Text("MINE").font(.caption2.bold()).foregroundStyle(AppTheme.accent)
                     }
                 }
-                Text("\(meal.prepMinutes) min · \(meal.defaultServings) porsjoner")
+                Text(L10n.string("%ld min · %ld servings", meal.prepMinutes, meal.defaultServings))
                     .font(.caption).foregroundStyle(AppTheme.muted)
             }
             Spacer()
@@ -183,11 +185,11 @@ private struct RecipeLinkImportView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Oppskriftslenke") {
+                Section("Recipe link") {
                     TextField("https://…", text: $urlText)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.URL)
-                    Text("Vi leser standardformatet som de fleste oppskriftssider bruker. Du får alltid kontrollere innholdet før lagring.")
+                    Text("We read the standard format used by most recipe sites. You can always review the content before saving.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if let errorMessage {
@@ -198,7 +200,7 @@ private struct RecipeLinkImportView: View {
                         Task { await importURL() }
                     } label: {
                         HStack {
-                            Text("Hent oppskrift")
+                            Text("Fetch recipe")
                             Spacer()
                             if isLoading { ProgressView() }
                         }
@@ -206,9 +208,9 @@ private struct RecipeLinkImportView: View {
                     .disabled(isLoading || urlText.isEmpty)
                 }
             }
-            .navigationTitle("Importer fra lenke")
+            .navigationTitle("Import from link")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Avbryt") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
     }
 
@@ -260,36 +262,47 @@ private struct RecipeEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Retten") {
+                Section("Meal") {
                     HStack {
                         TextField("🍽️", text: $emoji).frame(width: 44)
-                        TextField("Navn på retten", text: $name)
+                        TextField("Meal name", text: $name)
                     }
-                    TextField("Kort beskrivelse (valgfritt)", text: $subtitle)
-                    Stepper("Ca. \(prepMinutes) minutter", value: $prepMinutes, in: 5...240, step: 5)
-                    Stepper("\(servings) porsjoner", value: $servings, in: 1...20)
-                    Stepper(estimatedCost == 0 ? "Pris ikke satt" : "Ca. \(estimatedCost) kr totalt", value: $estimatedCost, in: 0...2_000, step: 25)
+                    TextField("Short description (optional)", text: $subtitle)
+                    Stepper(L10n.string("About %ld minutes", prepMinutes), value: $prepMinutes, in: 5...240, step: 5)
+                    Stepper(L10n.string("%ld servings", servings), value: $servings, in: 1...20)
+                    Stepper(
+                        estimatedCost == 0
+                            ? L10n.string("Price not set")
+                            : L10n.string("About NOK %ld total", estimatedCost),
+                        value: $estimatedCost,
+                        in: 0...2_000,
+                        step: 25
+                    )
                 }
 
-                Section("Kategorier") {
+                Section("Categories") {
                     TagCloud(selected: $tags)
                 }
 
-                Section("Ingredienser – én per linje") {
+                Section("Ingredients – one per line") {
                     TextEditor(text: $ingredientText).frame(minHeight: 150)
-                    Text("Eksempel: 500 g kyllingfilet").font(.caption).foregroundStyle(.secondary)
+                    Text("Example: 500 g chicken breast").font(.caption).foregroundStyle(.secondary)
                 }
 
-                Section("Fremgangsmåte – ett steg per linje") {
+                Section("Instructions – one step per line") {
                     TextEditor(text: $instructionText).frame(minHeight: 120)
                 }
             }
-            .navigationTitle(existingMeal == nil ? "Ny rett" : (isEditingBuiltIn ? "Tilpass rett" : "Rediger rett"))
+            .navigationTitle(
+                existingMeal == nil
+                    ? L10n.string("New meal")
+                    : (isEditingBuiltIn ? L10n.string("Customize meal") : L10n.string("Edit meal"))
+            )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Avbryt") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Lagre") { save() }.fontWeight(.semibold).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button("Save") { save() }.fontWeight(.semibold).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }

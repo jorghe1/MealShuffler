@@ -13,5 +13,6 @@ fi
 
 plutil -lint MealShuffler/Info.plist
 plutil -lint MealShuffler/PrivacyInfo.xcprivacy
+python3 ci/validate-localizations.py
 xcodegen generate --spec project.yml
 xcodebuild -project MealShuffler.xcodeproj -scheme MealShuffler -list

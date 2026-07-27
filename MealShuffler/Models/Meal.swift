@@ -7,16 +7,16 @@ enum MealTag: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var name: String {
         switch self {
-        case .fish: "Fisk"
-        case .chicken: "Kylling"
-        case .meat: "Kjøtt"
-        case .vegetarian: "Vegetar"
-        case .pizza: "Pizza"
-        case .pasta: "Pasta"
-        case .soup: "Suppe"
-        case .taco: "Taco"
-        case .quick: "Rask"
-        case .weekend: "Helgemat"
+        case .fish: L10n.string("Fish")
+        case .chicken: L10n.string("Chicken")
+        case .meat: L10n.string("Meat")
+        case .vegetarian: L10n.string("Vegetarian")
+        case .pizza: L10n.string("Pizza")
+        case .pasta: L10n.string("Pasta")
+        case .soup: L10n.string("Soup")
+        case .taco: L10n.string("Taco")
+        case .quick: L10n.string("Quick")
+        case .weekend: L10n.string("Weekend")
         }
     }
 
@@ -43,12 +43,12 @@ enum GroceryAisle: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var name: String {
         switch self {
-        case .produce: "Frukt og grønt"
-        case .bread: "Brød og bakst"
-        case .meatAndFish: "Kjøtt og fisk"
-        case .dairy: "Meieri"
-        case .pantry: "Tørrvarer"
-        case .frozen: "Frysevarer"
+        case .produce: L10n.string("Produce")
+        case .bread: L10n.string("Bread & bakery")
+        case .meatAndFish: L10n.string("Meat & fish")
+        case .dairy: L10n.string("Dairy")
+        case .pantry: L10n.string("Pantry")
+        case .frozen: L10n.string("Frozen")
         }
     }
 }

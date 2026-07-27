@@ -52,15 +52,21 @@ struct MealPlanGenerator {
                     let availableExtras = (contexts[source] ?? DayPlanContext()).extraServings
                     if availableExtras < context.diners {
                         conflicts.append(PlanConflict(
-                            message: "Det lages \(availableExtras) ekstra porsjoner \(source.name.lowercased()), men \(context.diners) skal spise rester \(day.name.lowercased()).",
-                            suggestion: "Øk antall ekstra porsjoner på \(source.name.lowercased())."
+                            message: L10n.string(
+                                "%ld extra servings are made on %@, but %ld people will eat leftovers on %@.",
+                                availableExtras,
+                                source.name.lowercased(),
+                                context.diners,
+                                day.name.lowercased()
+                            ),
+                            suggestion: L10n.string("Increase the number of extra servings on %@.", source.name.lowercased())
                         ))
                     }
                 } else {
                     entries[day] = PlannedMeal(day: day, mealID: nil, isLocked: false, servings: context.diners, kind: .leftovers(sourceDay: context.leftoverSourceDay ?? day))
                     conflicts.append(PlanConflict(
-                        message: "\(day.name) er satt til rester, men ingen tidligere middag kan brukes.",
-                        suggestion: "Velg en tidligere dag og lag ekstra porsjoner."
+                        message: L10n.string("%@ is set to leftovers, but no earlier dinner can be used.", day.name),
+                        suggestion: L10n.string("Choose an earlier day and make extra servings.")
                     ))
                 }
                 continue
@@ -147,8 +153,8 @@ struct MealPlanGenerator {
             .sorted()
         if !fallbackNames.isEmpty {
             conflicts.append(PlanConflict(
-                message: "Reglene krevde retter utenfor favorittene dine: \(fallbackNames.joined(separator: ", ")).",
-                suggestion: "Legg til flere favoritter i disse kategoriene."
+                message: L10n.string("The rules required meals outside your favorites: %@.", fallbackNames.joined(separator: ", ")),
+                suggestion: L10n.string("Add more favorites in these categories.")
             ))
         }
 
@@ -343,36 +349,55 @@ struct MealPlanGenerator {
         var conflicts: [PlanConflict] = []
 
         for day in Weekday.allCases where plan[day] == nil {
-            conflicts.append(PlanConflict(message: "Fant ingen plan for \(day.name.lowercased())."))
+            conflicts.append(PlanConflict(message: L10n.string("No plan was found for %@.", day.name.lowercased())))
         }
 
         for rule in rules {
+            let ruleDescription = rule.summary(meals: allMeals)
             switch rule.constraint {
             case .requiredOn(let day, let matcher):
                 if byDay[day].map(matcher.matches) != true {
                     conflicts.append(PlanConflict(
                         ruleID: rule.id,
-                        message: "«\(rule.title)» kan ikke oppfylles på \(day.name.lowercased()).",
-                        suggestion: (contexts[day] ?? DayPlanContext()).mode == .cook ? "Legg til en passende rett eller gjør regelen myk." : "Endre dagsplanen eller gjør regelen myk."
+                        message: L10n.string("“%@” cannot be satisfied on %@.", ruleDescription, day.name.lowercased()),
+                        suggestion: (contexts[day] ?? DayPlanContext()).mode == .cook
+                            ? L10n.string("Add a suitable meal or make the rule preferred.")
+                            : L10n.string("Change the day plan or make the rule preferred.")
                     ))
                 }
             case .excludedOn(let day, let matcher):
                 if byDay[day].map(matcher.matches) == true {
-                    conflicts.append(PlanConflict(ruleID: rule.id, message: "«\(rule.title)» brytes på \(day.name.lowercased()).", suggestion: "Lås opp dagen eller gjør regelen myk."))
+                    conflicts.append(PlanConflict(
+                        ruleID: rule.id,
+                        message: L10n.string("“%@” is broken on %@.", ruleDescription, day.name.lowercased()),
+                        suggestion: L10n.string("Unlock the day or make the rule preferred.")
+                    ))
                 }
             case .maximumPerWeek(let matcher, let count):
                 let actual = byDay.values.filter(matcher.matches).count
                 if actual > count {
-                    conflicts.append(PlanConflict(ruleID: rule.id, message: "«\(rule.title)» tillater \(count), men planen trenger \(actual).", suggestion: "Øk grensen eller bytt en låst middag."))
+                    conflicts.append(PlanConflict(
+                        ruleID: rule.id,
+                        message: L10n.string("“%@” allows %ld, but the plan needs %ld.", ruleDescription, count, actual),
+                        suggestion: L10n.string("Raise the limit or replace a locked dinner.")
+                    ))
                 }
             case .minimumPerWeek(let matcher, let count):
                 let actual = byDay.values.filter(matcher.matches).count
                 if actual < count {
-                    conflicts.append(PlanConflict(ruleID: rule.id, message: "«\(rule.title)» krever \(count), men bare \(actual) er mulig.", suggestion: "Legg til flere passende retter."))
+                    conflicts.append(PlanConflict(
+                        ruleID: rule.id,
+                        message: L10n.string("“%@” requires %ld, but only %ld are possible.", ruleDescription, count, actual),
+                        suggestion: L10n.string("Add more suitable meals.")
+                    ))
                 }
             case .maximumPrepTime(let day, let minutes):
                 if let meal = byDay[day], meal.prepMinutes > minutes {
-                    conflicts.append(PlanConflict(ruleID: rule.id, message: "«\(rule.title)» brytes: \(meal.name) tar ca. \(meal.prepMinutes) min.", suggestion: "Velg «Noe raskere» på middagen."))
+                    conflicts.append(PlanConflict(
+                        ruleID: rule.id,
+                        message: L10n.string("“%@” is broken: %@ takes about %ld min.", ruleDescription, meal.name, meal.prepMinutes),
+                        suggestion: L10n.string("Choose “Something quicker” for the dinner.")
+                    ))
                 }
             }
         }

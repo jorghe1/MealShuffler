@@ -41,7 +41,7 @@ struct WeekPlanView: View {
                 }
 
                 Button { withAnimation(.snappy) { store.shuffleAll() } } label: {
-                    Label("Shuffle resten", systemImage: "shuffle")
+                    Label("Shuffle the rest", systemImage: "shuffle")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                 }
                 .buttonStyle(.borderedProminent)
@@ -51,7 +51,7 @@ struct WeekPlanView: View {
             .padding(.horizontal, 16)
         }
         .appBackground()
-        .navigationTitle("Denne uken")
+        .navigationTitle("This week")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -72,8 +72,8 @@ struct WeekPlanView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("MIDDAGSPLAN").font(.caption.bold()).foregroundStyle(AppTheme.accent)
-                    Text("God uke, god appetitt")
+                    Text("MEAL PLAN").font(.caption.bold()).foregroundStyle(AppTheme.accent)
+                    Text("A good week, a great appetite")
                         .font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(AppTheme.ink)
                 }
                 Spacer()
@@ -81,9 +81,9 @@ struct WeekPlanView: View {
                     Image(systemName: "shuffle").font(.title2.bold()).frame(width: 54, height: 54)
                         .background(AppTheme.accent).foregroundStyle(.white).clipShape(Circle())
                         .shadow(color: AppTheme.accent.opacity(0.25), radius: 10, y: 5)
-                }.accessibilityLabel("Shuffle uke")
+                }.accessibilityLabel("Shuffle week")
             }
-            Text("Trykk på ••• for raskere, billigere, favoritter eller bytte av dag.")
+            Text("Tap ••• for quicker, cheaper or favorite meals, or to swap days.")
                 .font(.subheadline).foregroundStyle(AppTheme.muted)
         }.padding(.vertical, 14)
     }
@@ -96,14 +96,19 @@ struct WeekPlanView: View {
                         Text(conflict.message).font(.caption)
                         if let suggestion = conflict.suggestion { Text(suggestion).font(.caption2).foregroundStyle(AppTheme.muted) }
                         if let ruleID = conflict.ruleID {
-                            Button("Gjør regelen myk") { store.setRuleStrength(.preferred, ruleID: ruleID) }
+                            Button("Make rule preferred") { store.setRuleStrength(.preferred, ruleID: ruleID) }
                                 .font(.caption.weight(.semibold))
                         }
                     }
                 }
             }.padding(.top, 8)
         } label: {
-            Label("\(store.conflicts.count) regelkonflikt\(store.conflicts.count == 1 ? "" : "er")", systemImage: "exclamationmark.triangle.fill")
+            Label(
+                store.conflicts.count == 1
+                    ? L10n.string("%ld rule conflict", store.conflicts.count)
+                    : L10n.string("%ld rule conflicts", store.conflicts.count),
+                systemImage: "exclamationmark.triangle.fill"
+            )
                 .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.warning)
         }
         .padding(14).background(AppTheme.warning.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 16))
@@ -158,25 +163,30 @@ private struct DayPlanCard: View {
 
     private var menu: some View {
         Menu {
-            Section("Bytt middag") {
+            Section("Replace dinner") {
                 ForEach(MealSwapIntent.allCases) { intent in
                     Button { shuffle(intent) } label: { Label(intent.name, systemImage: intent.symbol) }
                 }
             }
-            Section("Flytt") {
-                Menu("Bytt med en annen dag") {
+            Section("Move") {
+                Menu("Swap with another day") {
                     ForEach(Weekday.allCases.filter { $0 != day }) { other in Button(other.name) { swapWith(other) } }
                 }
             }
             if meal != nil {
                 Section {
-                    Button(action: markCooked) { Label("Vi laget denne", systemImage: "checkmark.seal") }
-                    Button(action: markSkipped) { Label("Ikke aktuell i dag", systemImage: "forward") }
-                    Button(action: toggleFavorite) { Label(isFavorite ? "Fjern familiefavoritt" : "Familiefavoritt", systemImage: isFavorite ? "heart.slash" : "heart") }
-                    Button(role: .destructive, action: snooze) { Label("Ikke igjen på en stund", systemImage: "calendar.badge.minus") }
+                    Button(action: markCooked) { Label("We cooked this", systemImage: "checkmark.seal") }
+                    Button(action: markSkipped) { Label("Not for today", systemImage: "forward") }
+                    Button(action: toggleFavorite) {
+                        Label(
+                            isFavorite ? L10n.string("Remove family favorite") : L10n.string("Family favorite"),
+                            systemImage: isFavorite ? "heart.slash" : "heart"
+                        )
+                    }
+                    Button(role: .destructive, action: snooze) { Label("Not again for a while", systemImage: "calendar.badge.minus") }
                 }
             }
-            Button(action: editContext) { Label("Planlegg denne dagen", systemImage: "person.2") }
+            Button(action: editContext) { Label("Plan this day", systemImage: "person.2") }
         } label: {
             Image(systemName: "ellipsis.circle").font(.title3).frame(width: 36, height: 36).foregroundStyle(AppTheme.muted)
         }
@@ -187,13 +197,21 @@ private struct DayPlanCard: View {
         switch item.kind { case .away: "🏃"; case .takeaway: "🥡"; case .leftovers: "♻️"; case .meal: "🍽️" }
     }
     private var cardTitle: String {
-        if case .leftovers = item.kind { return meal.map { "Rester: \($0.name)" } ?? "Rester" }
+        if case .leftovers = item.kind {
+            return meal.map { L10n.string("Leftovers: %@", $0.name) } ?? L10n.string("Leftovers")
+        }
         if let meal { return meal.name }
-        switch item.kind { case .away: "Ingen middag hjemme"; case .takeaway: "Takeaway"; default: "Ikke planlagt" }
+        switch item.kind {
+        case .away: L10n.string("No dinner at home")
+        case .takeaway: L10n.string("Takeaway")
+        default: L10n.string("Not planned")
+        }
     }
     private var cardMetadata: String {
-        if let meal { return "\(meal.prepMinutes) min · \(item.servings) porsjoner" }
-        return item.kind == .away ? "Fridag" : "\(item.servings) personer"
+        if let meal { return L10n.string("%ld min · %ld servings", meal.prepMinutes, item.servings) }
+        return item.kind == .away
+            ? L10n.string("Day off")
+            : L10n.string("%ld people", item.servings)
     }
 }
 
@@ -213,27 +231,33 @@ private struct DayContextEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Hva skjer \(day.name.lowercased())?") {
+                Section(L10n.string("What's happening on %@?", day.name.lowercased())) {
                     Picker("Plan", selection: $context.mode) {
                         ForEach(DayDinnerMode.allCases) { Label($0.name, systemImage: symbol($0)).tag($0) }
                     }
-                    Stepper("\(context.diners) som spiser", value: $context.diners, in: 1...20)
+                    Stepper(L10n.string("%ld people eating", context.diners), value: $context.diners, in: 1...20)
                 }
                 if context.mode == .cook {
-                    Section("Matlaging") {
-                        Stepper(context.extraServings == 0 ? "Ingen ekstra porsjoner" : "Lag \(context.extraServings) ekstra", value: $context.extraServings, in: 0...12)
-                        Toggle("Tidsgrense", isOn: $hasTimeLimit)
+                    Section("Cooking") {
+                        Stepper(
+                            context.extraServings == 0
+                                ? L10n.string("No extra servings")
+                                : L10n.string("Make %ld extra", context.extraServings),
+                            value: $context.extraServings,
+                            in: 0...12
+                        )
+                        Toggle("Time limit", isOn: $hasTimeLimit)
                         if hasTimeLimit {
-                            Stepper("Maks \(context.maximumPrepMinutes ?? 30) minutter", value: Binding(
+                            Stepper(L10n.string("Maximum %ld minutes", context.maximumPrepMinutes ?? 30), value: Binding(
                                 get: { context.maximumPrepMinutes ?? 30 }, set: { context.maximumPrepMinutes = $0 }
                             ), in: 10...120, step: 5)
                         }
                     }
                 }
                 if context.mode == .leftovers {
-                    Section("Rester fra") {
-                        Picker("Tidligere dag", selection: $context.leftoverSourceDay) {
-                            Text("Finn automatisk").tag(nil as Weekday?)
+                    Section("Leftovers from") {
+                        Picker("Earlier day", selection: $context.leftoverSourceDay) {
+                            Text("Choose automatically").tag(nil as Weekday?)
                             ForEach(daysBefore) { Text($0.name).tag($0 as Weekday?) }
                         }
                     }
@@ -242,9 +266,9 @@ private struct DayContextEditor: View {
             .navigationTitle(day.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Avbryt") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Lagre") {
+                    Button("Save") {
                         if !hasTimeLimit { context.maximumPrepMinutes = nil }
                         save(context); dismiss()
                     }.fontWeight(.semibold)
@@ -273,11 +297,11 @@ private struct MealDetailView: View {
                     VStack(alignment: .leading, spacing: 7) {
                         Text(meal.name).font(.system(size: 30, weight: .bold, design: .rounded))
                         Text(meal.subtitle).foregroundStyle(AppTheme.muted)
-                        Label("\(meal.prepMinutes) minutter · \(meal.defaultServings) porsjoner", systemImage: "clock")
+                        Label(L10n.string("%ld minutes · %ld servings", meal.prepMinutes, meal.defaultServings), systemImage: "clock")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
                     }
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Ingredienser").font(.title3.bold())
+                        Text("Ingredients").font(.title3.bold())
                         ForEach(meal.ingredients) { ingredient in
                             HStack { Text(ingredient.name); Spacer(); Text(IngredientUnits.display(quantity: ingredient.quantity, unit: ingredient.unit)).foregroundStyle(AppTheme.muted) }
                             Divider()
@@ -285,7 +309,7 @@ private struct MealDetailView: View {
                     }
                     if !meal.instructions.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Fremgangsmåte").font(.title3.bold())
+                            Text("Instructions").font(.title3.bold())
                             ForEach(Array(meal.instructions.enumerated()), id: \.offset) { index, instruction in
                                 HStack(alignment: .top) { Text("\(index + 1)").font(.caption.bold()).frame(width: 26, height: 26).background(AppTheme.accentSoft).clipShape(Circle()); Text(instruction) }
                             }
@@ -293,7 +317,7 @@ private struct MealDetailView: View {
                     }
                 }.padding(20)
             }.appBackground()
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Ferdig") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
         }
     }
 }

@@ -1,0 +1,91 @@
+# Meal Shuffler – native SwiftUI to simulator and TestFlight.
+#
+# This reuses the App Store Connect integration and signing variable group from
+# the Fiks project. See docs/IPHONE_TESTING.md for the one-time Apple setup.
+
+workflows:
+  ios-smoke:
+    name: iOS · Simulator smoke test
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: 26.4
+    scripts:
+      - name: Generate the Xcode project
+        script: bash ci/bootstrap-ios.sh
+      - name: Run unit tests
+        script: bash ci/test-ios.sh
+    artifacts:
+      - build/*.xcresult
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult
+
+  ios-testflight:
+    name: iOS · TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      app_store_connect: fiks_app_store_connect
+
+    environment:
+      xcode: 26.4
+      groups:
+        - ios_signing
+      vars:
+        BUNDLE_ID: "no.mealshuffler.app"
+        XCODE_PROJECT: "MealShuffler.xcodeproj"
+        XCODE_SCHEME: "MealShuffler"
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: "ios-*"
+          include: true
+      cancel_previous_builds: true
+
+    scripts:
+      - name: Generate and validate the Xcode project
+        script: bash ci/bootstrap-ios.sh
+
+      - name: Run unit tests before signing
+        script: bash ci/test-ios.sh
+
+      - name: Set monotonic build number
+        script: agvtool new-version -all "$PROJECT_BUILD_NUMBER"
+
+      - name: Fetch or create App Store signing files
+        script: |
+          echo "$CERTIFICATE_PRIVATE_KEY" | openssl base64 -d -A > /tmp/cert_key.pem
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key=@file:/tmp/cert_key.pem \
+            --create
+
+      - name: Add signing certificate to the build keychain
+        script: |
+          keychain initialize
+          keychain add-certificates
+
+      - name: Apply provisioning profile
+        script: xcode-project use-profiles
+
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - build/*.xcresult
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        # The IPA is still uploaded and appears under TestFlight. Keep beta
+        # review off for the first internal-device rounds.
+        submit_to_testflight: false
+        submit_to_app_store: false

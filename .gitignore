@@ -1,0 +1,14 @@
+.DS_Store
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.build/
+build/
+*.ipa
+*.dSYM
+*.xcarchive
+*.mobileprovision
+*.p8
+*.p12
+GoogleService-Info.plist
+MealShuffler.xcodeproj/

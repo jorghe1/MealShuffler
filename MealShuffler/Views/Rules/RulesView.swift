@@ -285,7 +285,7 @@ private enum RuleMode: String, CaseIterable, Identifiable {
     var usesMatcher: Bool { self != .maximumPrepTime }
     func generatedTitle(matcher: MealMatcher, meals: [Meal]) -> String {
         let target = matcher.label(meals: meals).lowercased()
-        switch self {
+        return switch self {
         case .requiredDay: L10n.string("Set %@", target)
         case .excludedDay: L10n.string("Without %@", target)
         case .maximumPerWeek: L10n.string("Limit %@", target)

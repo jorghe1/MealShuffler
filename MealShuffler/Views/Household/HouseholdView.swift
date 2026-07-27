@@ -23,7 +23,7 @@ struct HouseholdView: View {
                 Button { showingAddMember = true } label: { Label("Add member", systemImage: "person.badge.plus") }
             }
 
-            Section("Share") {
+            Section {
                 ShareLink(item: store.household.inviteURL) {
                     Label("Share invitation", systemImage: "link")
                 }
@@ -31,6 +31,8 @@ struct HouseholdView: View {
                     Label("Share this week's meal plan", systemImage: "square.and.arrow.up")
                 }
                 LabeledContent("Invite code", value: store.household.inviteCode)
+            } header: {
+                Text("Share")
             } footer: {
                 Text("The MVP creates a stable invitation identity locally. Sync can later connect to a repository or backend without changing the household model.")
             }

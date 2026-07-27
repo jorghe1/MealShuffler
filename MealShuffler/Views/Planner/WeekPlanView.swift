@@ -194,14 +194,19 @@ private struct DayPlanCard: View {
 
     private var cardEmoji: String {
         if let meal { return meal.emoji }
-        switch item.kind { case .away: "🏃"; case .takeaway: "🥡"; case .leftovers: "♻️"; case .meal: "🍽️" }
+        return switch item.kind {
+        case .away: "🏃"
+        case .takeaway: "🥡"
+        case .leftovers: "♻️"
+        case .meal: "🍽️"
+        }
     }
     private var cardTitle: String {
         if case .leftovers = item.kind {
             return meal.map { L10n.string("Leftovers: %@", $0.name) } ?? L10n.string("Leftovers")
         }
         if let meal { return meal.name }
-        switch item.kind {
+        return switch item.kind {
         case .away: L10n.string("No dinner at home")
         case .takeaway: L10n.string("Takeaway")
         default: L10n.string("Not planned")

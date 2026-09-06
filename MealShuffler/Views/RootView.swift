@@ -14,7 +14,6 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.35), value: store.hasCompletedOnboarding)
-        .preferredColorScheme(.light)
         .onOpenURL(perform: store.handleIncomingURL)
         .alert("Family invitation", isPresented: Binding(
             get: { store.inviteNotice != nil },
@@ -40,8 +39,14 @@ private struct MainTabView: View {
             NavigationStack { RulesView() }
                 .tabItem { Label("Rules", systemImage: "slider.horizontal.3") }
 
-            NavigationStack { CommunityView() }
-                .tabItem { Label("Explore", systemImage: "person.3") }
+            if FeatureFlags.communityEnabled {
+                NavigationStack { CommunityView() }
+                    .tabItem { Label("Explore", systemImage: "person.3") }
+            } else {
+                // The slot Community occupied, given to the screen that actually works.
+                NavigationStack { HouseholdView() }
+                    .tabItem { Label("Family", systemImage: "person.2") }
+            }
         }
     }
 }

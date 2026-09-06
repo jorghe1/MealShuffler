@@ -45,13 +45,13 @@ private struct WelcomeStepView: View {
                     .fill(AppTheme.accentSoft)
                     .frame(width: 112, height: 112)
                 Image(systemName: "shuffle")
-                    .font(.system(size: 44, weight: .semibold))
+                    .font(.system(.largeTitle, design: .default, weight: .semibold))
                     .foregroundStyle(AppTheme.accent)
             }
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Dinner plans itself.")
-                    .font(.system(size: 42, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .foregroundStyle(AppTheme.ink)
                 Text("Tell us what you like and which rules matter. Then we'll create a thoughtful week in one tap.")
                     .font(.title3)
@@ -86,7 +86,7 @@ private struct TasteSwipeView: View {
         VStack(spacing: 18) {
             VStack(spacing: 6) {
                 Text("What do you like?")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(.system(.title, design: .rounded, weight: .bold))
                     .foregroundStyle(AppTheme.ink)
                 Text("Swipe right or left")
                     .foregroundStyle(AppTheme.muted)
@@ -153,13 +153,14 @@ private struct TasteCard: View {
         VStack(spacing: 0) {
             ZStack {
                 LinearGradient(
-                    colors: [AppTheme.accentSoft, Color.white],
+                    colors: [AppTheme.accentSoft, AppTheme.surface],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
                 Text(meal.emoji)
                     .font(.system(size: 112))
                     .shadow(color: .black.opacity(0.08), radius: 12, y: 8)
+                    .accessibilityHidden(true)
 
                 if abs(offset.width) > 35 {
                     Text(offset.width > 0 ? L10n.string("LIKE") : L10n.string("NO THANKS"))
@@ -180,7 +181,7 @@ private struct TasteCard: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(meal.name)
-                    .font(.system(size: 27, weight: .bold, design: .rounded))
+                    .font(.system(.title, design: .rounded, weight: .bold))
                     .foregroundStyle(AppTheme.ink)
                 Text(meal.subtitle)
                     .font(.body)
@@ -192,9 +193,11 @@ private struct TasteCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(22)
-            .background(.white)
+            .background(AppTheme.surface)
+            .accessibilityElement(children: .combine)
         }
-        .frame(height: 430)
+        // Was a fixed 430pt, which clipped its own text at larger accessibility sizes.
+        .frame(minHeight: 380)
         .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .shadow(color: AppTheme.ink.opacity(0.13), radius: 22, y: 12)
     }
@@ -212,7 +215,7 @@ private struct ChoiceButton: View {
                 Image(systemName: symbol)
                     .font(.title2.bold())
                     .frame(width: 62, height: 62)
-                    .background(.white)
+                    .background(AppTheme.raised)
                     .clipShape(Circle())
                     .shadow(color: AppTheme.ink.opacity(0.1), radius: 10, y: 5)
                 Text(label)
@@ -231,7 +234,7 @@ private struct StarterRulesStepView: View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("A few rules to get started")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .foregroundStyle(AppTheme.ink)
                 Text("Turn off anything that doesn't fit. You can create much more detailed rules later.")
                     .foregroundStyle(AppTheme.muted)
@@ -274,9 +277,10 @@ private struct StarterRulesStepView: View {
                         Spacer()
                         Toggle("", isOn: Binding(
                             get: { store.rules.first(where: { $0.id == rule.id })?.isEnabled ?? false },
-                            set: { _ in store.toggleRule(rule) }
+                            set: { store.setRule(rule, enabled: $0) }
                         ))
                         .labelsHidden()
+                        .accessibilityLabel(rule.title)
                     }
                     .padding(16)
                     .mealCard()

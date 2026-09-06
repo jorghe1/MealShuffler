@@ -53,7 +53,17 @@ final class AppStore: ObservableObject {
     /// sync can tell "deleted here" apart from "never existed here".
     var activeCustomMeals: [Meal] { customMeals.filter { !$0.isDeleted } }
 
-    var meals: [Meal] { SampleMeals.all + activeCustomMeals }
+    /// Built-ins, with any customised version substituted in, followed by the user's own.
+    ///
+    /// Editing a built-in used to save a copy under a fresh id and leave the original in
+    /// place, so the library showed two identical rows and the planner could schedule either.
+    /// Keeping the id makes the edit an override; deleting it restores the original.
+    var meals: [Meal] {
+        let overrides = Dictionary(activeCustomMeals.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
+        let builtInIDs = Set(SampleMeals.all.map(\.id))
+        return SampleMeals.all.map { overrides[$0.id] ?? $0 }
+            + activeCustomMeals.filter { !builtInIDs.contains($0.id) }
+    }
 
     convenience init(defaults: UserDefaults = .standard, random: RandomSource = SystemRandomSource()) {
         self.init(repository: UserDefaultsStateRepository(defaults: defaults), random: random)
@@ -391,7 +401,15 @@ final class AppStore: ObservableObject {
 
     func toggleRule(_ rule: PlanningRule) {
         guard let index = rules.firstIndex(where: { $0.id == rule.id }) else { return }
-        rules[index].isEnabled.toggle()
+        setRule(rule, enabled: !rules[index].isEnabled)
+    }
+
+    /// Takes the value rather than flipping the current one, so a duplicate send from a
+    /// SwiftUI toggle cannot leave the switch and the model disagreeing.
+    func setRule(_ rule: PlanningRule, enabled: Bool) {
+        guard let index = rules.firstIndex(where: { $0.id == rule.id }),
+              rules[index].isEnabled != enabled else { return }
+        rules[index].isEnabled = enabled
         regenerate(days: rules[index].constraint.affectedDays)
     }
 

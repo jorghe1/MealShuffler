@@ -6,12 +6,27 @@ struct MealLibraryView: View {
     /// (or a ChainedRecipeExtractor keeping this one as the offline fast path).
     private static let imageExtractor: any RecipeExtractor = RecipeOCRService()
 
+    /// One value drives what is presented.
+    ///
+    /// Four booleans and two payload properties used to coordinate two sheets, and handing
+    /// off from the link importer to the editor needed a 250ms timer to let the first sheet
+    /// finish dismissing -- timing-dependent, and wrong on a slow device or with reduced
+    /// motion. Changing the item swaps the sheet directly.
+    private enum LibrarySheet: Identifiable {
+        case editor(existing: Meal?, draft: ImportedRecipeDraft)
+        case linkImport
+
+        var id: String {
+            switch self {
+            case .editor(let existing, _): "editor-\(existing?.id.uuidString ?? "new")"
+            case .linkImport: "link"
+            }
+        }
+    }
+
     @EnvironmentObject private var store: AppStore
     @State private var searchText = ""
-    @State private var showingEditor = false
-    @State private var showingLinkImporter = false
-    @State private var editingMeal: Meal?
-    @State private var draft = ImportedRecipeDraft()
+    @State private var sheet: LibrarySheet?
     @State private var photoItem: PhotosPickerItem?
     @State private var importError: String?
     @State private var isImportingPhoto = false
@@ -28,16 +43,13 @@ struct MealLibraryView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 actionCard
+                if filteredMeals.isEmpty && !searchText.isEmpty { emptyState }
                 ForEach(filteredMeals) { meal in
                     MealLibraryRow(meal: meal, isFavorite: store.favoriteMealIDs.contains(meal.id)) {
                         store.toggleFavorite(meal)
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        editingMeal = meal
-                        draft = ImportedRecipeDraft()
-                        showingEditor = true
-                    }
+                    .onTapGesture { sheet = .editor(existing: meal, draft: ImportedRecipeDraft()) }
                     .contextMenu {
                         Button(store.favoriteMealIDs.contains(meal.id)
                             ? L10n.string("Remove family favorite")
@@ -57,16 +69,15 @@ struct MealLibraryView: View {
         .navigationTitle("My meals")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search meals")
-        .sheet(isPresented: $showingEditor) {
-            RecipeEditorView(existingMeal: editingMeal, draft: draft)
-                .environmentObject(store)
-        }
-        .sheet(isPresented: $showingLinkImporter) {
-            RecipeLinkImportView { imported in
-                showingLinkImporter = false
-                editingMeal = nil
-                draft = imported
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { showingEditor = true }
+        .sheet(item: $sheet) { presented in
+            switch presented {
+            case .editor(let existing, let draft):
+                RecipeEditorView(existingMeal: existing, draft: draft)
+                    .environmentObject(store)
+            case .linkImport:
+                RecipeLinkImportView { imported in
+                    sheet = .editor(existing: nil, draft: imported)
+                }
             }
         }
         .alert("Import stopped", isPresented: Binding(
@@ -79,12 +90,25 @@ struct MealLibraryView: View {
         }
     }
 
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").font(.system(.largeTitle)).foregroundStyle(AppTheme.accent)
+            Text(L10n.string("No meals match “%@”", searchText))
+                .font(.headline).foregroundStyle(AppTheme.ink).multilineTextAlignment(.center)
+            Text("Try another word, or add it as a new meal.")
+                .font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(30)
+        .mealCard()
+    }
+
     private var actionCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Build your family's menu")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(.title2, design: .rounded, weight: .bold))
                     Text("A meal can be complete or simply a name with ingredients.")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.muted)
@@ -95,11 +119,9 @@ struct MealLibraryView: View {
 
             HStack(spacing: 9) {
                 ActionChip(title: L10n.string("New"), symbol: "plus") {
-                    editingMeal = nil
-                    draft = ImportedRecipeDraft()
-                    showingEditor = true
+                    sheet = .editor(existing: nil, draft: ImportedRecipeDraft())
                 }
-                ActionChip(title: L10n.string("Link"), symbol: "link") { showingLinkImporter = true }
+                ActionChip(title: L10n.string("Link"), symbol: "link") { sheet = .linkImport }
                 PhotosPicker(selection: $photoItem, matching: .images) {
                     Label("Photo", systemImage: "text.viewfinder")
                         .font(.subheadline.weight(.semibold))
@@ -118,10 +140,10 @@ struct MealLibraryView: View {
         isImportingPhoto = true
         defer { isImportingPhoto = false; photoItem = nil }
         do {
-            guard let data = try await item.loadTransferable(type: Data.self) else { throw RecipeImportError.unreadableImage }
-            draft = try await Self.imageExtractor.extract(fromImage: data)
-            editingMeal = nil
-            showingEditor = true
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                throw RecipeImportError.unreadableImage
+            }
+            sheet = .editor(existing: nil, draft: try await Self.imageExtractor.extract(fromImage: data))
         } catch {
             importError = error.localizedDescription
         }
@@ -156,6 +178,7 @@ private struct MealLibraryRow: View {
                 .frame(width: 58, height: 58)
                 .background(AppTheme.accentSoft.opacity(0.7))
                 .clipShape(RoundedRectangle(cornerRadius: 16))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(meal.name).font(.headline).lineLimit(1)
@@ -169,10 +192,13 @@ private struct MealLibraryRow: View {
             Spacer()
             Button(action: toggleFavorite) {
                 Image(systemName: isFavorite ? "heart.fill" : "heart")
-                    .foregroundStyle(isFavorite ? .red : AppTheme.muted)
+                    .foregroundStyle(isFavorite ? AppTheme.destructive : AppTheme.muted)
                     .frame(width: 38, height: 38)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(
+                isFavorite ? L10n.string("Remove family favorite") : L10n.string("Mark as family favorite")
+            )
         }
         .padding(12)
         .mealCard()
@@ -317,7 +343,9 @@ private struct RecipeEditorView: View {
     private func save() {
         let lines = ingredientText.components(separatedBy: .newlines)
         let meal = Meal(
-            id: isEditingBuiltIn ? UUID() : (existingMeal?.id ?? UUID()),
+            // Keeps the id when customising a built-in, so the edit overrides the original
+            // instead of adding a second copy of it to the library.
+            id: existingMeal?.id ?? UUID(),
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             subtitle: subtitle,
             emoji: emoji.isEmpty ? "🍽️" : emoji,
@@ -354,7 +382,7 @@ private struct TagCloud: View {
                         .padding(.horizontal, 10).padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
                         .background(selected.contains(tag) ? AppTheme.accent : Color.secondary.opacity(0.1))
-                        .foregroundStyle(selected.contains(tag) ? .white : AppTheme.ink)
+                        .foregroundStyle(selected.contains(tag) ? AppTheme.onAccent : AppTheme.ink)
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)

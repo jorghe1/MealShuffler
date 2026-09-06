@@ -11,7 +11,7 @@ struct CommunityView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("From other dinner tables")
-                            .font(.system(size: 27, weight: .bold, design: .rounded))
+                            .font(.system(.title, design: .rounded, weight: .bold))
                         Text("A local test community – ready for an external backend later.")
                             .font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
@@ -48,7 +48,7 @@ private struct CommunityRecipeCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             ZStack {
-                LinearGradient(colors: [AppTheme.accentSoft, .white], startPoint: .topLeading, endPoint: .bottomTrailing)
+                LinearGradient(colors: [AppTheme.accentSoft, AppTheme.surface], startPoint: .topLeading, endPoint: .bottomTrailing)
                 Text(recipe.meal.emoji).font(.system(size: 72))
             }.frame(height: 150).clipShape(RoundedRectangle(cornerRadius: 20))
             VStack(alignment: .leading, spacing: 6) {
@@ -82,7 +82,7 @@ private struct CommunityRecipeDetail: View {
                 VStack(alignment: .leading, spacing: 20) {
                     ZStack { RoundedRectangle(cornerRadius: 28).fill(AppTheme.accentSoft); Text(recipe.meal.emoji).font(.system(size: 105)) }.frame(height: 230)
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(recipe.meal.name).font(.system(size: 30, weight: .bold, design: .rounded))
+                        Text(recipe.meal.name).font(.system(.title, design: .rounded, weight: .bold))
                         Text(L10n.string("Shared by %@", recipe.author.displayName)).foregroundStyle(AppTheme.muted)
                         Label(
                             L10n.string(

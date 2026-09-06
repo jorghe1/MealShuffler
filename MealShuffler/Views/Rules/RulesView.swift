@@ -10,7 +10,7 @@ struct RulesView: View {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Rules written as plain sentences")
-                        .font(.system(size: 25, weight: .bold, design: .rounded))
+                        .font(.system(.title2, design: .rounded, weight: .bold))
                         .foregroundStyle(AppTheme.ink)
                     Text("Required rules must be followed. Preferred rules influence the choice, but never block an otherwise good week.")
                         .font(.subheadline).foregroundStyle(AppTheme.muted).lineSpacing(3)
@@ -41,8 +41,10 @@ struct RulesView: View {
                         Spacer()
                         Toggle("", isOn: Binding(
                             get: { store.rules.first(where: { $0.id == rule.id })?.isEnabled ?? false },
-                            set: { _ in store.toggleRule(rule) }
-                        )).labelsHidden()
+                            set: { store.setRule(rule, enabled: $0) }
+                        ))
+                        .labelsHidden()
+                        .accessibilityLabel(rule.summary(meals: store.meals))
                     }
                     .padding(.vertical, 5)
                 }
@@ -75,8 +77,11 @@ struct RulesView: View {
                         }
                     }
                 }
-                NavigationLink { HouseholdView() } label: {
-                    Label("Family and sharing", systemImage: "person.2")
+                // Family has its own tab unless Community is occupying that slot.
+                if FeatureFlags.communityEnabled {
+                    NavigationLink { HouseholdView() } label: {
+                        Label("Family and sharing", systemImage: "person.2")
+                    }
                 }
                 Button("Show onboarding again") { showingResetConfirmation = true }
                     .foregroundStyle(AppTheme.warning)
@@ -122,7 +127,7 @@ private struct AddRuleView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 7) {
                         Text("What should the rule do?")
-                            .font(.system(size: 27, weight: .bold, design: .rounded))
+                            .font(.system(.title, design: .rounded, weight: .bold))
                         Text("Choose a template and tap the green words to change the sentence.")
                             .foregroundStyle(AppTheme.muted)
                     }
@@ -134,8 +139,8 @@ private struct AddRuleView: View {
                                     Label(option.shortName, systemImage: option.symbol)
                                         .font(.subheadline.weight(.semibold))
                                         .padding(.horizontal, 12).padding(.vertical, 10)
-                                        .background(mode == option ? AppTheme.accent : .white)
-                                        .foregroundStyle(mode == option ? .white : AppTheme.ink)
+                                        .background(mode == option ? AppTheme.accent : AppTheme.raised)
+                                        .foregroundStyle(mode == option ? AppTheme.onAccent : AppTheme.ink)
                                         .clipShape(Capsule())
                                 }
                             }

@@ -81,12 +81,12 @@ struct WeekPlanView: View {
                     Text(WeekAnchor.label(forWeekStarting: store.plan.startDate))
                         .font(.caption.bold()).foregroundStyle(AppTheme.accent)
                     Text("A good week, a great appetite")
-                        .font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(AppTheme.ink)
+                        .font(.system(.title, design: .rounded, weight: .bold)).foregroundStyle(AppTheme.ink)
                 }
                 Spacer()
                 Button { withAnimation(.snappy) { store.shuffleAll() } } label: {
                     Image(systemName: "shuffle").font(.title2.bold()).frame(width: 54, height: 54)
-                        .background(AppTheme.accent).foregroundStyle(.white).clipShape(Circle())
+                        .background(AppTheme.accent).foregroundStyle(AppTheme.onAccent).clipShape(Circle())
                         .shadow(color: AppTheme.accent.opacity(0.25), radius: 10, y: 5)
                 }.accessibilityLabel("Shuffle week")
             }
@@ -166,6 +166,7 @@ private struct DayPlanCard: View {
             HStack(spacing: 13) {
                 Text(cardEmoji).font(.system(size: 36)).frame(width: 60, height: 60)
                     .background(AppTheme.accentSoft.opacity(0.7)).clipShape(RoundedRectangle(cornerRadius: 17))
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dayLabel).font(.caption2.bold()).tracking(0.8).foregroundStyle(AppTheme.accent)
                     Text(cardTitle).font(.headline).foregroundStyle(AppTheme.ink).lineLimit(1)
@@ -175,10 +176,15 @@ private struct DayPlanCard: View {
                 Button(action: toggleLock) {
                     Image(systemName: item.isLocked ? "lock.fill" : "lock.open")
                         .frame(width: 34, height: 34).foregroundStyle(item.isLocked ? AppTheme.accent : AppTheme.muted)
-                }.buttonStyle(.plain)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.isLocked ? L10n.string("Unlock this day") : L10n.string("Lock this day"))
                 menu
             }
             .padding(12).contentShape(Rectangle()).onTapGesture(perform: open)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(dayLabel), \(cardTitle), \(cardMetadata)")
+            .accessibilityHint(L10n.string("Opens the recipe"))
 
             if let explanation {
                 HStack(alignment: .top, spacing: 7) {
@@ -220,6 +226,7 @@ private struct DayPlanCard: View {
         } label: {
             Image(systemName: "ellipsis.circle").font(.title3).frame(width: 36, height: 36).foregroundStyle(AppTheme.muted)
         }
+        .accessibilityLabel(L10n.string("Options for %@", day.name))
     }
 
     /// Shows the actual date alongside the weekday now that the plan is anchored.
@@ -335,9 +342,11 @@ private struct MealDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    ZStack { RoundedRectangle(cornerRadius: 28).fill(AppTheme.accentSoft); Text(meal.emoji).font(.system(size: 105)) }.frame(height: 220)
+                    ZStack { RoundedRectangle(cornerRadius: 28).fill(AppTheme.accentSoft); Text(meal.emoji).font(.system(size: 105)) }
+                        .frame(height: 220)
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 7) {
-                        Text(meal.name).font(.system(size: 30, weight: .bold, design: .rounded))
+                        Text(meal.name).font(.system(.title, design: .rounded, weight: .bold))
                         Text(meal.subtitle).foregroundStyle(AppTheme.muted)
                         Label(L10n.string("%ld minutes · %ld servings", meal.prepMinutes, meal.defaultServings), systemImage: "clock")
                             .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)

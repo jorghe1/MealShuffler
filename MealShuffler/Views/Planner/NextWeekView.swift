@@ -57,7 +57,7 @@ struct NextWeekView: View {
             Text(WeekAnchor.label(forWeekStarting: nextWeekStart))
                 .font(.caption.bold()).foregroundStyle(AppTheme.accent)
             Text("Get ahead")
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .font(.system(.title, design: .rounded, weight: .bold))
                 .foregroundStyle(AppTheme.ink)
             Text("This plan takes over automatically when the week turns. Your current week is untouched.")
                 .font(.subheadline).foregroundStyle(AppTheme.muted)
@@ -68,7 +68,7 @@ struct NextWeekView: View {
     private var emptyState: some View {
         VStack(spacing: 14) {
             Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 40)).foregroundStyle(AppTheme.accent)
+                .font(.system(.largeTitle)).foregroundStyle(AppTheme.accent)
             Text("Nothing planned for next week yet.")
                 .font(.headline).foregroundStyle(AppTheme.ink)
             Text("Build it now and it will be waiting when the week turns.")

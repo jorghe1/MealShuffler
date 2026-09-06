@@ -405,3 +405,14 @@
 "Takeaway tonight." = "Takeaway i kveld.";
 "Leftovers tonight." = "Rester i kveld.";
 "%@ · about %ld min" = "%@ · cirka %ld min";
+
+/* Phase 4: accessibility labels and empty states */
+"Lock this day" = "Lås denne dagen";
+"Unlock this day" = "Lås opp denne dagen";
+"Options for %@" = "Valg for %@";
+"Opens the recipe" = "Åpner oppskriften";
+"Export grocery list" = "Eksporter handleliste";
+"Nothing to buy yet" = "Ingenting å handle ennå";
+"Plan some dinners and the ingredients show up here, sorted by aisle." = "Planlegg noen middager, så dukker ingrediensene opp her, sortert etter avdeling.";
+"No meals match “%@”" = "Ingen retter passer med “%@”";
+"Try another word, or add it as a new meal." = "Prøv et annet ord, eller legg den til som en ny rett.";

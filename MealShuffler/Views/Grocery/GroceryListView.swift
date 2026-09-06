@@ -13,13 +13,15 @@ struct GroceryListView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Ready to shop")
-                            .font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(AppTheme.ink)
+                            .font(.system(.title, design: .rounded, weight: .bold)).foregroundStyle(AppTheme.ink)
                         Text(L10n.string("%ld of %ld items remaining", remainingCount, store.groceryItems.count))
                             .font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
                     exportMenu
                 }.padding(.top, 14)
+
+                if store.groceryItems.isEmpty { emptyState }
 
                 ForEach(GroceryAisle.allCases) { aisle in
                     let items = store.groceryItems.filter { $0.aisle == aisle }
@@ -43,7 +45,13 @@ struct GroceryListView: View {
                                         Text(item.quantityText).font(.subheadline).foregroundStyle(AppTheme.muted)
                                     }
                                     .padding(.horizontal, 16).padding(.vertical, 11).contentShape(Rectangle())
-                                }.buttonStyle(.plain)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("\(item.name), \(item.quantityText)")
+                                .accessibilityAddTraits(
+                                    store.checkedGroceryIDs.contains(item.id) ? [.isButton, .isSelected] : [.isButton]
+                                )
                                 if item.id != items.last?.id { Divider().padding(.leading, 52) }
                             }
                         }.mealCard()
@@ -60,6 +68,18 @@ struct GroceryListView: View {
         } message: { Text(exportMessage ?? "") }
     }
 
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "cart").font(.system(.largeTitle)).foregroundStyle(AppTheme.accent)
+            Text("Nothing to buy yet").font(.headline).foregroundStyle(AppTheme.ink)
+            Text("Plan some dinners and the ingredients show up here, sorted by aisle.")
+                .font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(30)
+        .mealCard()
+    }
+
     private var exportMenu: some View {
         Menu {
             ShareLink(item: shareText) { Label("Share as text", systemImage: "square.and.arrow.up") }
@@ -71,9 +91,10 @@ struct GroceryListView: View {
             if isExporting { ProgressView().frame(width: 48, height: 48) }
             else {
                 Image(systemName: "square.and.arrow.up").font(.title3.bold()).frame(width: 48, height: 48)
-                    .background(.white).clipShape(Circle())
+                    .background(AppTheme.raised).clipShape(Circle())
             }
         }
+        .accessibilityLabel(L10n.string("Export grocery list"))
     }
 
     private var remainingCount: Int {

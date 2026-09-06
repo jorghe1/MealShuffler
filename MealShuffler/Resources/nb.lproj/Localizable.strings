@@ -151,7 +151,6 @@
 "Create a default list in Reminders first." = "Opprett en standardliste i Påminnelser først.";
 
 /* History */
-"History" = "Historikk";
 "Cooked" = "Laget";
 "Paused" = "Pauset";
 "History affects shuffle locally: meals you cook become slightly more relevant, while recently cooked meals temporarily receive a repetition penalty." = "Historikken påvirker shuffle lokalt: retter dere lager får litt høyere relevans, men det som nylig er laget får en midlertidig repetisjonsstraff.";
@@ -388,3 +387,21 @@
 "Used for portions and shopping quantities. Adding people to the list below does not change it." = "Brukes til porsjoner og handlemengder. Å legge til personer i listen nedenfor endrer det ikke.";
 "To satisfy your rules we also used: %@." = "For å oppfylle reglene brukte vi også: %@.";
 "Add more meals in these categories to get more choice." = "Legg til flere retter i disse kategoriene for å få mer å velge mellom.";
+
+/* Phase 2: dated weeks, next week, dinner reminders */
+"History" = "Historikk";
+"Next week" = "Neste uke";
+"Share this week" = "Del denne uken";
+"Get ahead" = "Kom i forkant";
+"This plan takes over automatically when the week turns. Your current week is untouched." = "Denne planen tar over automatisk når uken snur. Den pågående uken røres ikke.";
+"Nothing planned for next week yet." = "Ingenting planlagt for neste uke ennå.";
+"Build it now and it will be waiting when the week turns." = "Lag den nå, så står den klar når uken snur.";
+"Plan next week" = "Planlegg neste uke";
+"Shuffle next week" = "Stokk neste uke";
+"Discard next week" = "Forkast neste uke";
+"Remind me what's for dinner" = "Minn meg på hva som er til middag";
+"Reminder time" = "Tidspunkt for påminnelse";
+"Dinner today" = "Middag i dag";
+"Takeaway tonight." = "Takeaway i kveld.";
+"Leftovers tonight." = "Rester i kveld.";
+"%@ · about %ld min" = "%@ · cirka %ld min";

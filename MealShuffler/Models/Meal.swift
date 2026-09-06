@@ -79,9 +79,18 @@ struct Meal: Identifiable, Codable, Hashable {
     let tags: Set<MealTag>
     let ingredients: [Ingredient]
     let defaultServings: Int
-    let estimatedCostNOK: Int?
+    /// Rough cost of the whole meal, in the household's currency (minor units not used).
+    ///
+    /// Renamed from `estimatedCostNOK`, which baked a currency into the persisted schema.
+    /// The legacy key is still read so existing installs keep their prices.
+    let estimatedCost: Int?
     let instructions: [String]
     let source: MealSource
+    var updatedAt: Date
+    var updatedBy: UUID
+    /// Soft delete. A hard delete is indistinguishable from "never existed here" once two
+    /// devices compare libraries, which is how deleted meals come back.
+    var deletedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -92,9 +101,12 @@ struct Meal: Identifiable, Codable, Hashable {
         tags: Set<MealTag>,
         ingredients: [Ingredient],
         defaultServings: Int = 4,
-        estimatedCostNOK: Int? = nil,
+        estimatedCost: Int? = nil,
         instructions: [String] = [],
-        source: MealSource = .builtIn
+        source: MealSource = .builtIn,
+        updatedAt: Date = .now,
+        updatedBy: UUID = DeviceIdentity.current,
+        deletedAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -104,15 +116,20 @@ struct Meal: Identifiable, Codable, Hashable {
         self.tags = tags
         self.ingredients = ingredients
         self.defaultServings = max(defaultServings, 1)
-        self.estimatedCostNOK = estimatedCostNOK
+        self.estimatedCost = estimatedCost
         self.instructions = instructions
         self.source = source
+        self.updatedAt = updatedAt
+        self.updatedBy = updatedBy
+        self.deletedAt = deletedAt
     }
-
 
     private enum CodingKeys: String, CodingKey {
         case id, name, subtitle, emoji, prepMinutes, tags, ingredients
-        case defaultServings, estimatedCostNOK, instructions, source
+        case defaultServings, estimatedCost, instructions, source
+        case updatedAt, updatedBy, deletedAt
+        /// Pre-rename key, decoded only.
+        case estimatedCostNOK
     }
 
     init(from decoder: Decoder) throws {
@@ -125,13 +142,47 @@ struct Meal: Identifiable, Codable, Hashable {
         tags = try values.decode(Set<MealTag>.self, forKey: .tags)
         ingredients = try values.decode([Ingredient].self, forKey: .ingredients)
         defaultServings = try values.decodeIfPresent(Int.self, forKey: .defaultServings) ?? 4
-        estimatedCostNOK = try values.decodeIfPresent(Int.self, forKey: .estimatedCostNOK)
+        estimatedCost = try values.decodeIfPresent(Int.self, forKey: .estimatedCost)
+            ?? values.decodeIfPresent(Int.self, forKey: .estimatedCostNOK)
         instructions = try values.decodeIfPresent([String].self, forKey: .instructions) ?? []
         source = try values.decodeIfPresent(MealSource.self, forKey: .source) ?? .manual
+        updatedAt = try values.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .now
+        updatedBy = try values.decodeIfPresent(UUID.self, forKey: .updatedBy) ?? DeviceIdentity.current
+        deletedAt = try values.decodeIfPresent(Date.self, forKey: .deletedAt)
     }
 
-    var planningCostNOK: Int {
-        if let estimatedCostNOK { return estimatedCostNOK }
+    // Written explicitly because the legacy cost key has no matching property, which would
+    // otherwise defeat synthesis.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(subtitle, forKey: .subtitle)
+        try container.encode(emoji, forKey: .emoji)
+        try container.encode(prepMinutes, forKey: .prepMinutes)
+        try container.encode(tags, forKey: .tags)
+        try container.encode(ingredients, forKey: .ingredients)
+        try container.encode(defaultServings, forKey: .defaultServings)
+        try container.encodeIfPresent(estimatedCost, forKey: .estimatedCost)
+        try container.encode(instructions, forKey: .instructions)
+        try container.encode(source, forKey: .source)
+        try container.encode(updatedAt, forKey: .updatedAt)
+        try container.encode(updatedBy, forKey: .updatedBy)
+        try container.encodeIfPresent(deletedAt, forKey: .deletedAt)
+    }
+
+    var isDeleted: Bool { deletedAt != nil }
+
+    /// Copy stamped as changed on this device, so a later merge can order edits.
+    func touched(at date: Date = .now) -> Meal {
+        var copy = self
+        copy.updatedAt = date
+        copy.updatedBy = DeviceIdentity.current
+        return copy
+    }
+
+    var planningCost: Int {
+        if let estimatedCost { return estimatedCost }
         if tags.contains(.fish) { return 170 }
         if tags.contains(.chicken) || tags.contains(.meat) { return 145 }
         if tags.contains(.pizza) { return 120 }

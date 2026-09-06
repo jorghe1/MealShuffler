@@ -31,8 +31,15 @@ struct MealPlanGenerator {
 
     private let random: RandomSource
 
-    init(random: RandomSource = SystemRandomSource()) {
+    /// The week in the order this locale runs it.
+    ///
+    /// Generation order, "yesterday's dinner" and leftovers sourcing all depend on the real
+    /// sequence of days, not on the Monday-first declaration order of `Weekday`.
+    private let orderedDays: [Weekday]
+
+    init(random: RandomSource = SystemRandomSource(), orderedDays: [Weekday] = Weekday.ordered()) {
         self.random = random
+        self.orderedDays = orderedDays.isEmpty ? Weekday.allCases : orderedDays
     }
 
     func generate(
@@ -61,7 +68,7 @@ struct MealPlanGenerator {
             }
         }
 
-        for day in Weekday.allCases where entries[day] == nil {
+        for day in orderedDays where entries[day] == nil {
             let context = contexts[day] ?? DayPlanContext()
             switch context.mode {
             case .away:
@@ -172,7 +179,7 @@ struct MealPlanGenerator {
             contexts: contexts
         )
 
-        let plan = WeeklyPlan(meals: Weekday.allCases.compactMap { entries[$0] })
+        let plan = WeeklyPlan(meals: orderedDays.compactMap { entries[$0] })
         conflicts.append(contentsOf: validate(plan: plan, allMeals: allMeals, rules: requiredRules, contexts: contexts))
 
         // Not a rule violation: the plan is valid, it just had to reach past the meals this
@@ -201,8 +208,8 @@ struct MealPlanGenerator {
         selected: [Weekday: Meal]
     ) -> Weekday? {
         if let requested = context.leftoverSourceDay, selected[requested] != nil { return requested }
-        guard let index = Weekday.allCases.firstIndex(of: day), index > 0 else { return nil }
-        return Weekday.allCases[..<index].reversed().first(where: { selected[$0] != nil })
+        guard let index = orderedDays.firstIndex(of: day), index > 0 else { return nil }
+        return orderedDays[..<index].reversed().first(where: { selected[$0] != nil })
     }
 
     private func candidatePool(
@@ -235,7 +242,7 @@ struct MealPlanGenerator {
         case .quicker:
             refined = currentMeal.map { current in base.filter { $0.prepMinutes < current.prepMinutes } } ?? base
         case .cheaper:
-            refined = currentMeal.map { current in base.filter { $0.planningCostNOK < current.planningCostNOK } } ?? base
+            refined = currentMeal.map { current in base.filter { $0.planningCost < current.planningCost } } ?? base
         case .favorite:
             refined = base.filter { favoriteMealIDs.contains($0.id) }
         }
@@ -303,8 +310,8 @@ struct MealPlanGenerator {
         guard meals.count > 1 else { return meals.first }
         let usedIDs = Set(selected.values.map(\.id))
         let previousMeal: Meal? = {
-            guard let index = Weekday.allCases.firstIndex(of: day), index > 0 else { return nil }
-            return selected[Weekday.allCases[index - 1]]
+            guard let index = orderedDays.firstIndex(of: day), index > 0 else { return nil }
+            return selected[orderedDays[index - 1]]
         }()
 
         let scored = meals.map { meal -> (meal: Meal, score: Double) in
@@ -320,7 +327,7 @@ struct MealPlanGenerator {
             if day != .saturday && day != .sunday, meal.tags.contains(.quick) { score += 10 }
             score += Double(preferredRuleScore(meal: meal, day: day, rules: preferredRules, selected: selected))
             if intent == .quicker { score += Double(max(0, 90 - meal.prepMinutes)) }
-            if intent == .cheaper { score += Double(max(0, 220 - meal.planningCostNOK)) }
+            if intent == .cheaper { score += Double(max(0, 220 - meal.planningCost)) }
             return (meal, score)
         }
         return sample(from: scored)
@@ -382,7 +389,7 @@ struct MealPlanGenerator {
                     matcher.matches(meal) && !exceedsMaximum(meal: meal, selected: selected, rules: rules)
                 }
                 guard let replacement else { break }
-                let replacementDay = Weekday.allCases.first { day in
+                let replacementDay = orderedDays.first { day in
                     guard !lockedDays.contains(day),
                           (contexts[day] ?? DayPlanContext()).mode == .cook,
                           let current = selected[day], !matcher.matches(current) else { return false }
@@ -407,7 +414,7 @@ struct MealPlanGenerator {
         })
         var conflicts: [PlanConflict] = []
 
-        for day in Weekday.allCases where plan[day] == nil {
+        for day in orderedDays where plan[day] == nil {
             conflicts.append(PlanConflict(message: L10n.string("No plan was found for %@.", day.name.lowercased())))
         }
 

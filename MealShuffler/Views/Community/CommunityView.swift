@@ -149,7 +149,7 @@ private struct CommunityRecipeDetail: View {
         store.saveMeal(Meal(
             name: source.name, subtitle: source.subtitle, emoji: source.emoji,
             prepMinutes: source.prepMinutes, tags: source.tags, ingredients: source.ingredients,
-            defaultServings: source.defaultServings, estimatedCostNOK: source.estimatedCostNOK,
+            defaultServings: source.defaultServings, estimatedCost: source.estimatedCost,
             instructions: source.instructions, source: .community(recipe.id)
         ))
         added = true
@@ -168,12 +168,12 @@ private struct PublishRecipeView: View {
         NavigationStack {
             Form {
                 Section("Choose one of your meals") {
-                    if store.customMeals.isEmpty {
+                    if store.activeCustomMeals.isEmpty {
                         Text("Create or import your own meal first.").foregroundStyle(.secondary)
                     } else {
                         Picker("Meal", selection: $selectedMealID) {
                             Text("Choose…").tag(nil as UUID?)
-                            ForEach(store.customMeals) { Text("\($0.emoji) \($0.name)").tag($0.id as UUID?) }
+                            ForEach(store.activeCustomMeals) { Text("\($0.emoji) \($0.name)").tag($0.id as UUID?) }
                         }
                     }
                 }

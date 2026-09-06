@@ -12,10 +12,11 @@ struct WeekPlanView: View {
                 if !store.blockingConflicts.isEmpty { conflictBanner }
                 if !store.planNotes.isEmpty { notesRow }
 
-                ForEach(Weekday.allCases) { day in
+                ForEach(Weekday.ordered()) { day in
                     if let item = store.plan[day] {
                         DayPlanCard(
                             day: day,
+                            date: store.plan.date(for: day),
                             item: item,
                             meal: item.mealID.flatMap { store.meal(id: $0) },
                             explanation: store.explanation(for: day),
@@ -56,8 +57,12 @@ struct WeekPlanView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
+                NavigationLink { NextWeekView() } label: { Image(systemName: "calendar.badge.plus") }
+                    .accessibilityLabel("Next week")
                 NavigationLink { MealHistoryView() } label: { Image(systemName: "clock.arrow.circlepath") }
+                    .accessibilityLabel("History")
                 ShareLink(item: PlanTextExporter.weeklyPlan(store.plan, meals: store.meals)) { Image(systemName: "square.and.arrow.up") }
+                    .accessibilityLabel("Share this week")
             }
         }
         .sheet(item: $selectedMeal) { meal in
@@ -73,7 +78,8 @@ struct WeekPlanView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("MEAL PLAN").font(.caption.bold()).foregroundStyle(AppTheme.accent)
+                    Text(WeekAnchor.label(forWeekStarting: store.plan.startDate))
+                        .font(.caption.bold()).foregroundStyle(AppTheme.accent)
                     Text("A good week, a great appetite")
                         .font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(AppTheme.ink)
                 }
@@ -140,6 +146,7 @@ struct WeekPlanView: View {
 
 private struct DayPlanCard: View {
     let day: Weekday
+    let date: Date
     let item: PlannedMeal
     let meal: Meal?
     let explanation: String?
@@ -160,7 +167,7 @@ private struct DayPlanCard: View {
                 Text(cardEmoji).font(.system(size: 36)).frame(width: 60, height: 60)
                     .background(AppTheme.accentSoft.opacity(0.7)).clipShape(RoundedRectangle(cornerRadius: 17))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(day.name.uppercased()).font(.caption2.bold()).tracking(0.8).foregroundStyle(AppTheme.accent)
+                    Text(dayLabel).font(.caption2.bold()).tracking(0.8).foregroundStyle(AppTheme.accent)
                     Text(cardTitle).font(.headline).foregroundStyle(AppTheme.ink).lineLimit(1)
                     Text(cardMetadata).font(.caption).foregroundStyle(AppTheme.muted)
                 }
@@ -193,7 +200,7 @@ private struct DayPlanCard: View {
             }
             Section("Move") {
                 Menu("Swap with another day") {
-                    ForEach(Weekday.allCases.filter { $0 != day }) { other in Button(other.name) { swapWith(other) } }
+                    ForEach(Weekday.ordered().filter { $0 != day }) { other in Button(other.name) { swapWith(other) } }
                 }
             }
             if meal != nil {
@@ -213,6 +220,12 @@ private struct DayPlanCard: View {
         } label: {
             Image(systemName: "ellipsis.circle").font(.title3).frame(width: 36, height: 36).foregroundStyle(AppTheme.muted)
         }
+    }
+
+    /// Shows the actual date alongside the weekday now that the plan is anchored.
+    private var dayLabel: String {
+        let formatted = date.formatted(.dateTime.day().month(.abbreviated))
+        return "\(day.name.uppercased()) · \(formatted)"
     }
 
     private var cardEmoji: String {
@@ -306,8 +319,9 @@ private struct DayContextEditor: View {
     }
 
     private var daysBefore: [Weekday] {
-        guard let index = Weekday.allCases.firstIndex(of: day) else { return [] }
-        return Array(Weekday.allCases.prefix(index))
+        let ordered = Weekday.ordered()
+        guard let index = ordered.firstIndex(of: day) else { return [] }
+        return Array(ordered.prefix(index))
     }
     private func symbol(_ mode: DayDinnerMode) -> String {
         switch mode { case .cook: "fork.knife"; case .leftovers: "arrow.3.trianglepath"; case .away: "figure.run"; case .takeaway: "takeoutbag.and.cup.and.straw" }

@@ -3,7 +3,7 @@ import Foundation
 
 enum PlanTextExporter {
     static func weeklyPlan(_ plan: WeeklyPlan, meals: [Meal]) -> String {
-        ([L10n.string("MEAL PLAN")] + Weekday.allCases.compactMap { day in
+        ([L10n.string("MEAL PLAN")] + Weekday.ordered().compactMap { day in
             guard let item = plan[day] else { return nil }
             let title: String
             switch item.kind {

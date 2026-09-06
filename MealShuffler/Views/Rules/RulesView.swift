@@ -56,6 +56,25 @@ struct RulesView: View {
             }
 
             Section("Settings") {
+                Toggle(isOn: Binding(
+                    get: { store.dinnerReminderEnabled },
+                    set: { store.setDinnerReminder(enabled: $0) }
+                )) {
+                    Label("Remind me what's for dinner", systemImage: "bell")
+                }
+                if store.dinnerReminderEnabled {
+                    Picker(
+                        L10n.string("Reminder time"),
+                        selection: Binding(
+                            get: { store.dinnerReminderHour },
+                            set: { store.setDinnerReminderHour($0) }
+                        )
+                    ) {
+                        ForEach(Array(stride(from: 6, through: 20, by: 1)), id: \.self) { hour in
+                            Text(verbatim: String(format: "%02d:00", hour)).tag(hour)
+                        }
+                    }
+                }
                 NavigationLink { HouseholdView() } label: {
                     Label("Family and sharing", systemImage: "person.2")
                 }

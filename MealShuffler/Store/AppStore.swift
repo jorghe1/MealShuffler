@@ -24,7 +24,7 @@ struct MealFeedbackEvent: Identifiable, Codable, Hashable {
 @MainActor
 final class AppStore: ObservableObject {
     @Published var hasCompletedOnboarding: Bool { didSet { save() } }
-    @Published var preferences: [UUID: MealPreference] { didSet { save() } }
+    @Published var memberPreferences: [UUID: [UUID: MealPreference]] { didSet { save() } }
     @Published var rules: [PlanningRule] { didSet { save() } }
     @Published var plan: WeeklyPlan { didSet { save() } }
     @Published var conflicts: [PlanConflict] = []
@@ -35,6 +35,10 @@ final class AppStore: ObservableObject {
     @Published var feedbackEvents: [MealFeedbackEvent] { didSet { save() } }
     @Published var householdSize: Int { didSet { save() } }
     @Published var household: Household { didSet { save() } }
+    @Published var archivedWeeks: [ArchivedWeek] { didSet { save() } }
+    @Published var nextWeekPlan: WeeklyPlan? { didSet { save() } }
+    @Published var dinnerReminderEnabled: Bool { didSet { save() } }
+    @Published var dinnerReminderHour: Int { didSet { save() } }
     @Published var inviteNotice: String?
 
     private let generator: MealPlanGenerator
@@ -44,8 +48,13 @@ final class AppStore: ObservableObject {
     private var pendingSave: Task<Void, Never>?
     private static let feedbackRetentionDays = 400
     private static let feedbackEventLimit = 2_000
+    private static let archiveLimit = 26
 
-    var meals: [Meal] { SampleMeals.all + customMeals }
+    /// Custom meals that have not been deleted. Tombstones stay in `customMeals` so a future
+    /// sync can tell "deleted here" apart from "never existed here".
+    var activeCustomMeals: [Meal] { customMeals.filter { !$0.isDeleted } }
+
+    var meals: [Meal] { SampleMeals.all + activeCustomMeals }
 
     init(defaults: UserDefaults = .standard, random: RandomSource = SystemRandomSource()) {
         self.defaults = defaults
@@ -53,7 +62,7 @@ final class AppStore: ObservableObject {
         if let data = defaults.data(forKey: persistenceKey),
            let state = try? JSONDecoder().decode(PersistedState.self, from: data) {
             hasCompletedOnboarding = state.hasCompletedOnboarding
-            preferences = state.preferences
+            memberPreferences = state.memberPreferences
             rules = state.rules
             plan = state.plan
             checkedGroceryIDs = state.checkedGroceryIDs
@@ -63,9 +72,13 @@ final class AppStore: ObservableObject {
             feedbackEvents = AppStore.prunedFeedback(state.feedbackEvents)
             householdSize = state.householdSize
             household = state.household
+            archivedWeeks = state.archivedWeeks
+            nextWeekPlan = state.nextWeekPlan
+            dinnerReminderEnabled = state.dinnerReminderEnabled
+            dinnerReminderHour = state.dinnerReminderHour
         } else {
             hasCompletedOnboarding = false
-            preferences = [:]
+            memberPreferences = [:]
             rules = PlanningRule.starterRules(meals: SampleMeals.all)
             plan = .empty
             checkedGroceryIDs = []
@@ -75,10 +88,101 @@ final class AppStore: ObservableObject {
             feedbackEvents = []
             householdSize = 4
             household = Household()
+            archivedWeeks = []
+            nextWeekPlan = nil
+            dinnerReminderEnabled = false
+            dinnerReminderHour = 16
         }
         isRestoring = false
         inviteNotice = nil
+        rollOverIfNeeded()
         refreshConflicts()
+    }
+
+    // MARK: - Week rollover
+
+    /// Moves the calendar on. A finished week is archived, next week's plan is promoted if one
+    /// was prepared, and otherwise the current plan is re-anchored so it stops claiming to be
+    /// a week that has already passed.
+    func rollOverIfNeeded(now: Date = .now, calendar: Calendar = .current) {
+        let currentWeekStart = WeekAnchor.startOfWeek(containing: now, calendar: calendar)
+        guard plan.startDate < currentWeekStart else { return }
+
+        if !plan.meals.isEmpty {
+            archivedWeeks = Array((archivedWeeks + [ArchivedWeek(plan: plan)])
+                .sorted { $0.startDate > $1.startDate }
+                .prefix(AppStore.archiveLimit))
+        }
+
+        if let prepared = nextWeekPlan, prepared.startDate == currentWeekStart {
+            plan = prepared
+            nextWeekPlan = nil
+        } else {
+            nextWeekPlan = nil
+            plan = plan.anchored(to: currentWeekStart)
+            if hasCompletedOnboarding { shuffleAll() }
+        }
+        refreshReminders()
+    }
+
+    // MARK: - Next week
+
+    /// Builds a plan for the week after this one, without disturbing the current week.
+    func planNextWeek() {
+        let start = WeekAnchor.startOfNextWeek(after: plan.startDate)
+        let result = generator.generate(
+            preferredMeals: preferredMeals,
+            allMeals: meals,
+            rules: rules,
+            contexts: resolvedContexts,
+            taste: taste
+        )
+        nextWeekPlan = result.plan.anchored(to: start)
+    }
+
+    func discardNextWeek() {
+        nextWeekPlan = nil
+    }
+
+    // MARK: - Reminders
+
+    func setDinnerReminder(enabled: Bool) {
+        dinnerReminderEnabled = enabled
+        guard enabled else { refreshReminders(); return }
+        Task { [weak self] in
+            let service = DinnerReminderService()
+            let authorized = await service.isAuthorized()
+            if !authorized {
+                let granted = await service.requestAuthorization()
+                if !granted {
+                    self?.dinnerReminderEnabled = false
+                    return
+                }
+            }
+            self?.refreshReminders()
+        }
+    }
+
+    func setDinnerReminderHour(_ hour: Int) {
+        dinnerReminderHour = max(0, min(hour, 23))
+        refreshReminders()
+    }
+
+    /// Keeps scheduled notifications in step with the plan, so a reshuffled day never
+    /// announces the meal it replaced.
+    private func refreshReminders() {
+        let currentPlan = plan
+        let currentMeals = meals
+        let hour = dinnerReminderHour
+        let enabled = dinnerReminderEnabled
+        Task {
+            let service = DinnerReminderService()
+            if enabled {
+                await service.reschedule(plan: currentPlan, meals: currentMeals, hour: hour)
+            } else {
+                service.cancelAll()
+            }
+        }
     }
 
     var preferredMeals: [Meal] {
@@ -143,8 +247,35 @@ final class AppStore: ObservableObject {
         dayContexts[day] ?? DayPlanContext(diners: householdSize)
     }
 
-    func setPreference(_ preference: MealPreference, for meal: Meal) {
-        preferences[meal.id] = preference
+    /// Records a taste opinion against a specific member.
+    ///
+    /// Preferences are stored per person because that is the one thing about them that cannot
+    /// be reconstructed later -- a flat map cannot say afterwards whose dislike it was. The
+    /// swipe UI still speaks for the household owner; the storage shape is ready for the day
+    /// it asks who is swiping.
+    func setPreference(_ preference: MealPreference, for meal: Meal, member: UUID? = nil) {
+        let memberID = member ?? primaryMemberID
+        memberPreferences[memberID, default: [:]][meal.id] = preference
+    }
+
+    var primaryMemberID: UUID {
+        household.members.first(where: { $0.role == .owner })?.id
+            ?? household.members.first?.id
+            ?? household.id
+    }
+
+    /// One opinion per meal for the household as a whole.
+    ///
+    /// A dislike from anyone wins: someone at the table will not eat it.
+    var preferences: [UUID: MealPreference] {
+        var merged: [UUID: MealPreference] = [:]
+        for opinions in memberPreferences.values {
+            for (mealID, preference) in opinions {
+                if merged[mealID] == .disliked { continue }
+                if preference == .disliked || merged[mealID] == nil { merged[mealID] = preference }
+            }
+        }
+        return merged
     }
 
     func completeOnboarding() {
@@ -199,13 +330,14 @@ final class AppStore: ObservableObject {
             avoidingMealOnDay: avoiding,
             swapIntents: intents
         )
-        var updated = result.plan
+        var updated = result.plan.anchored(to: plan.startDate)
         for index in updated.meals.indices {
             updated.meals[index].isLocked = userLocks[updated.meals[index].day] ?? false
         }
         plan = updated
         conflicts = result.conflicts
         reconcileGroceryChecks()
+        refreshReminders()
     }
 
     func shuffle(day: Weekday, intent: MealSwapIntent = .different) {
@@ -319,10 +451,11 @@ final class AppStore: ObservableObject {
     }
 
     func saveMeal(_ meal: Meal) {
+        let stamped = meal.touched()
         if let index = customMeals.firstIndex(where: { $0.id == meal.id }) {
-            customMeals[index] = meal
+            customMeals[index] = stamped
         } else {
-            customMeals.append(meal)
+            customMeals.append(stamped)
         }
     }
 
@@ -336,10 +469,19 @@ final class AppStore: ObservableObject {
         removeMeals([meal.id])
     }
 
-    /// Only the days that actually used a removed meal need a new dinner.
+    /// Marks meals deleted and re-plans only the days that used them.
+    ///
+    /// Deletion is a tombstone rather than a removal: once two devices compare libraries, a
+    /// missing row is indistinguishable from one that was never there, which is how deleted
+    /// meals reappear.
     private func removeMeals(_ ids: Set<UUID>) {
         guard !ids.isEmpty else { return }
-        customMeals.removeAll { ids.contains($0.id) }
+        let now = Date.now
+        for index in customMeals.indices where ids.contains(customMeals[index].id) {
+            customMeals[index].deletedAt = now
+            customMeals[index].updatedAt = now
+            customMeals[index].updatedBy = DeviceIdentity.current
+        }
         favoriteMealIDs.subtract(ids)
         let affected = Set(plan.meals.filter { $0.mealID.map(ids.contains) ?? false }.map(\.day))
         plan.meals.removeAll { $0.mealID.map(ids.contains) ?? false }
@@ -409,7 +551,7 @@ final class AppStore: ObservableObject {
 
     func resetForPreview() {
         hasCompletedOnboarding = false
-        preferences = [:]
+        memberPreferences = [:]
         plan = .empty
         dayContexts = [:]
         checkedGroceryIDs = []
@@ -462,9 +604,11 @@ final class AppStore: ObservableObject {
     }
 
     private func apply(_ result: GenerationResult) {
-        plan = result.plan
+        // The generator solves rules; it does not own the calendar. Keep the week's anchor.
+        plan = result.plan.anchored(to: plan.startDate)
         conflicts = result.conflicts
         reconcileGroceryChecks()
+        refreshReminders()
     }
 
     /// Keeps ticks for items that are still on the list and drops the rest. Wiping the whole
@@ -500,7 +644,7 @@ final class AppStore: ObservableObject {
     private func writeState() {
         let state = PersistedState(
             hasCompletedOnboarding: hasCompletedOnboarding,
-            preferences: preferences,
+            memberPreferences: memberPreferences,
             rules: rules,
             plan: plan,
             checkedGroceryIDs: checkedGroceryIDs,
@@ -509,15 +653,29 @@ final class AppStore: ObservableObject {
             dayContexts: dayContexts,
             feedbackEvents: feedbackEvents,
             householdSize: householdSize,
-            household: household
+            household: household,
+            archivedWeeks: archivedWeeks,
+            nextWeekPlan: nextWeekPlan,
+            dinnerReminderEnabled: dinnerReminderEnabled,
+            dinnerReminderHour: dinnerReminderHour
         )
         if let data = try? JSONEncoder().encode(state) { defaults.set(data, forKey: persistenceKey) }
     }
 }
 
+/// The on-disk shape of the app.
+///
+/// `schemaVersion` exists so a change that *reinterprets* a field has somewhere to hook a
+/// migration. Added fields are handled by `decodeIfPresent` defaults, but a blob with no
+/// version at all cannot be told apart from a current one, which is how a bad migration
+/// silently resets everybody.
 private struct PersistedState: Codable {
+    /// 1: original release. 2: dated weeks, per-member preferences, sync stamps.
+    static let currentVersion = 2
+
+    let schemaVersion: Int
     let hasCompletedOnboarding: Bool
-    let preferences: [UUID: MealPreference]
+    let memberPreferences: [UUID: [UUID: MealPreference]]
     let rules: [PlanningRule]
     let plan: WeeklyPlan
     let checkedGroceryIDs: Set<String>
@@ -527,15 +685,22 @@ private struct PersistedState: Codable {
     let feedbackEvents: [MealFeedbackEvent]
     let householdSize: Int
     let household: Household
+    let archivedWeeks: [ArchivedWeek]
+    let nextWeekPlan: WeeklyPlan?
+    let dinnerReminderEnabled: Bool
+    let dinnerReminderHour: Int
 
     private enum CodingKeys: String, CodingKey {
-        case hasCompletedOnboarding, preferences, rules, plan, checkedGroceryIDs
+        case schemaVersion, hasCompletedOnboarding, memberPreferences, rules, plan, checkedGroceryIDs
         case customMeals, favoriteMealIDs, dayContexts, feedbackEvents, householdSize, household
+        case archivedWeeks, nextWeekPlan, dinnerReminderEnabled, dinnerReminderHour
+        /// v1 key: one flat map for the whole household. Decoded only.
+        case preferences
     }
 
     init(
         hasCompletedOnboarding: Bool,
-        preferences: [UUID: MealPreference],
+        memberPreferences: [UUID: [UUID: MealPreference]],
         rules: [PlanningRule],
         plan: WeeklyPlan,
         checkedGroceryIDs: Set<String>,
@@ -544,10 +709,15 @@ private struct PersistedState: Codable {
         dayContexts: [Weekday: DayPlanContext],
         feedbackEvents: [MealFeedbackEvent],
         householdSize: Int,
-        household: Household
+        household: Household,
+        archivedWeeks: [ArchivedWeek],
+        nextWeekPlan: WeeklyPlan?,
+        dinnerReminderEnabled: Bool,
+        dinnerReminderHour: Int
     ) {
+        schemaVersion = Self.currentVersion
         self.hasCompletedOnboarding = hasCompletedOnboarding
-        self.preferences = preferences
+        self.memberPreferences = memberPreferences
         self.rules = rules
         self.plan = plan
         self.checkedGroceryIDs = checkedGroceryIDs
@@ -557,13 +727,20 @@ private struct PersistedState: Codable {
         self.feedbackEvents = feedbackEvents
         self.householdSize = householdSize
         self.household = household
+        self.archivedWeeks = archivedWeeks
+        self.nextWeekPlan = nextWeekPlan
+        self.dinnerReminderEnabled = dinnerReminderEnabled
+        self.dinnerReminderHour = dinnerReminderHour
     }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        let version = try values.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        schemaVersion = version
+
         hasCompletedOnboarding = try values.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
-        preferences = try values.decodeIfPresent([UUID: MealPreference].self, forKey: .preferences) ?? [:]
-        rules = try values.decodeIfPresent([PlanningRule].self, forKey: .rules) ?? PlanningRule.starterRules(meals: SampleMeals.all)
+        rules = try values.decodeIfPresent([PlanningRule].self, forKey: .rules)
+            ?? PlanningRule.starterRules(meals: SampleMeals.all)
         plan = try values.decodeIfPresent(WeeklyPlan.self, forKey: .plan) ?? .empty
         checkedGroceryIDs = try values.decodeIfPresent(Set<String>.self, forKey: .checkedGroceryIDs) ?? []
         customMeals = try values.decodeIfPresent([Meal].self, forKey: .customMeals) ?? []
@@ -571,6 +748,23 @@ private struct PersistedState: Codable {
         dayContexts = try values.decodeIfPresent([Weekday: DayPlanContext].self, forKey: .dayContexts) ?? [:]
         feedbackEvents = try values.decodeIfPresent([MealFeedbackEvent].self, forKey: .feedbackEvents) ?? []
         householdSize = try values.decodeIfPresent(Int.self, forKey: .householdSize) ?? 4
-        household = try values.decodeIfPresent(Household.self, forKey: .household) ?? Household()
+        let restoredHousehold = try values.decodeIfPresent(Household.self, forKey: .household) ?? Household()
+        household = restoredHousehold
+        archivedWeeks = try values.decodeIfPresent([ArchivedWeek].self, forKey: .archivedWeeks) ?? []
+        nextWeekPlan = try values.decodeIfPresent(WeeklyPlan.self, forKey: .nextWeekPlan)
+        dinnerReminderEnabled = try values.decodeIfPresent(Bool.self, forKey: .dinnerReminderEnabled) ?? false
+        dinnerReminderHour = try values.decodeIfPresent(Int.self, forKey: .dinnerReminderHour) ?? 16
+
+        if let stored = try values.decodeIfPresent([UUID: [UUID: MealPreference]].self, forKey: .memberPreferences) {
+            memberPreferences = stored
+        } else {
+            // v1 -> v2: taste was recorded for the household as a whole. Attribute it to the
+            // owner, who is the only person the swipe UI could have been speaking for.
+            let flat = try values.decodeIfPresent([UUID: MealPreference].self, forKey: .preferences) ?? [:]
+            let owner = restoredHousehold.members.first(where: { $0.role == .owner })?.id
+                ?? restoredHousehold.members.first?.id
+                ?? restoredHousehold.id
+            memberPreferences = flat.isEmpty ? [:] : [owner: flat]
+        }
     }
 }

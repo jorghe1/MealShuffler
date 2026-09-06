@@ -250,7 +250,7 @@ private struct RecipeEditorView: View {
         _emoji = State(initialValue: existingMeal?.emoji ?? draft.emoji)
         _prepMinutes = State(initialValue: existingMeal?.prepMinutes ?? draft.prepMinutes)
         _servings = State(initialValue: existingMeal?.defaultServings ?? draft.servings)
-        _estimatedCost = State(initialValue: existingMeal?.estimatedCostNOK ?? 0)
+        _estimatedCost = State(initialValue: existingMeal?.estimatedCost ?? 0)
         let ingredients = existingMeal?.ingredients.map {
             "\($0.quantity.formatted(.number.precision(.fractionLength(0...2)))) \($0.unit) \($0.name)"
         } ?? draft.ingredientLines
@@ -319,7 +319,7 @@ private struct RecipeEditorView: View {
             tags: tags,
             ingredients: IngredientParser.parse(lines: lines),
             defaultServings: servings,
-            estimatedCostNOK: estimatedCost == 0 ? nil : estimatedCost,
+            estimatedCost: estimatedCost == 0 ? nil : estimatedCost,
             instructions: instructionText.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty },
             source: isEditingBuiltIn ? .manual : originalSource
         )

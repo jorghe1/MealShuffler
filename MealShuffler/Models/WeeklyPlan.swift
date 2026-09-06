@@ -43,19 +43,73 @@ struct PlannedMeal: Identifiable, Codable, Hashable {
 }
 
 struct WeeklyPlan: Codable, Hashable {
+    /// Midnight on the first day of the week this plan covers.
+    ///
+    /// Without it the plan is a floating artefact: it cannot roll over, cannot be archived
+    /// against a date, and nothing can be scheduled from it.
+    var startDate: Date
     var meals: [PlannedMeal]
 
-    static let empty = WeeklyPlan(meals: [])
+    init(startDate: Date = WeekAnchor.startOfCurrentWeek(), meals: [PlannedMeal]) {
+        self.startDate = startDate
+        self.meals = meals
+    }
+
+    static var empty: WeeklyPlan { WeeklyPlan(meals: []) }
+
+    /// True once the calendar has moved past this plan's week.
+    func isStale(now: Date = .now, calendar: Calendar = .current) -> Bool {
+        startDate < WeekAnchor.startOfWeek(containing: now, calendar: calendar)
+    }
+
+    func date(for day: Weekday, calendar: Calendar = .current) -> Date {
+        day.date(inWeekStarting: startDate, calendar: calendar)
+    }
+
+    /// Same plan, re-anchored to another week.
+    func anchored(to start: Date) -> WeeklyPlan {
+        var copy = self
+        copy.startDate = start
+        return copy
+    }
 
     subscript(day: Weekday) -> PlannedMeal? {
         get { meals.first(where: { $0.day == day }) }
         set {
             meals.removeAll(where: { $0.day == day })
             if let newValue { meals.append(newValue) }
+            let order = Weekday.ordered()
             meals.sort {
-                Weekday.allCases.firstIndex(of: $0.day)! < Weekday.allCases.firstIndex(of: $1.day)!
+                (order.firstIndex(of: $0.day) ?? 0) < (order.firstIndex(of: $1.day) ?? 0)
             }
         }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case startDate, meals
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        // Plans written before the week was dated are adopted into the current week.
+        startDate = try values.decodeIfPresent(Date.self, forKey: .startDate)
+            ?? WeekAnchor.startOfCurrentWeek()
+        meals = try values.decodeIfPresent([PlannedMeal].self, forKey: .meals) ?? []
+    }
+}
+
+/// A finished week, kept so history can answer "what did we eat".
+struct ArchivedWeek: Codable, Hashable, Identifiable {
+    let id: UUID
+    let plan: WeeklyPlan
+    let archivedAt: Date
+
+    var startDate: Date { plan.startDate }
+
+    init(id: UUID = UUID(), plan: WeeklyPlan, archivedAt: Date = .now) {
+        self.id = id
+        self.plan = plan
+        self.archivedAt = archivedAt
     }
 }
 

@@ -14,9 +14,14 @@ struct MealShufflerApp: App {
                 .tint(AppTheme.accent)
         }
         .onChange(of: scenePhase) { _, phase in
-            // Saves are debounced, so a change made moments before backgrounding would
-            // otherwise never reach disk.
-            if phase != .active { store.flushPendingWrites() }
+            if phase == .active {
+                // A plan left open across a week boundary is stale on return.
+                store.rollOverIfNeeded()
+            } else {
+                // Saves are debounced, so a change made moments before backgrounding would
+                // otherwise never reach disk.
+                store.flushPendingWrites()
+            }
         }
     }
 }

@@ -17,12 +17,12 @@ enum Weekday: String, CaseIterable, Codable, Identifiable, Hashable {
         }
     }
 
-    var shortName: String { String(name.prefix(3)) }
+    var shortName: String { Weekday.shortSymbol(for: self) }
 
+    /// The next day in the locale's week, or nil on the last day.
     var next: Weekday? {
-        guard let index = Self.allCases.firstIndex(of: self), index < Self.allCases.count - 1 else {
-            return nil
-        }
-        return Self.allCases[index + 1]
+        let ordered = Weekday.ordered()
+        guard let index = ordered.firstIndex(of: self), index < ordered.count - 1 else { return nil }
+        return ordered[index + 1]
     }
 }

@@ -4,6 +4,16 @@ struct WeekPlanView: View {
     @EnvironmentObject private var store: AppStore
     @State private var selectedMeal: Meal?
     @State private var editingDay: Weekday?
+    @State private var cooking: CookingSession?
+
+    /// Which meal is being cooked, and for which day, so the "we cooked this" at the end
+    /// lands on the right entry.
+    private struct CookingSession: Identifiable {
+        let meal: Meal
+        let day: Weekday
+        let servings: Int
+        var id: String { "\(day.rawValue)-\(meal.id.uuidString)" }
+    }
 
     var body: some View {
         ScrollView {
@@ -37,6 +47,11 @@ struct WeekPlanView: View {
                             markSkipped: {
                                 if let id = item.mealID, let meal = store.meal(id: id) { store.markSkipped(meal, on: day) }
                             },
+                            cook: {
+                                if let id = item.mealID, let meal = store.meal(id: id) {
+                                    cooking = CookingSession(meal: meal, day: day, servings: item.servings)
+                                }
+                            },
                             swapWith: { otherDay in store.swapMeals(between: day, and: otherDay) }
                         )
                     }
@@ -67,6 +82,10 @@ struct WeekPlanView: View {
         }
         .sheet(item: $selectedMeal) { meal in
             MealDetailView(meal: meal).presentationDetents([.medium, .large])
+        }
+        .fullScreenCover(item: $cooking) { session in
+            CookModeView(meal: session.meal, day: session.day, servings: session.servings)
+                .environmentObject(store)
         }
         .sheet(item: $editingDay) { day in
             DayContextEditor(day: day, initialContext: store.context(for: day)) { store.updateContext($0, for: day) }
@@ -159,6 +178,7 @@ private struct DayPlanCard: View {
     let toggleFavorite: () -> Void
     let markCooked: () -> Void
     let markSkipped: () -> Void
+    let cook: () -> Void
     let swapWith: (Weekday) -> Void
 
     var body: some View {
@@ -211,6 +231,7 @@ private struct DayPlanCard: View {
             }
             if meal != nil {
                 Section {
+                    Button(action: cook) { Label("Start cooking", systemImage: "flame") }
                     Button(action: markCooked) { Label("We cooked this", systemImage: "checkmark.seal") }
                     Button(action: markSkipped) { Label("Not for today", systemImage: "forward") }
                     Button(action: toggleFavorite) {

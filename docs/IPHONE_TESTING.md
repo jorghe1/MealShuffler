@@ -28,6 +28,25 @@ I Xcode:
 En gratis Apple-ID kan brukes til kortvarig testing på egen enhet. TestFlight
 og stabil distribusjon krever aktivt Apple Developer Program-medlemskap.
 
+## Engangsoppsett for utvidelser (App Group)
+
+Widgeten kjører i sin egen prosess og leser planen fra en delt beholder. Det
+krever ett manuelt steg i Apple Developer som verken Xcode eller Codemagic
+gjør automatisk:
+
+1. Opprett App Group `group.no.mealshuffler.shared` under Identifiers →
+   App Groups.
+2. Slå på App Groups-capability på App ID-en `no.mealshuffler.app` og velg
+   gruppen.
+3. Opprett App ID `no.mealshuffler.app.widget` med samme App Groups-capability
+   og samme gruppe.
+4. Regenerer provisioning profiles. Codemagic henter nå profiler for begge
+   bundle-ID-ene (`BUNDLE_ID` og `WIDGET_BUNDLE_ID`).
+
+Hvis capability-en mangler, faller appen tilbake til privat lagring og
+fortsetter å virke, men widgeten viser «Ingen plan ennå» uansett hva som er
+planlagt. Det er den vanligste årsaken til en tom widget.
+
 ## Alternativ B: Codemagic til TestFlight
 
 `codemagic.yaml` følger samme signeringsmønster som Fiks og forventer:
@@ -117,6 +136,24 @@ telefon som allerede har den gamle appen installert. Ikke slett appen først.
   eller sidetall.**
 - Rediger en innebygd rett og bekreft at det ikke dukker opp to like rader.
 - Slett den redigerte varianten og bekreft at originalen kommer tilbake.
+
+### Widget, Siri og matlaging
+
+- Legg widgeten på hjemskjermen i både liten og medium størrelse.
+- Bekreft at den viser kveldens middag, og at den sier «Ingen plan ennå» hvis
+  uken er tom.
+- Shuffle en dag i appen og bekreft at widgeten oppdaterer seg.
+- Spør Siri «hva er til middag».
+- Start matlaging fra ••• på en dag: skjermen skal holde seg våken, mengder skal
+  følge antall porsjoner, og «vi lagde denne» skal havne i historikken.
+
+### Handleliste med egne varer
+
+- Legg til en vare uten mengde og bekreft at den ikke vises som «1».
+- Legg til en vare som allerede står på listen, og bekreft at den slås sammen
+  i stedet for å bli en ny linje.
+- Hold inne en vare → «Har det allerede», og bekreft at den flyttes ned og kan
+  legges tilbake.
 
 ### Utseende og tilgjengelighet
 

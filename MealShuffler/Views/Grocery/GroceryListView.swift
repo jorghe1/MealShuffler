@@ -4,6 +4,7 @@ struct GroceryListView: View {
     @EnvironmentObject private var store: AppStore
     @State private var isExporting = false
     @State private var exportMessage: String?
+    @State private var showingAddItem = false
 
     private var shareText: String { PlanTextExporter.groceryList(store.groceryItems) }
 
@@ -18,6 +19,11 @@ struct GroceryListView: View {
                             .font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
+                    Button { showingAddItem = true } label: {
+                        Image(systemName: "plus").font(.title3.bold()).frame(width: 48, height: 48)
+                            .background(AppTheme.accentSoft).clipShape(Circle())
+                    }
+                    .accessibilityLabel(L10n.string("Add an item"))
                     exportMenu
                 }.padding(.top, 14)
 
@@ -52,20 +58,65 @@ struct GroceryListView: View {
                                 .accessibilityAddTraits(
                                     store.checkedGroceryIDs.contains(item.id) ? [.isButton, .isSelected] : [.isButton]
                                 )
+                                // A List would allow swipe actions; this is a LazyVStack, where
+                                // they render but never fire. Long press is the honest affordance.
+                                .contextMenu {
+                                    Button { store.setStocked(item, stocked: true) } label: {
+                                        Label("Already have it", systemImage: "house")
+                                    }
+                                    if let manual = store.manualItem(matching: item) {
+                                        Button(role: .destructive) {
+                                            store.removeManualGroceryItems([manual.id])
+                                        } label: { Label("Remove", systemImage: "trash") }
+                                    }
+                                }
                                 if item.id != items.last?.id { Divider().padding(.leading, 52) }
                             }
                         }.mealCard()
                     }
                 }
+                if !store.stockedItems.isEmpty { stockedSection }
+
                 Color.clear.frame(height: 20)
             }.padding(.horizontal, 16)
         }
         .appBackground()
         .navigationTitle("Grocery list")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingAddItem) {
+            AddGroceryItemView { name, quantity, unit, aisle in
+                store.addGroceryItem(name: name, quantity: quantity, unit: unit, aisle: aisle)
+            }
+            .presentationDetents([.medium])
+        }
         .alert("Export", isPresented: Binding(get: { exportMessage != nil }, set: { if !$0 { exportMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(exportMessage ?? "") }
+    }
+
+    /// Items set aside as already owned, kept visible so they can be put back.
+    private var stockedSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Already at home".uppercased())
+                .font(.caption.weight(.bold)).tracking(0.8).foregroundStyle(AppTheme.muted)
+                .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
+            ForEach(store.stockedItems) { item in
+                Button { store.setStocked(item, stocked: false) } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "house.fill").font(.footnote).foregroundStyle(AppTheme.accent)
+                        Text(item.name).foregroundStyle(AppTheme.muted)
+                        Spacer()
+                        Text("Put back").font(.caption.weight(.semibold)).foregroundStyle(AppTheme.accent)
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 11).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(L10n.string("%@, already at home", item.name))
+                .accessibilityHint(L10n.string("Puts it back on the list"))
+            }
+        }
+        .mealCard()
     }
 
     private var emptyState: some View {
@@ -108,5 +159,53 @@ struct GroceryListView: View {
             let count = try await RemindersExportService().export(store.groceryItems)
             exportMessage = L10n.string("Added %ld items to the “Meal Shuffler” list in Reminders.", count)
         } catch { exportMessage = error.localizedDescription }
+    }
+}
+
+/// Adds a line the plan did not ask for.
+private struct AddGroceryItemView: View {
+    @Environment(\.dismiss) private var dismiss
+    let add: (String, Double?, String, GroceryAisle) -> Void
+
+    @State private var name = ""
+    @State private var amount = ""
+    @State private var unit = ""
+    @State private var aisle: GroceryAisle = .pantry
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Item") {
+                    TextField("What do you need?", text: $name)
+                    HStack {
+                        TextField("Amount", text: $amount)
+                            .keyboardType(.decimalPad)
+                            .frame(maxWidth: 110)
+                        TextField("Unit", text: $unit)
+                            .textInputAutocapitalization(.never)
+                    }
+                    Text("Amount and unit are optional. Leave them out for things you just need some of.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Section("Aisle") {
+                    Picker("Aisle", selection: $aisle) {
+                        ForEach(GroceryAisle.allCases) { Text($0.name).tag($0) }
+                    }
+                }
+            }
+            .navigationTitle("Add an item")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        add(name, Double(amount.replacingOccurrences(of: ",", with: ".")), unit, aisle)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
     }
 }

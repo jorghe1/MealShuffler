@@ -1,26 +1,6 @@
 import Combine
 import Foundation
 
-enum MealFeedbackKind: String, Codable {
-    case snoozed, cooked, skipped
-}
-
-struct MealFeedbackEvent: Identifiable, Codable, Hashable {
-    let id: UUID
-    let mealID: UUID
-    let kind: MealFeedbackKind
-    let timestamp: Date
-    let weekday: Weekday?
-
-    init(id: UUID = UUID(), mealID: UUID, kind: MealFeedbackKind, timestamp: Date = .now, weekday: Weekday? = nil) {
-        self.id = id
-        self.mealID = mealID
-        self.kind = kind
-        self.timestamp = timestamp
-        self.weekday = weekday
-    }
-}
-
 @MainActor
 final class AppStore: ObservableObject {
     @Published var hasCompletedOnboarding: Bool { didSet { save() } }
@@ -29,6 +9,11 @@ final class AppStore: ObservableObject {
     @Published var plan: WeeklyPlan { didSet { save() } }
     @Published var conflicts: [PlanConflict] = []
     @Published var checkedGroceryIDs: Set<String> { didSet { save() } }
+    /// Items the household already has in. Kept apart from `checkedGroceryIDs` because
+    /// "we own this" and "I picked this up just now" are different facts with different
+    /// lifetimes -- one survives the shop, the other is the shop.
+    @Published var stockedGroceryIDs: Set<String> { didSet { save() } }
+    @Published var manualGroceryItems: [ManualGroceryItem] { didSet { save() } }
     @Published var customMeals: [Meal] { didSet { save() } }
     @Published var favoriteMealIDs: Set<UUID> { didSet { save() } }
     @Published var dayContexts: [Weekday: DayPlanContext] { didSet { save() } }
@@ -55,15 +40,8 @@ final class AppStore: ObservableObject {
 
     /// Built-ins, with any customised version substituted in, followed by the user's own.
     ///
-    /// Editing a built-in used to save a copy under a fresh id and leave the original in
-    /// place, so the library showed two identical rows and the planner could schedule either.
-    /// Keeping the id makes the edit an override; deleting it restores the original.
-    var meals: [Meal] {
-        let overrides = Dictionary(activeCustomMeals.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
-        let builtInIDs = Set(SampleMeals.all.map(\.id))
-        return SampleMeals.all.map { overrides[$0.id] ?? $0 }
-            + activeCustomMeals.filter { !builtInIDs.contains($0.id) }
-    }
+    /// Resolution lives in `MealCatalog` so the widget resolves the library identically.
+    var meals: [Meal] { MealCatalog.resolve(custom: customMeals) }
 
     convenience init(defaults: UserDefaults = .standard, random: RandomSource = SystemRandomSource()) {
         self.init(repository: UserDefaultsStateRepository(defaults: defaults), random: random)
@@ -78,6 +56,8 @@ final class AppStore: ObservableObject {
             rules = state.rules
             plan = state.plan
             checkedGroceryIDs = state.checkedGroceryIDs
+            stockedGroceryIDs = state.stockedGroceryIDs
+            manualGroceryItems = state.manualGroceryItems
             customMeals = state.customMeals
             favoriteMealIDs = state.favoriteMealIDs
             dayContexts = state.dayContexts
@@ -94,6 +74,8 @@ final class AppStore: ObservableObject {
             rules = PlanningRule.starterRules(meals: SampleMeals.all)
             plan = .empty
             checkedGroceryIDs = []
+            stockedGroceryIDs = []
+            manualGroceryItems = []
             customMeals = []
             favoriteMealIDs = []
             dayContexts = [:]
@@ -205,8 +187,46 @@ final class AppStore: ObservableObject {
         return accepted.isEmpty ? meals : accepted
     }
 
+    /// Everything the plan calls for, plus anything typed in, minus what is already in.
     var groceryItems: [GroceryItem] {
-        GroceryListBuilder.build(plan: plan, meals: meals)
+        GroceryListBuilder.build(plan: plan, meals: meals, manualItems: manualGroceryItems)
+            .filter { !stockedGroceryIDs.contains($0.id) }
+    }
+
+    /// Items set aside as already owned. Surfaced so they can be put back.
+    var stockedItems: [GroceryItem] {
+        GroceryListBuilder.build(plan: plan, meals: meals, manualItems: manualGroceryItems)
+            .filter { stockedGroceryIDs.contains($0.id) }
+    }
+
+    func addGroceryItem(name: String, quantity: Double?, unit: String, aisle: GroceryAisle) {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { return }
+        manualGroceryItems.append(ManualGroceryItem(
+            name: cleanName,
+            quantity: quantity,
+            unit: unit.trimmingCharacters(in: .whitespacesAndNewlines),
+            aisle: aisle
+        ))
+    }
+
+    func removeManualGroceryItems(_ ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        manualGroceryItems.removeAll { ids.contains($0.id) }
+    }
+
+    func manualItem(matching item: GroceryItem) -> ManualGroceryItem? {
+        manualGroceryItems.first { $0.groceryID == item.id }
+    }
+
+    /// Sets an item aside as already owned, or puts it back on the list.
+    func setStocked(_ item: GroceryItem, stocked: Bool) {
+        if stocked {
+            stockedGroceryIDs.insert(item.id)
+            checkedGroceryIDs.remove(item.id)
+        } else {
+            stockedGroceryIDs.remove(item.id)
+        }
     }
 
     /// Required rules the plan could not satisfy. These are what the warning banner counts.
@@ -636,7 +656,12 @@ final class AppStore: ObservableObject {
     /// swap, a single-day reshuffle — that often leave the list almost unchanged.
     private func reconcileGroceryChecks() {
         guard !checkedGroceryIDs.isEmpty else { return }
-        let liveIDs = Set(groceryItems.map(\.id))
+        // Built from the unfiltered list: an item set aside as already owned is still a
+        // real item, and its tick should not be discarded for being hidden.
+        let liveIDs = Set(
+            GroceryListBuilder.build(plan: plan, meals: meals, manualItems: manualGroceryItems)
+                .map(\.id)
+        )
         let reconciled = checkedGroceryIDs.intersection(liveIDs)
         if reconciled != checkedGroceryIDs { checkedGroceryIDs = reconciled }
     }
@@ -668,6 +693,8 @@ final class AppStore: ObservableObject {
             rules: rules,
             plan: plan,
             checkedGroceryIDs: checkedGroceryIDs,
+            stockedGroceryIDs: stockedGroceryIDs,
+            manualGroceryItems: manualGroceryItems,
             customMeals: customMeals,
             favoriteMealIDs: favoriteMealIDs,
             dayContexts: dayContexts,

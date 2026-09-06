@@ -416,3 +416,34 @@
 "Plan some dinners and the ingredients show up here, sorted by aisle." = "Planlegg noen middager, så dukker ingrediensene opp her, sortert etter avdeling.";
 "No meals match “%@”" = "Ingen retter passer med “%@”";
 "Try another word, or add it as a new meal." = "Prøv et annet ord, eller legg den til som en ny rett.";
+
+/* Phase 6: cook mode, manual groceries, widget and Siri */
+"Start cooking" = "Start matlagingen";
+"Close" = "Lukk";
+"Back" = "Tilbake";
+"Next step" = "Neste steg";
+"Step %ld of %ld" = "Steg %ld av %ld";
+"No steps saved for this meal" = "Ingen steg lagret for denne retten";
+"Add them when you next edit the recipe and they will show up here." = "Legg dem inn neste gang du redigerer oppskriften, så dukker de opp her.";
+"Add an item" = "Legg til en vare";
+"Item" = "Vare";
+"What do you need?" = "Hva trenger du?";
+"Amount" = "Mengde";
+"Unit" = "Enhet";
+"Aisle" = "Avdeling";
+"Amount and unit are optional. Leave them out for things you just need some of." = "Mengde og enhet er valgfritt. La dem stå tomme for ting du bare trenger litt av.";
+"Already have it" = "Har det allerede";
+"Already at home" = "Allerede hjemme";
+"Put back" = "Legg tilbake";
+"Remove" = "Fjern";
+"%@, already at home" = "%@, allerede hjemme";
+"Puts it back on the list" = "Legger den tilbake på listen";
+"Tonight" = "I kveld";
+"%ld min" = "%ld min";
+"No plan yet" = "Ingen plan ennå";
+"Open Meal Shuffler to build this week." = "Åpne Meal Shuffler for å lage denne uken.";
+"Tonight's dinner and what follows it." = "Middagen i kveld og det som kommer etter.";
+"%@, %@, about %ld minutes" = "%@, %@, cirka %ld minutter";
+"There is no dinner planned for today yet." = "Det er ingen middag planlagt for i dag ennå.";
+"Tonight is %@, about %ld minutes." = "I kveld blir det %@, cirka %ld minutter.";
+"Tonight: %@" = "I kveld: %@";

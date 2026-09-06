@@ -194,16 +194,52 @@ struct GenerationResult {
     let conflicts: [PlanConflict]
 }
 
+/// Something the user added to the list themselves.
+///
+/// The list was derived purely from the plan, so there was no way to add milk to your own
+/// shopping list -- which quietly undermines trust in the whole list.
+struct ManualGroceryItem: Identifiable, Codable, Hashable {
+    let id: UUID
+    var name: String
+    var quantity: Double?
+    var unit: String
+    var aisle: GroceryAisle
+    var addedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        quantity: Double? = nil,
+        unit: String = "",
+        aisle: GroceryAisle = .pantry,
+        addedAt: Date = .now
+    ) {
+        self.id = id
+        self.name = name
+        self.quantity = quantity
+        self.unit = unit
+        self.aisle = aisle
+        self.addedAt = addedAt
+    }
+
+    /// Matches the derived items' key so a manual entry merges with a planned one.
+    var groceryID: String { "\(name.lowercased())|\(unit.lowercased())" }
+}
+
 struct GroceryItem: Identifiable, Hashable {
     let name: String
     let quantity: Double
     let unit: String
     let aisle: GroceryAisle
     let mealNames: Set<String>
+    /// True when nothing in the plan calls for it -- the user typed it in.
+    var isManual: Bool = false
 
     var id: String { "\(name.lowercased())|\(unit.lowercased())" }
 
     var quantityText: String {
-        IngredientUnits.display(quantity: quantity, unit: unit)
+        // A manual item with no amount reads better as a bare name than as "1".
+        guard quantity > 0 else { return "" }
+        return IngredientUnits.display(quantity: quantity, unit: unit)
     }
 }

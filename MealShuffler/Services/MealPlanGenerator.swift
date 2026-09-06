@@ -472,7 +472,11 @@ struct MealPlanGenerator {
 }
 
 enum GroceryListBuilder {
-    static func build(plan: WeeklyPlan, meals: [Meal]) -> [GroceryItem] {
+    static func build(
+        plan: WeeklyPlan,
+        meals: [Meal],
+        manualItems: [ManualGroceryItem] = []
+    ) -> [GroceryItem] {
         struct Contribution {
             let name: String
             let quantity: Double
@@ -494,7 +498,7 @@ enum GroceryListBuilder {
         }
         let grouped = Dictionary(grouping: contributions, by: \.key)
 
-        return grouped.values.compactMap { matches in
+        var items = grouped.values.compactMap { matches -> GroceryItem? in
             guard let first = matches.first else { return nil }
             return GroceryItem(
                 name: first.name,
@@ -503,7 +507,35 @@ enum GroceryListBuilder {
                 aisle: first.aisle,
                 mealNames: Set(matches.map(\.mealName))
             )
-        }.sorted {
+        }
+
+        // A manual entry that names something the plan already needs adds to it rather
+        // than sitting as a duplicate line.
+        for manual in manualItems {
+            let normalized = IngredientUnits.normalize(quantity: manual.quantity ?? 0, unit: manual.unit)
+            if let index = items.firstIndex(where: { $0.id == manual.groceryID }) {
+                let existing = items[index]
+                items[index] = GroceryItem(
+                    name: existing.name,
+                    quantity: existing.quantity + normalized.quantity,
+                    unit: existing.unit,
+                    aisle: existing.aisle,
+                    mealNames: existing.mealNames,
+                    isManual: existing.isManual
+                )
+            } else {
+                items.append(GroceryItem(
+                    name: manual.name,
+                    quantity: normalized.quantity,
+                    unit: normalized.unit,
+                    aisle: manual.aisle,
+                    mealNames: [],
+                    isManual: true
+                ))
+            }
+        }
+
+        return items.sorted {
             if $0.aisle != $1.aisle {
                 return GroceryAisle.allCases.firstIndex(of: $0.aisle)! < GroceryAisle.allCases.firstIndex(of: $1.aisle)!
             }

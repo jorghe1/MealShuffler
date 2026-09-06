@@ -16,6 +16,7 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     VERSIONING_SYSTEM: apple-generic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+
 targets:
   MealShuffler:
     type: application
@@ -24,11 +25,15 @@ targets:
       - path: MealShuffler
         excludes:
           - Info.plist
+    dependencies:
+      - target: MealShufflerWidget
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.app
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: MealShuffler/Info.plist
+        CODE_SIGN_ENTITLEMENTS: MealShuffler/MealShuffler.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -37,6 +42,41 @@ targets:
       gatherCoverageData: true
       testTargets:
         - MealShufflerTests
+
+  # Extensions run in their own process and cannot see the app's memory, so everything they
+  # touch is compiled into them as well. This is the model layer and the state repository
+  # only -- deliberately not the store, generator or views, which would drag SwiftUI,
+  # Vision and PhotosUI into a widget.
+  MealShufflerWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MealShufflerWidget
+        excludes:
+          - Info.plist
+          - MealShufflerWidget.entitlements
+      - path: MealShuffler/Models
+      - path: MealShuffler/Data
+      - path: MealShuffler/Localization
+      - path: MealShuffler/Theme
+      - path: MealShuffler/Resources
+      - path: MealShuffler/App/AppGroup.swift
+      - path: MealShuffler/Services/AppStateRepository.swift
+      - path: MealShuffler/Services/IngredientUnits.swift
+      - path: MealShuffler/Services/PlannedDinnerReader.swift
+    info:
+      path: MealShufflerWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Meal Shuffler
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.app.widget
+        CODE_SIGN_ENTITLEMENTS: MealShufflerWidget/MealShufflerWidget.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+
   MealShufflerTests:
     type: bundle.unit-test
     platform: iOS

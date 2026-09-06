@@ -78,9 +78,15 @@ extension Weekday {
 enum DeviceIdentity {
     private static let key = "meal-shuffler-device-id"
 
+    /// Stored in the shared container so the app and its extensions agree on who wrote what.
     static let current: UUID = {
-        let defaults = UserDefaults.standard
+        let defaults = AppGroup.defaults
         if let raw = defaults.string(forKey: key), let existing = UUID(uuidString: raw) {
+            return existing
+        }
+        // Carry over an identity minted before the App Group existed.
+        if let raw = UserDefaults.standard.string(forKey: key), let existing = UUID(uuidString: raw) {
+            defaults.set(raw, forKey: key)
             return existing
         }
         let fresh = UUID()

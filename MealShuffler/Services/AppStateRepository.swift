@@ -16,6 +16,8 @@ struct AppStateSnapshot: Codable {
     let rules: [PlanningRule]
     let plan: WeeklyPlan
     let checkedGroceryIDs: Set<String>
+    let stockedGroceryIDs: Set<String>
+    let manualGroceryItems: [ManualGroceryItem]
     let customMeals: [Meal]
     let favoriteMealIDs: Set<UUID>
     let dayContexts: [Weekday: DayPlanContext]
@@ -29,6 +31,7 @@ struct AppStateSnapshot: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, hasCompletedOnboarding, memberPreferences, rules, plan, checkedGroceryIDs
+        case stockedGroceryIDs, manualGroceryItems
         case customMeals, favoriteMealIDs, dayContexts, feedbackEvents, householdSize, household
         case archivedWeeks, nextWeekPlan, dinnerReminderEnabled, dinnerReminderHour
         /// v1 key: one flat map for the whole household. Decoded only.
@@ -41,6 +44,8 @@ struct AppStateSnapshot: Codable {
         rules: [PlanningRule],
         plan: WeeklyPlan,
         checkedGroceryIDs: Set<String>,
+        stockedGroceryIDs: Set<String>,
+        manualGroceryItems: [ManualGroceryItem],
         customMeals: [Meal],
         favoriteMealIDs: Set<UUID>,
         dayContexts: [Weekday: DayPlanContext],
@@ -58,6 +63,8 @@ struct AppStateSnapshot: Codable {
         self.rules = rules
         self.plan = plan
         self.checkedGroceryIDs = checkedGroceryIDs
+        self.stockedGroceryIDs = stockedGroceryIDs
+        self.manualGroceryItems = manualGroceryItems
         self.customMeals = customMeals
         self.favoriteMealIDs = favoriteMealIDs
         self.dayContexts = dayContexts
@@ -80,6 +87,9 @@ struct AppStateSnapshot: Codable {
             ?? PlanningRule.starterRules(meals: SampleMeals.all)
         plan = try values.decodeIfPresent(WeeklyPlan.self, forKey: .plan) ?? .empty
         checkedGroceryIDs = try values.decodeIfPresent(Set<String>.self, forKey: .checkedGroceryIDs) ?? []
+        stockedGroceryIDs = try values.decodeIfPresent(Set<String>.self, forKey: .stockedGroceryIDs) ?? []
+        manualGroceryItems = try values
+            .decodeIfPresent([ManualGroceryItem].self, forKey: .manualGroceryItems) ?? []
         customMeals = try values.decodeIfPresent([Meal].self, forKey: .customMeals) ?? []
         favoriteMealIDs = try values.decodeIfPresent(Set<UUID>.self, forKey: .favoriteMealIDs) ?? []
         dayContexts = try values.decodeIfPresent([Weekday: DayPlanContext].self, forKey: .dayContexts) ?? [:]
@@ -123,8 +133,21 @@ struct UserDefaultsStateRepository: AppStateRepository {
     private let key = "meal-shuffler-state-v1"
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) {
+    /// Defaults to the App Group container so extensions can read the same state.
+    init(defaults: UserDefaults = AppGroup.defaults) {
         self.defaults = defaults
+        adoptStateWrittenBeforeTheAppGroupExisted()
+    }
+
+    /// Copies state written to the app's private defaults by an earlier version.
+    ///
+    /// The original is deliberately left in place: a user who reinstalls an older build should
+    /// still find their week, and one stale copy costs a few kilobytes.
+    private func adoptStateWrittenBeforeTheAppGroupExisted() {
+        let standard = UserDefaults.standard
+        guard defaults !== standard, defaults.data(forKey: key) == nil,
+              let existing = standard.data(forKey: key) else { return }
+        defaults.set(existing, forKey: key)
     }
 
     func load() -> AppStateSnapshot? {

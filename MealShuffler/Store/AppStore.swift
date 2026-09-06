@@ -42,9 +42,8 @@ final class AppStore: ObservableObject {
     @Published var inviteNotice: String?
 
     private let generator: MealPlanGenerator
-    private let persistenceKey = "meal-shuffler-state-v1"
     private var isRestoring = true
-    private let defaults: UserDefaults
+    private let repository: any AppStateRepository
     private var pendingSave: Task<Void, Never>?
     private static let feedbackRetentionDays = 400
     private static let feedbackEventLimit = 2_000
@@ -56,11 +55,14 @@ final class AppStore: ObservableObject {
 
     var meals: [Meal] { SampleMeals.all + activeCustomMeals }
 
-    init(defaults: UserDefaults = .standard, random: RandomSource = SystemRandomSource()) {
-        self.defaults = defaults
+    convenience init(defaults: UserDefaults = .standard, random: RandomSource = SystemRandomSource()) {
+        self.init(repository: UserDefaultsStateRepository(defaults: defaults), random: random)
+    }
+
+    init(repository: any AppStateRepository, random: RandomSource = SystemRandomSource()) {
+        self.repository = repository
         generator = MealPlanGenerator(random: random)
-        if let data = defaults.data(forKey: persistenceKey),
-           let state = try? JSONDecoder().decode(PersistedState.self, from: data) {
+        if let state = repository.load() {
             hasCompletedOnboarding = state.hasCompletedOnboarding
             memberPreferences = state.memberPreferences
             rules = state.rules
@@ -642,7 +644,7 @@ final class AppStore: ObservableObject {
     }
 
     private func writeState() {
-        let state = PersistedState(
+        let snapshot = AppStateSnapshot(
             hasCompletedOnboarding: hasCompletedOnboarding,
             memberPreferences: memberPreferences,
             rules: rules,
@@ -659,112 +661,6 @@ final class AppStore: ObservableObject {
             dinnerReminderEnabled: dinnerReminderEnabled,
             dinnerReminderHour: dinnerReminderHour
         )
-        if let data = try? JSONEncoder().encode(state) { defaults.set(data, forKey: persistenceKey) }
-    }
-}
-
-/// The on-disk shape of the app.
-///
-/// `schemaVersion` exists so a change that *reinterprets* a field has somewhere to hook a
-/// migration. Added fields are handled by `decodeIfPresent` defaults, but a blob with no
-/// version at all cannot be told apart from a current one, which is how a bad migration
-/// silently resets everybody.
-private struct PersistedState: Codable {
-    /// 1: original release. 2: dated weeks, per-member preferences, sync stamps.
-    static let currentVersion = 2
-
-    let schemaVersion: Int
-    let hasCompletedOnboarding: Bool
-    let memberPreferences: [UUID: [UUID: MealPreference]]
-    let rules: [PlanningRule]
-    let plan: WeeklyPlan
-    let checkedGroceryIDs: Set<String>
-    let customMeals: [Meal]
-    let favoriteMealIDs: Set<UUID>
-    let dayContexts: [Weekday: DayPlanContext]
-    let feedbackEvents: [MealFeedbackEvent]
-    let householdSize: Int
-    let household: Household
-    let archivedWeeks: [ArchivedWeek]
-    let nextWeekPlan: WeeklyPlan?
-    let dinnerReminderEnabled: Bool
-    let dinnerReminderHour: Int
-
-    private enum CodingKeys: String, CodingKey {
-        case schemaVersion, hasCompletedOnboarding, memberPreferences, rules, plan, checkedGroceryIDs
-        case customMeals, favoriteMealIDs, dayContexts, feedbackEvents, householdSize, household
-        case archivedWeeks, nextWeekPlan, dinnerReminderEnabled, dinnerReminderHour
-        /// v1 key: one flat map for the whole household. Decoded only.
-        case preferences
-    }
-
-    init(
-        hasCompletedOnboarding: Bool,
-        memberPreferences: [UUID: [UUID: MealPreference]],
-        rules: [PlanningRule],
-        plan: WeeklyPlan,
-        checkedGroceryIDs: Set<String>,
-        customMeals: [Meal],
-        favoriteMealIDs: Set<UUID>,
-        dayContexts: [Weekday: DayPlanContext],
-        feedbackEvents: [MealFeedbackEvent],
-        householdSize: Int,
-        household: Household,
-        archivedWeeks: [ArchivedWeek],
-        nextWeekPlan: WeeklyPlan?,
-        dinnerReminderEnabled: Bool,
-        dinnerReminderHour: Int
-    ) {
-        schemaVersion = Self.currentVersion
-        self.hasCompletedOnboarding = hasCompletedOnboarding
-        self.memberPreferences = memberPreferences
-        self.rules = rules
-        self.plan = plan
-        self.checkedGroceryIDs = checkedGroceryIDs
-        self.customMeals = customMeals
-        self.favoriteMealIDs = favoriteMealIDs
-        self.dayContexts = dayContexts
-        self.feedbackEvents = feedbackEvents
-        self.householdSize = householdSize
-        self.household = household
-        self.archivedWeeks = archivedWeeks
-        self.nextWeekPlan = nextWeekPlan
-        self.dinnerReminderEnabled = dinnerReminderEnabled
-        self.dinnerReminderHour = dinnerReminderHour
-    }
-
-    init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        let version = try values.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
-        schemaVersion = version
-
-        hasCompletedOnboarding = try values.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
-        rules = try values.decodeIfPresent([PlanningRule].self, forKey: .rules)
-            ?? PlanningRule.starterRules(meals: SampleMeals.all)
-        plan = try values.decodeIfPresent(WeeklyPlan.self, forKey: .plan) ?? .empty
-        checkedGroceryIDs = try values.decodeIfPresent(Set<String>.self, forKey: .checkedGroceryIDs) ?? []
-        customMeals = try values.decodeIfPresent([Meal].self, forKey: .customMeals) ?? []
-        favoriteMealIDs = try values.decodeIfPresent(Set<UUID>.self, forKey: .favoriteMealIDs) ?? []
-        dayContexts = try values.decodeIfPresent([Weekday: DayPlanContext].self, forKey: .dayContexts) ?? [:]
-        feedbackEvents = try values.decodeIfPresent([MealFeedbackEvent].self, forKey: .feedbackEvents) ?? []
-        householdSize = try values.decodeIfPresent(Int.self, forKey: .householdSize) ?? 4
-        let restoredHousehold = try values.decodeIfPresent(Household.self, forKey: .household) ?? Household()
-        household = restoredHousehold
-        archivedWeeks = try values.decodeIfPresent([ArchivedWeek].self, forKey: .archivedWeeks) ?? []
-        nextWeekPlan = try values.decodeIfPresent(WeeklyPlan.self, forKey: .nextWeekPlan)
-        dinnerReminderEnabled = try values.decodeIfPresent(Bool.self, forKey: .dinnerReminderEnabled) ?? false
-        dinnerReminderHour = try values.decodeIfPresent(Int.self, forKey: .dinnerReminderHour) ?? 16
-
-        if let stored = try values.decodeIfPresent([UUID: [UUID: MealPreference]].self, forKey: .memberPreferences) {
-            memberPreferences = stored
-        } else {
-            // v1 -> v2: taste was recorded for the household as a whole. Attribute it to the
-            // owner, who is the only person the swipe UI could have been speaking for.
-            let flat = try values.decodeIfPresent([UUID: MealPreference].self, forKey: .preferences) ?? [:]
-            let owner = restoredHousehold.members.first(where: { $0.role == .owner })?.id
-                ?? restoredHousehold.members.first?.id
-                ?? restoredHousehold.id
-            memberPreferences = flat.isEmpty ? [:] : [owner: flat]
-        }
+        repository.save(snapshot)
     }
 }

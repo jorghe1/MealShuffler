@@ -2,6 +2,10 @@ import PhotosUI
 import SwiftUI
 
 struct MealLibraryView: View {
+    /// Referenced through the protocol so a server-side extractor is a one-line swap here
+    /// (or a ChainedRecipeExtractor keeping this one as the offline fast path).
+    private static let imageExtractor: any RecipeExtractor = RecipeOCRService()
+
     @EnvironmentObject private var store: AppStore
     @State private var searchText = ""
     @State private var showingEditor = false
@@ -115,7 +119,7 @@ struct MealLibraryView: View {
         defer { isImportingPhoto = false; photoItem = nil }
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else { throw RecipeImportError.unreadableImage }
-            draft = try await RecipeOCRService().recognizeRecipe(from: data)
+            draft = try await Self.imageExtractor.extract(fromImage: data)
             editingMeal = nil
             showingEditor = true
         } catch {
@@ -176,6 +180,8 @@ private struct MealLibraryRow: View {
 }
 
 private struct RecipeLinkImportView: View {
+    private static let urlExtractor: any RecipeExtractor = RecipeImportService()
+
     @Environment(\.dismiss) private var dismiss
     @State private var urlText = ""
     @State private var isLoading = false
@@ -221,7 +227,7 @@ private struct RecipeLinkImportView: View {
         }
         isLoading = true
         defer { isLoading = false }
-        do { imported(try await RecipeImportService().importRecipe(from: url)) }
+        do { imported(try await Self.urlExtractor.extract(from: url)) }
         catch { errorMessage = error.localizedDescription }
     }
 }

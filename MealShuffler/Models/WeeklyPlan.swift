@@ -108,16 +108,30 @@ enum MealSwapIntent: String, CaseIterable, Identifiable {
     }
 }
 
+enum PlanConflictSeverity: Hashable {
+    /// A required rule the plan could not satisfy. Needs the user to decide something.
+    case blocking
+    /// An observation about how the week was built. Worth surfacing, but nothing is wrong.
+    case informational
+}
+
 struct PlanConflict: Identifiable, Hashable {
     let id = UUID()
     let ruleID: UUID?
     let message: String
     let suggestion: String?
+    let severity: PlanConflictSeverity
 
-    init(ruleID: UUID? = nil, message: String, suggestion: String? = nil) {
+    init(
+        ruleID: UUID? = nil,
+        message: String,
+        suggestion: String? = nil,
+        severity: PlanConflictSeverity = .blocking
+    ) {
         self.ruleID = ruleID
         self.message = message
         self.suggestion = suggestion
+        self.severity = severity
     }
 }
 

@@ -381,3 +381,10 @@
 "Unsafe recipe" = "Utrygg oppskrift";
 "Offensive content" = "Upassende innhold";
 "Errors or omissions" = "Feil eller mangler";
+
+/* Phase 1: scoped regeneration, servings source of truth, plan notes */
+"%ld people at dinner" = "%ld personer til middag";
+"Servings" = "Porsjoner";
+"Used for portions and shopping quantities. Adding people to the list below does not change it." = "Brukes til porsjoner og handlemengder. Å legge til personer i listen nedenfor endrer det ikke.";
+"To satisfy your rules we also used: %@." = "For å oppfylle reglene brukte vi også: %@.";
+"Add more meals in these categories to get more choice." = "Legg til flere retter i disse kategoriene for å få mer å velge mellom.";

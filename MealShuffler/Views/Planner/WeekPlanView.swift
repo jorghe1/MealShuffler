@@ -9,7 +9,8 @@ struct WeekPlanView: View {
         ScrollView {
             LazyVStack(spacing: 14) {
                 plannerHeader
-                if !store.conflicts.isEmpty { conflictBanner }
+                if !store.blockingConflicts.isEmpty { conflictBanner }
+                if !store.planNotes.isEmpty { notesRow }
 
                 ForEach(Weekday.allCases) { day in
                     if let item = store.plan[day] {
@@ -91,7 +92,7 @@ struct WeekPlanView: View {
     private var conflictBanner: some View {
         DisclosureGroup {
             VStack(alignment: .leading, spacing: 12) {
-                ForEach(store.conflicts) { conflict in
+                ForEach(store.blockingConflicts) { conflict in
                     VStack(alignment: .leading, spacing: 5) {
                         Text(conflict.message).font(.caption)
                         if let suggestion = conflict.suggestion { Text(suggestion).font(.caption2).foregroundStyle(AppTheme.muted) }
@@ -104,14 +105,36 @@ struct WeekPlanView: View {
             }.padding(.top, 8)
         } label: {
             Label(
-                store.conflicts.count == 1
-                    ? L10n.string("%ld rule conflict", store.conflicts.count)
-                    : L10n.string("%ld rule conflicts", store.conflicts.count),
+                store.blockingConflicts.count == 1
+                    ? L10n.string("%ld rule conflict", store.blockingConflicts.count)
+                    : L10n.string("%ld rule conflicts", store.blockingConflicts.count),
                 systemImage: "exclamationmark.triangle.fill"
             )
                 .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.warning)
         }
         .padding(14).background(AppTheme.warning.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    /// Nothing is broken here, so this deliberately avoids the warning styling the
+    /// conflict banner uses.
+    private var notesRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(store.planNotes) { note in
+                HStack(alignment: .top, spacing: 7) {
+                    Image(systemName: "info.circle").foregroundStyle(AppTheme.accent)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(note.message).font(.caption).foregroundStyle(AppTheme.ink)
+                        if let suggestion = note.suggestion {
+                            Text(suggestion).font(.caption2).foregroundStyle(AppTheme.muted)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(14)
+        .background(AppTheme.accentSoft.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 

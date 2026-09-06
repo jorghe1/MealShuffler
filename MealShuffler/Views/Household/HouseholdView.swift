@@ -8,6 +8,21 @@ struct HouseholdView: View {
 
     var body: some View {
         List {
+            Section {
+                Stepper(
+                    L10n.string("%ld people at dinner", store.householdSize),
+                    value: Binding(
+                        get: { store.householdSize },
+                        set: { store.setHouseholdSize($0) }
+                    ),
+                    in: 1...20
+                )
+            } header: {
+                Text("Servings")
+            } footer: {
+                Text("Used for portions and shopping quantities. Adding people to the list below does not change it.")
+            }
+
             Section("Household") {
                 TextField("Name", text: $householdName)
                     .onSubmit { store.renameHousehold(householdName) }

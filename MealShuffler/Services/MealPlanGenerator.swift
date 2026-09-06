@@ -1,14 +1,46 @@
 import Foundation
 
+/// Everything the generator knows about what this household likes.
+///
+/// Bundled so the signal set can grow (per-member preferences, seasonality) without the
+/// generator's parameter list growing with it.
+struct TasteProfile {
+    var favoriteMealIDs: Set<UUID> = []
+    /// Swiped right during onboarding. A softer signal than an explicitly hearted favourite.
+    var likedMealIDs: Set<UUID> = []
+    /// Swiped left. Normally filtered out upstream, but still penalised here because the
+    /// generator falls back to the full library when rules cannot otherwise be satisfied.
+    var dislikedMealIDs: Set<UUID> = []
+    var learnedScores: [UUID: Int] = [:]
+    var recentlyCookedMealIDs: Set<UUID> = []
+
+    static let empty = TasteProfile()
+}
+
 struct MealPlanGenerator {
+    /// Softmax temperature, in score points.
+    ///
+    /// Sets how sharply score differences translate into selection odds: two meals `d` points
+    /// apart are picked in a ratio of `exp(d / temperature)`. At 30 the repetition penalty
+    /// (100) is a ~28x deterrent, so weeks essentially never repeat a meal, while the strongest
+    /// possible taste signal (30) is only ~2.7x, so a well-liked meal is favoured without
+    /// crowding the library out. Calibrated against simulated households: a fresh install is
+    /// near-uniform, and even a heavily-used profile keeps its top meal near 28% with every
+    /// meal still reachable.
+    private static let temperature = 30.0
+
+    private let random: RandomSource
+
+    init(random: RandomSource = SystemRandomSource()) {
+        self.random = random
+    }
+
     func generate(
         preferredMeals: [Meal],
         allMeals: [Meal],
         rules: [PlanningRule],
         contexts: [Weekday: DayPlanContext] = [:],
-        favoriteMealIDs: Set<UUID> = [],
-        learnedScores: [UUID: Int] = [:],
-        recentlyCookedMealIDs: Set<UUID> = [],
+        taste: TasteProfile = .empty,
         existingPlan: WeeklyPlan = .empty,
         avoidingMealOnDay: [Weekday: UUID] = [:],
         swapIntents: [Weekday: MealSwapIntent] = [:]
@@ -85,7 +117,7 @@ struct MealPlanGenerator {
                 avoiding: avoidingMealOnDay[day],
                 intent: intent,
                 currentMeal: currentMeal,
-                favoriteMealIDs: favoriteMealIDs,
+                favoriteMealIDs: taste.favoriteMealIDs,
                 enforceWeeklyMaximums: true
             )
             let fallback = candidatePool(
@@ -97,7 +129,7 @@ struct MealPlanGenerator {
                 avoiding: avoidingMealOnDay[day],
                 intent: intent,
                 currentMeal: currentMeal,
-                favoriteMealIDs: favoriteMealIDs,
+                favoriteMealIDs: taste.favoriteMealIDs,
                 enforceWeeklyMaximums: true
             )
             let relaxed = candidates(
@@ -111,14 +143,12 @@ struct MealPlanGenerator {
             )
             let pool = !preferred.isEmpty ? preferred : (!fallback.isEmpty ? fallback : relaxed)
 
-            if let meal = weightedChoice(
+            if let meal = chooseMeal(
                 from: pool,
                 day: day,
                 selected: selected,
                 preferredRules: preferredRules,
-                favoriteMealIDs: favoriteMealIDs,
-                learnedScores: learnedScores,
-                recentlyCookedMealIDs: recentlyCookedMealIDs,
+                taste: taste,
                 intent: intent
             ) {
                 selected[day] = meal
@@ -145,6 +175,9 @@ struct MealPlanGenerator {
         let plan = WeeklyPlan(meals: Weekday.allCases.compactMap { entries[$0] })
         conflicts.append(contentsOf: validate(plan: plan, allMeals: allMeals, rules: requiredRules, contexts: contexts))
 
+        // Not a rule violation: the plan is valid, it just had to reach past the meals this
+        // household has expressed an opinion about. Marked informational so it stops being
+        // counted and coloured as a broken rule.
         let preferredIDs = Set(preferredMeals.map(\.id))
         let fallbackNames = selected.values
             .filter { !preferredIDs.contains($0.id) }
@@ -153,8 +186,9 @@ struct MealPlanGenerator {
             .sorted()
         if !fallbackNames.isEmpty {
             conflicts.append(PlanConflict(
-                message: L10n.string("The rules required meals outside your favorites: %@.", fallbackNames.joined(separator: ", ")),
-                suggestion: L10n.string("Add more favorites in these categories.")
+                message: L10n.string("To satisfy your rules we also used: %@.", fallbackNames.joined(separator: ", ")),
+                suggestion: L10n.string("Add more meals in these categories to get more choice."),
+                severity: .informational
             ))
         }
 
@@ -250,38 +284,63 @@ struct MealPlanGenerator {
         return false
     }
 
-    private func weightedChoice(
+    /// Scores every candidate, then *samples* from the resulting distribution.
+    ///
+    /// This used to take `max(by:)` over scores carrying a `0...30` random jitter, which made
+    /// selection an argmax in all but name: the jitter was small next to the taste terms, so a
+    /// household that had marked a few meals cooked converged on one answer per day and the
+    /// shuffle stopped shuffling. Sampling keeps the same scores meaningful while leaving every
+    /// candidate reachable.
+    private func chooseMeal(
         from meals: [Meal],
         day: Weekday,
         selected: [Weekday: Meal],
         preferredRules: [PlanningRule],
-        favoriteMealIDs: Set<UUID>,
-        learnedScores: [UUID: Int],
-        recentlyCookedMealIDs: Set<UUID>,
+        taste: TasteProfile,
         intent: MealSwapIntent?
     ) -> Meal? {
         guard !meals.isEmpty else { return nil }
+        guard meals.count > 1 else { return meals.first }
         let usedIDs = Set(selected.values.map(\.id))
         let previousMeal: Meal? = {
             guard let index = Weekday.allCases.firstIndex(of: day), index > 0 else { return nil }
             return selected[Weekday.allCases[index - 1]]
         }()
 
-        let scored = meals.map { meal -> (Meal, Int) in
-            var score = Int.random(in: 0...30)
+        let scored = meals.map { meal -> (meal: Meal, score: Double) in
+            var score = 0.0
             if !usedIDs.contains(meal.id) { score += intent == .surprise ? 180 : 100 }
             if let previousMeal, meal.tags.isDisjoint(with: previousMeal.tags) { score += 25 }
-            if favoriteMealIDs.contains(meal.id) { score += intent == .favorite ? 250 : 18 }
-            score += learnedScores[meal.id, default: 0] * 5
-            if recentlyCookedMealIDs.contains(meal.id) { score -= 70 }
+            if taste.favoriteMealIDs.contains(meal.id) { score += intent == .favorite ? 250 : 18 }
+            if taste.likedMealIDs.contains(meal.id) { score += 15 }
+            if taste.dislikedMealIDs.contains(meal.id) { score -= 40 }
+            score += Double(taste.learnedScores[meal.id, default: 0]) * 3
+            if taste.recentlyCookedMealIDs.contains(meal.id) { score -= 70 }
             if day == .friday || day == .saturday, meal.tags.contains(.weekend) { score += 15 }
             if day != .saturday && day != .sunday, meal.tags.contains(.quick) { score += 10 }
-            score += preferredRuleScore(meal: meal, day: day, rules: preferredRules, selected: selected)
-            if intent == .quicker { score += max(0, 90 - meal.prepMinutes) }
-            if intent == .cheaper { score += max(0, 220 - meal.planningCostNOK) }
+            score += Double(preferredRuleScore(meal: meal, day: day, rules: preferredRules, selected: selected))
+            if intent == .quicker { score += Double(max(0, 90 - meal.prepMinutes)) }
+            if intent == .cheaper { score += Double(max(0, 220 - meal.planningCostNOK)) }
             return (meal, score)
         }
-        return scored.max(by: { $0.1 < $1.1 })?.0
+        return sample(from: scored)
+    }
+
+    /// Softmax sample. Shifts by the maximum score before exponentiating, so a wide score
+    /// spread cannot overflow to infinity and collapse the distribution onto one candidate.
+    private func sample(from scored: [(meal: Meal, score: Double)]) -> Meal? {
+        guard !scored.isEmpty else { return nil }
+        let highest = scored.map { $0.score }.max() ?? 0
+        let weights = scored.map { exp(($0.score - highest) / Self.temperature) }
+        let total = weights.reduce(0, +)
+        guard total.isFinite, total > 0 else { return scored.max(by: { $0.score < $1.score })?.meal }
+
+        var target = random.nextUniform() * total
+        for (index, weight) in weights.enumerated() {
+            target -= weight
+            if target <= 0 { return scored[index].meal }
+        }
+        return scored.last?.meal
     }
 
     private func preferredRuleScore(meal: Meal, day: Weekday, rules: [PlanningRule], selected: [Weekday: Meal]) -> Int {

@@ -244,8 +244,15 @@ private struct StarterRulesStepView: View {
                     Label("People at dinner", systemImage: "person.2")
                         .font(.headline)
                     Spacer()
-                    Stepper("\(store.householdSize)", value: $store.householdSize, in: 1...12)
-                        .fixedSize()
+                    Stepper(
+                        "\(store.householdSize)",
+                        value: Binding(
+                            get: { store.householdSize },
+                            set: { store.setHouseholdSize($0) }
+                        ),
+                        in: 1...12
+                    )
+                    .fixedSize()
                 }
                 .padding(16)
                 .mealCard()

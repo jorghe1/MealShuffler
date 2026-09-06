@@ -3,7 +3,9 @@ import XCTest
 
 final class MealPlanGeneratorTests: XCTestCase {
     private let meals = SampleMeals.all
-    private let generator = MealPlanGenerator()
+    // Seeded so the generator's sampling is reproducible. With the system source these
+    // assertions were sound but not repeatable, which makes any failure hard to act on.
+    private let generator = MealPlanGenerator(random: SeededRandomSource(seed: 20_260_906))
 
     func testStarterRulesAreRespected() throws {
         let result = generator.generate(preferredMeals: meals, allMeals: meals, rules: PlanningRule.starterRules(meals: meals))

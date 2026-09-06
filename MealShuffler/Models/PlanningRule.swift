@@ -27,6 +27,21 @@ enum RuleConstraint: Codable, Hashable {
     case maximumPrepTime(day: Weekday, minutes: Int)
 }
 
+extension RuleConstraint {
+    /// Days whose dinner this constraint can change.
+    ///
+    /// Day-scoped rules only ever affect their own day, so editing one no longer needs to
+    /// re-roll the whole week. Weekly counts genuinely span every day.
+    var affectedDays: Set<Weekday> {
+        switch self {
+        case .requiredOn(let day, _), .excludedOn(let day, _), .maximumPrepTime(let day, _):
+            [day]
+        case .maximumPerWeek, .minimumPerWeek:
+            Set(Weekday.allCases)
+        }
+    }
+}
+
 enum RuleStrength: String, Codable, CaseIterable, Identifiable {
     case required
     case preferred

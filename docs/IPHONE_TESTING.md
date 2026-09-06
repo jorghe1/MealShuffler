@@ -65,20 +65,83 @@ Hvis du bruker et annet navn på Codemagic-integrasjonen, endrer du bare
 
 ## Første praktiske testrunde
 
-Test med «Slett app» mellom minst én av rundene slik at onboarding og fersk lokal
-tilstand blir verifisert.
+Kjør denne runden på en fysisk iPhone. Punktene er gruppert etter hva som er
+mest sannsynlig å gå galt.
+
+### Migrering fra en eksisterende installasjon (viktigst)
+
+Dette er det eneste som kan ødelegge ekte data, og det kan bare testes på en
+telefon som allerede har den gamle appen installert. Ikke slett appen først.
+
+- Installer den nye builden over en eksisterende v1-installasjon.
+- Kontroller at ukeplan, egne retter, favoritter, regler og historikk er intakt.
+- Kontroller at antall personer i husholdningen er uendret.
+- Kontroller at en egen rett med pris fortsatt viser samme pris
+  (feltet er omdøpt fra `estimatedCostNOK`, men leses fra den gamle nøkkelen).
+- Kontroller at smaksvalg fra onboarding fortsatt gjelder.
+
+### Planlegging
 
 - Fullfør swipe-onboarding og kontroller at valg blir lagret etter omstart.
 - Lag ukeplan med standardreglene og kontroller tirsdag/torsdag/lørdag.
 - Lås én dag, shuffle resten og bekreft at låst middag ikke endres.
-- Opprett og rediger en egen rett.
-- Importer én oppskrift fra en `https`-lenke og én fra et bilde.
-- Lag handleliste, kryss av varer og eksporter til Påminnelser.
-- Prøv stor tekststørrelse, VoiceOver og en smal iPhone-skjerm.
+- **Trykk shuffle 5–10 ganger og bekreft at uken faktisk varierer.**
+- **Endre antall personer på én dag og bekreft at resten av uken står stille.**
+- **Slå av en regel og bekreft at bare dagene regelen gjelder blir planlagt på
+  nytt.**
+- Bruk «bytt med en annen dag» og bekreft at porsjoner følger med.
+
+### Handleliste
+
+- **Kryss av halve listen, shuffle én dag, og bekreft at avkryssingene
+  består.**
+- Bekreft at mengder følger antall personer.
+- Eksporter til Påminnelser.
+- Kontroller tom tilstand ved å sette alle dager til «ingen hjemme».
+
+### Dato og uke
+
+- Kontroller at uketeksten øverst viser riktig datointervall.
+- **Still telefonens dato en uke frem, åpne appen, og bekreft at uken rulles
+  over og den gamle uken havner i historikk.** Still datoen tilbake etterpå.
+- Planlegg neste uke, still datoen frem, og bekreft at den planen tas i bruk.
+- Slå på middagspåminnelse og bekreft at varselet kommer og navngir riktig rett.
+- Bytt telefonens region til en der uken starter på søndag og kontroller at
+  planleggeren følger den rekkefølgen.
+
+### Import
+
+- Importer én oppskrift fra en `https`-lenke, gjerne fra et norsk matnettsted.
+- **Ta bilde av en kokebokside med overskrifter og fremgangsmåte, og bekreft at
+  bare ingredienser havner i ingredienslisten — ikke stegene, tidsangivelser
+  eller sidetall.**
+- Rediger en innebygd rett og bekreft at det ikke dukker opp to like rader.
+- Slett den redigerte varianten og bekreft at originalen kommer tilbake.
+
+### Utseende og tilgjengelighet
+
+- **Kjør hele appen i mørk modus.**
+- Sett tekststørrelse til XXL og kontroller at ingenting klippes.
+- Kjør VoiceOver over ukeplan og handleliste: hver knapp skal ha navn, og
+  avkryssede varer skal leses som valgt.
+- Kontroller på en smal skjerm (iPhone SE eller mini).
+
+### Robusthet
+
 - Kontroller offline oppstart og at eksisterende ukeplan fortsatt finnes.
+- Send appen i bakgrunnen rett etter en endring og åpne den igjen — endringen
+  skal være lagret (skrivingen er debounced og tømmes ved bakgrunnskjøring).
+- Kjør minst én runde med «Slett app» først, slik at onboarding og fersk lokal
+  tilstand blir verifisert.
 
 ## Avgrensning i denne builden
 
-Data, husholdning og testcommunity lagres lokalt på én telefon. Firebase er ikke
-en forutsetning for denne testen. Synkronisering mellom telefoner, innlogging,
-bildeopplasting og et ekte offentlig community krever en backend-adapter senere.
+Data, husholdning og historikk lagres lokalt på én telefon. Synkronisering
+mellom telefoner, innlogging, bildeopplasting og et ekte offentlig community
+krever en backend-adapter senere. `AppStateRepository` og `RecipeExtractor` er
+sømmene den adapteren skal implementere.
+
+Community er slått av i denne builden (`FeatureFlags.communityEnabled`). Fanen
+var fylt med tre lokale testfamilier og en invitasjonslenke som bare åpnet en
+dialog om at synkronisering ikke er bygget. Den slås på igjen sammen med
+innlogging og moderering.

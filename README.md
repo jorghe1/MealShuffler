@@ -4,28 +4,33 @@ En native SwiftUI-MVP for enkel, regelstyrt middagsplanlegging.
 
 ## Dette er med
 
-- Swipe-onboarding som lærer hvilke hverdagsretter brukeren liker.
-- Regelbygger med dagregler, ukentlige minimum og maksimum.
+- Swipe-onboarding som lærer hvilke hverdagsretter familien liker.
+- Regelbygger med dagregler, ukentlige minimum og maksimum, som harde eller
+  myke regler.
 - En lokal planmotor som respekterer låste dager og forklarer regelkonflikter.
-- Ukevisning med «bytt», «lås» og «shuffle resten».
-- Automatisk, kategorisert handleliste fra ukens retter.
-- Lokal lagring i `UserDefaults`; ingen konto eller backend er nødvendig.
-- Visuell regelsetningsbygger med harde og myke regler.
-- Dagskontekst for antall personer, tidsgrense, ekstra porsjoner, rester, takeaway og dager borte.
+- Ukevisning forankret i en ekte kalenderuke, med automatisk ukeskifte,
+  arkivert historikk og planlegging av neste uke.
+- Dagskontekst for antall personer, tidsgrense, ekstra porsjoner, rester,
+  takeaway og dager borte.
 - Intensjonsbasert bytte: raskere, billigere, favoritt eller overraskelse.
-- Egne retter med manuell registrering, schema.org-import fra lenke og tekstgjenkjenning fra bilde.
-- Porsjonsskalering og enhetsnormalisering i handlelisten.
-- Husholdningsprofil, invitasjonsidentitet og delbar ukeplan.
-- Eksport av handleliste til Apple Påminnelser eller vanlig iOS-deling.
+- Egne retter med manuell registrering, schema.org-import fra lenke og
+  strukturert tekstgjenkjenning fra bilde.
+- Automatisk, kategorisert handleliste med porsjonsskalering og
+  enhetsnormalisering, og eksport til Apple Påminnelser eller iOS-deling.
+- Valgfri daglig påminnelse om hva som er til middag.
 - Lokal historikk og forsiktig preferanselæring med repetisjonskontroll.
-- Et repository-basert testcommunity med testfamilier, publisering, vurdering og rapportering.
-- Engelsk som utviklings- og standardspråk, med komplett norsk Bokmål-lokalisering.
+- Lys og mørk modus, Dynamic Type og VoiceOver-merking.
+- Lokal lagring bak `AppStateRepository`; ingen konto eller backend kreves.
+- Engelsk som utviklings- og kildespråk, med komplett norsk Bokmål-lokalisering.
 
 MVP-en leveres med tre aktive startregler:
 
 1. Fisk på tirsdag og torsdag.
 2. Kylling maksimalt to ganger i uka.
 3. Pizza på lørdag.
+
+Community-fanen er slått av bak `FeatureFlags.communityEnabled` til
+innlogging og moderering er på plass.
 
 ## Kjøring
 
@@ -48,19 +53,39 @@ går gjennom samme lokaliseringslag som SwiftUI-visningene.
 
 ## Arkitektur og videre backend
 
-Selve planleggingen er domenelogikk uten UI- eller nettverksavhengigheter. Lagret
-MVP-tilstand har bakoverkompatibel dekoding for felter som er lagt til etter
-første versjon.
+Planleggingen er domenelogikk uten UI- eller nettverksavhengigheter.
+`MealPlanGenerator` tar en injisert `RandomSource`, slik at trekningen er
+reproduserbar i tester.
 
-Community bruker `CommunityRepository`. `LocalCommunityRepository` gir et
-persistérbart testmiljø på én enhet. En fremtidig CloudKit-, Supabase- eller egen
-API-adapter kan implementere samme protokoll uten at Community-visningene må
-skrives om. Invitasjonslenker og husholdningsidentitet er etablert, men sanntids-
-synkronisering mellom forskjellige enheter krever denne backend-adapteren.
+Lagret tilstand har et `schemaVersion`-felt og bakoverkompatibel dekoding.
+Entiteter bærer `updatedAt`/`updatedBy`, og slettede egne retter beholdes som
+gravsteiner — begge deler er nødvendige for en senere synkronisering og kan
+ikke rekonstrueres i ettertid. Smakspreferanser lagres per husstandsmedlem.
 
-Offentlig publisering krever aktiv bekreftelse på delingsrettigheter, beholder
-originalkilde for nettimport og har rapporteringsmodell fra starten. Modereringskø,
-autentisering og opplasting av bilder må ferdigstilles før et helt åpent community.
+Tre protokoller er sømmene mot en backend:
+
+- `AppStateRepository` — hvor appens tilstand bor. `UserDefaultsStateRepository`
+  er den lokale implementasjonen.
+- `RecipeExtractor` — oppskriftsuttrekk. De lokale implementasjonene
+  (schema.org og OCR) fungerer som rask sti; en tjenestebasert utgave kan legges
+  bak `ChainedRecipeExtractor` uten at visningene endres.
+- `CommunityRepository` — community. `LocalCommunityRepository` gir et
+  persistérbart testmiljø på én enhet.
+
+Offentlig publisering krever aktiv bekreftelse på delingsrettigheter og beholder
+originalkilde for nettimport. Autentisering, modereringskø og bildeopplasting må
+ferdigstilles før et åpent community.
+
+## Sjekker
+
+`ci/` inneholder tre rene Python-sjekker som kjører før xcodegen, og som også
+kjører gratis på Linux i GitHub Actions:
+
+```sh
+python3 ci/validate-localizations.py   # norsk lokalisering mot kildetekst
+python3 ci/check-swift-structure.py    # klammebalanse, døde symboler, duplikater
+python3 ci/check-store-api.py          # visningenes bruk av AppStore
+```
 
 > Dette arbeidsområdet ble opprettet på Windows, så selve Xcode-builden må gjøres
 > på macOS. Prosjektbeskrivelsen og kildekoden er uten tredjepartsavhengigheter.

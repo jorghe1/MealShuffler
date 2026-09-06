@@ -116,13 +116,12 @@ struct RecipeOCRService {
         guard let image = UIImage(data: data), let cgImage = image.cgImage else {
             throw RecipeImportError.unreadableImage
         }
+        // `perform` invokes each request's completion handler *and* rethrows the first
+        // request error. Resuming from both paths would resume the continuation twice,
+        // which traps. Read the results after `perform` returns instead, so there is
+        // exactly one resume on each path.
         let lines: [String] = try await withCheckedThrowingContinuation { continuation in
-            let request = VNRecognizeTextRequest { request, error in
-                if let error { continuation.resume(throwing: error); return }
-                let observations = request.results as? [VNRecognizedTextObservation] ?? []
-                let text = observations.compactMap { $0.topCandidates(1).first?.string }
-                continuation.resume(returning: text)
-            }
+            let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
             let norwegianFirst = Bundle.main.preferredLocalizations.first?.hasPrefix("nb") == true
             request.recognitionLanguages = norwegianFirst
@@ -130,8 +129,13 @@ struct RecipeOCRService {
                 : ["en-US", "nb-NO", "nn-NO"]
             request.usesLanguageCorrection = true
             DispatchQueue.global(qos: .userInitiated).async {
-                do { try VNImageRequestHandler(cgImage: cgImage).perform([request]) }
-                catch { continuation.resume(throwing: error) }
+                do {
+                    try VNImageRequestHandler(cgImage: cgImage).perform([request])
+                    let observations = request.results as? [VNRecognizedTextObservation] ?? []
+                    continuation.resume(returning: observations.compactMap { $0.topCandidates(1).first?.string })
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
         }
         guard let title = lines.first, !title.isEmpty else { throw RecipeImportError.unreadableImage }

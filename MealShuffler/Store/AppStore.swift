@@ -170,7 +170,7 @@ final class AppStore: ObservableObject {
         }
         plan = resultPlan
         conflicts = result.conflicts
-        checkedGroceryIDs = []
+        reconcileGroceryChecks()
     }
 
     func toggleLock(day: Weekday) {
@@ -199,7 +199,7 @@ final class AppStore: ObservableObject {
         plan[firstDay] = first
         plan[secondDay] = second
         refreshConflicts()
-        checkedGroceryIDs = []
+        reconcileGroceryChecks()
     }
 
     func toggleRule(_ rule: PlanningRule) {
@@ -361,7 +361,17 @@ final class AppStore: ObservableObject {
     private func apply(_ result: GenerationResult) {
         plan = result.plan
         conflicts = result.conflicts
-        checkedGroceryIDs = []
+        reconcileGroceryChecks()
+    }
+
+    /// Keeps ticks for items that are still on the list and drops the rest. Wiping the whole
+    /// set on every plan change discarded a shopper's progress mid-aisle for edits — a day
+    /// swap, a single-day reshuffle — that often leave the list almost unchanged.
+    private func reconcileGroceryChecks() {
+        guard !checkedGroceryIDs.isEmpty else { return }
+        let liveIDs = Set(groceryItems.map(\.id))
+        let reconciled = checkedGroceryIDs.intersection(liveIDs)
+        if reconciled != checkedGroceryIDs { checkedGroceryIDs = reconciled }
     }
 
     private func save() {

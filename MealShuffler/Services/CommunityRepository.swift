@@ -40,8 +40,12 @@ actor LocalCommunityRepository: CommunityRepository {
     }
 
     func fetchRecipes() async throws -> [CommunityRecipe] {
+        // Branch on the value being compared. Branching on `ratingCount` while returning a
+        // comparison of `averageRating` is not a strict weak ordering (it admits A < C < B < A),
+        // which leaves `sorted` free to return any permutation.
         recipes.sorted { lhs, rhs in
-            if lhs.ratingCount != rhs.ratingCount { return lhs.averageRating > rhs.averageRating }
+            if lhs.averageRating != rhs.averageRating { return lhs.averageRating > rhs.averageRating }
+            if lhs.ratingCount != rhs.ratingCount { return lhs.ratingCount > rhs.ratingCount }
             return lhs.publishedAt > rhs.publishedAt
         }
     }
@@ -87,11 +91,27 @@ actor LocalCommunityRepository: CommunityRepository {
         let nordli = CommunityAuthor(id: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!, displayName: L10n.string("The Nordli family"))
         let berg = CommunityAuthor(id: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!, displayName: L10n.string("Berg's kitchen"))
         let sol = CommunityAuthor(id: UUID(uuidString: "10000000-0000-0000-0000-000000000003")!, displayName: "Sol & Co")
-        return [
-            CommunityRecipe(meal: SampleMeals.all[1], author: nordli, publishedAt: .now.addingTimeInterval(-86_400 * 2), averageRating: 4.8, ratingCount: 12, cookedCount: 31),
-            CommunityRecipe(meal: SampleMeals.all[6], author: berg, publishedAt: .now.addingTimeInterval(-86_400 * 5), averageRating: 4.6, ratingCount: 8, cookedCount: 19),
-            CommunityRecipe(meal: SampleMeals.all[11], author: sol, publishedAt: .now.addingTimeInterval(-86_400 * 8), averageRating: 4.4, ratingCount: 5, cookedCount: 14)
+        // Referenced by stable UUID rather than array index, so reordering or removing a
+        // sample meal cannot silently reseed the community or trap on a bad index.
+        func sample(_ id: String) -> Meal? {
+            UUID(uuidString: id).flatMap { uuid in SampleMeals.all.first(where: { $0.id == uuid }) }
+        }
+        let seeds: [(String, CommunityAuthor, TimeInterval, Double, Int, Int)] = [
+            ("00000000-0000-0000-0000-000000000002", nordli, -86_400 * 2, 4.8, 12, 31),
+            ("00000000-0000-0000-0000-000000000007", berg, -86_400 * 5, 4.6, 8, 19),
+            ("00000000-0000-0000-0000-000000000012", sol, -86_400 * 8, 4.4, 5, 14)
         ]
+        return seeds.compactMap { mealID, author, age, rating, ratings, cooked in
+            guard let meal = sample(mealID) else { return nil }
+            return CommunityRecipe(
+                meal: meal,
+                author: author,
+                publishedAt: .now.addingTimeInterval(age),
+                averageRating: rating,
+                ratingCount: ratings,
+                cookedCount: cooked
+            )
+        }
     }()
 }
 

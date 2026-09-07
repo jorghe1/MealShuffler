@@ -20,6 +20,10 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
+    <!-- Deployed URL of server/. Left empty on purpose: with no URL the app stays
+         entirely on its on-device parser, which is correct before the service exists. -->
+    <key>RecipeServiceBaseURL</key>
+    <string></string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSRequiresIPhoneOS</key>

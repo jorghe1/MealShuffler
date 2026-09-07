@@ -1,0 +1,15 @@
+name = "mealshuffler-extract"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Per-install cap. Not authentication -- it exists so one misbehaving client cannot
+# run up the model bill, and it is cheaper to add now than after that happens.
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }
+
+# Set with: wrangler secret put ANTHROPIC_API_KEY
+# Never commit the key; the whole point of the proxy is keeping it out of the IPA.

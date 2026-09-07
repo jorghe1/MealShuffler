@@ -25,6 +25,8 @@ final class AppStore: ObservableObject {
     @Published var dinnerReminderEnabled: Bool { didSet { save() } }
     @Published var dinnerReminderHour: Int { didSet { save() } }
     @Published var inviteNotice: String?
+    /// Recipes shared in from other apps, waiting to be turned into meals.
+    @Published var pendingCaptures: [CapturedRecipe] = []
 
     private let generator: MealPlanGenerator
     private var isRestoring = true
@@ -89,6 +91,7 @@ final class AppStore: ObservableObject {
         }
         isRestoring = false
         inviteNotice = nil
+        pendingCaptures = RecipeInbox.all()
         rollOverIfNeeded()
         refreshConflicts()
     }
@@ -98,6 +101,18 @@ final class AppStore: ObservableObject {
     /// Moves the calendar on. A finished week is archived, next week's plan is promoted if one
     /// was prepared, and otherwise the current plan is re-anchored so it stops claiming to be
     /// a week that has already passed.
+    /// Picks up anything the share extension left behind. Called when the app becomes
+    /// active, because that is the only moment the extension's work becomes visible.
+    func refreshPendingCaptures() {
+        let waiting = RecipeInbox.all()
+        if waiting.map(\.id) != pendingCaptures.map(\.id) { pendingCaptures = waiting }
+    }
+
+    func discardCapture(_ capture: CapturedRecipe) {
+        RecipeInbox.remove(capture.id)
+        pendingCaptures.removeAll { $0.id == capture.id }
+    }
+
     func rollOverIfNeeded(now: Date = .now, calendar: Calendar = .current) {
         let currentWeekStart = WeekAnchor.startOfWeek(containing: now, calendar: calendar)
         guard plan.startDate < currentWeekStart else { return }

@@ -35,6 +35,7 @@ workflows:
         BUNDLE_ID: "no.mealshuffler.app"
         # Each embedded extension is signed separately and needs its own profile.
         WIDGET_BUNDLE_ID: "no.mealshuffler.app.widget"
+        SHARE_BUNDLE_ID: "no.mealshuffler.app.share"
         XCODE_PROJECT: "MealShuffler.xcodeproj"
         XCODE_SCHEME: "MealShuffler"
 
@@ -62,7 +63,7 @@ workflows:
           # The app and every embedded extension need their own profile. Fetching only
           # the app bundle id leaves the widget unsigned, and the archive then fails
           # late, at export, with a bare "no matching profile" message.
-          for id in "$BUNDLE_ID" "$WIDGET_BUNDLE_ID"; do
+          for id in "$BUNDLE_ID" "$WIDGET_BUNDLE_ID" "$SHARE_BUNDLE_ID"; do
             app-store-connect fetch-signing-files "$id" \
               --type IOS_APP_STORE \
               --certificate-key=@file:/tmp/cert_key.pem \

@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Declares what leaves the device.
+
+  Recipe import is the only thing that sends anything anywhere, and only when
+  RecipeServiceBaseURL is configured in Info.plist. With it empty the app is entirely local
+  and the declarations below describe capability that is not exercised. They are stated
+  anyway: the manifest has to be accurate for the build that ships, and it is easier to
+  declare the intent than to remember to update it on the day the service goes live.
+
+  Nothing is used for tracking, nothing is linked to an identity, and there is no advertising
+  or analytics SDK in the app.
+-->
 <plist version="1.0">
 <dict>
     <key>NSPrivacyTracking</key>
@@ -7,7 +19,35 @@
     <key>NSPrivacyTrackingDomains</key>
     <array/>
     <key>NSPrivacyCollectedDataTypes</key>
-    <array/>
+    <array>
+        <dict>
+            <!-- Recipe text, links and photos sent for extraction. Not stored by the
+                 service and not tied to an account. -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- Photos are user content when they are of a recipe page. Same treatment. -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypePhotosorVideos</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+    </array>
     <key>NSPrivacyAccessedAPITypes</key>
     <array>
         <dict>
@@ -16,6 +56,16 @@
             <key>NSPrivacyAccessedAPITypeReasons</key>
             <array>
                 <string>CA92.1</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- Written in the shared container when a photo is shared in and read back by
+                 the app on next launch. -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>C617.1</string>
             </array>
         </dict>
     </array>

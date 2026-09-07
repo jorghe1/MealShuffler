@@ -28,6 +28,8 @@ targets:
     dependencies:
       - target: MealShufflerWidget
         embed: true
+      - target: MealShufflerShare
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.app
@@ -74,6 +76,45 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.app.widget
         CODE_SIGN_ENTITLEMENTS: MealShufflerWidget/MealShufflerWidget.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+
+  # Captures what was shared and returns immediately. Extraction is a network round trip and
+  # share extensions are killed for taking too long, so the app does that work on next open.
+  MealShufflerShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MealShufflerShare
+        excludes:
+          - Info.plist
+          - MealShufflerShare.entitlements
+      - path: MealShuffler/Models
+      - path: MealShuffler/Data
+      - path: MealShuffler/Localization
+      - path: MealShuffler/Theme
+      - path: MealShuffler/Resources
+      - path: MealShuffler/App/AppGroup.swift
+      - path: MealShuffler/Services/AppStateRepository.swift
+      - path: MealShuffler/Services/IngredientUnits.swift
+      - path: MealShuffler/Services/PlannedDinnerReader.swift
+      - path: MealShuffler/Services/RecipeInbox.swift
+    info:
+      path: MealShufflerShare/Info.plist
+      properties:
+        CFBundleDisplayName: Meal Shuffler
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsImageWithMaxCount: 1
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.app.share
+        CODE_SIGN_ENTITLEMENTS: MealShufflerShare/MealShufflerShare.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: YES
 

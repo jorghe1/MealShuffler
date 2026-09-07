@@ -86,6 +86,9 @@ struct Meal: Identifiable, Codable, Hashable {
     let estimatedCost: Int?
     let instructions: [String]
     let source: MealSource
+    /// Photography captured at import. Remote, not stored: emoji-only cards were the app's
+    /// clearest "prototype" tell, and the page already carries an image worth using.
+    let heroImageURL: URL?
     var updatedAt: Date
     var updatedBy: UUID
     /// Soft delete. A hard delete is indistinguishable from "never existed here" once two
@@ -104,6 +107,7 @@ struct Meal: Identifiable, Codable, Hashable {
         estimatedCost: Int? = nil,
         instructions: [String] = [],
         source: MealSource = .builtIn,
+        heroImageURL: URL? = nil,
         updatedAt: Date = .now,
         updatedBy: UUID = DeviceIdentity.current,
         deletedAt: Date? = nil
@@ -119,6 +123,7 @@ struct Meal: Identifiable, Codable, Hashable {
         self.estimatedCost = estimatedCost
         self.instructions = instructions
         self.source = source
+        self.heroImageURL = heroImageURL
         self.updatedAt = updatedAt
         self.updatedBy = updatedBy
         self.deletedAt = deletedAt
@@ -126,7 +131,7 @@ struct Meal: Identifiable, Codable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, subtitle, emoji, prepMinutes, tags, ingredients
-        case defaultServings, estimatedCost, instructions, source
+        case defaultServings, estimatedCost, instructions, source, heroImageURL
         case updatedAt, updatedBy, deletedAt
         /// Pre-rename key, decoded only.
         case estimatedCostNOK
@@ -146,6 +151,7 @@ struct Meal: Identifiable, Codable, Hashable {
             ?? values.decodeIfPresent(Int.self, forKey: .estimatedCostNOK)
         instructions = try values.decodeIfPresent([String].self, forKey: .instructions) ?? []
         source = try values.decodeIfPresent(MealSource.self, forKey: .source) ?? .manual
+        heroImageURL = try values.decodeIfPresent(URL.self, forKey: .heroImageURL)
         updatedAt = try values.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .now
         updatedBy = try values.decodeIfPresent(UUID.self, forKey: .updatedBy) ?? DeviceIdentity.current
         deletedAt = try values.decodeIfPresent(Date.self, forKey: .deletedAt)
@@ -166,6 +172,7 @@ struct Meal: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(estimatedCost, forKey: .estimatedCost)
         try container.encode(instructions, forKey: .instructions)
         try container.encode(source, forKey: .source)
+        try container.encodeIfPresent(heroImageURL, forKey: .heroImageURL)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(updatedBy, forKey: .updatedBy)
         try container.encodeIfPresent(deletedAt, forKey: .deletedAt)

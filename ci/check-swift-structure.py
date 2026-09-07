@@ -13,6 +13,10 @@ SRC = [os.path.join(dp, f)
 
 def strip(src):
     """Remove string literals, comments and escapes so brace counting is honest."""
+    # Swift raw string literals first. They hold regexes full of unbalanced brackets and
+    # do not honour backslash escapes, so they must go before the escape pass.
+    src = re.sub(r'##"(?:(?!"##).)*"##', '""', src, flags=re.S)
+    src = re.sub(r'#"(?:(?!"#).)*"#', '""', src, flags=re.S)
     src = re.sub(r'\\.', '', src)
     src = re.sub(r'"""(?:.|\n)*?"""', '""', src)
     src = re.sub(r'"[^"\n]*"', '""', src)

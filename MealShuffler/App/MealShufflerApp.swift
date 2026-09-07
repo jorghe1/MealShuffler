@@ -17,6 +17,7 @@ struct MealShufflerApp: App {
             if phase == .active {
                 // A plan left open across a week boundary is stale on return.
                 store.rollOverIfNeeded()
+                store.refreshPendingCaptures()
             } else {
                 // Saves are debounced, so a change made moments before backgrounding would
                 // otherwise never reach disk.

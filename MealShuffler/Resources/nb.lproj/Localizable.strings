@@ -447,3 +447,19 @@
 "There is no dinner planned for today yet." = "Det er ingen middag planlagt for i dag ennå.";
 "Tonight is %@, about %ld minutes." = "I kveld blir det %@, cirka %ld minutter.";
 "Tonight: %@" = "I kveld: %@";
+
+/* Phase 7: shared captures and the extraction service */
+"1 recipe shared to Meal Shuffler" = "1 oppskrift delt til Meal Shuffler";
+"%ld recipes shared to Meal Shuffler" = "%ld oppskrifter delt til Meal Shuffler";
+"Discard" = "Forkast";
+"Add shared recipe" = "Legg til delt oppskrift";
+"Reading the recipe…" = "Leser oppskriften…";
+"Could not read that" = "Klarte ikke å lese den";
+"Try again" = "Prøv igjen";
+"Read from a photo — check the details before saving." = "Lest fra et bilde — kontroller detaljene før du lagrer.";
+"Reading pasted text needs the import service, which is not set up yet." = "Å lese innlimt tekst krever importtjenesten, som ikke er satt opp ennå.";
+"Saving…" = "Lagrer…";
+"Saved to Meal Shuffler" = "Lagret i Meal Shuffler";
+"Open the app to finish adding it." = "Åpne appen for å fullføre.";
+"Nothing to save here" = "Ingenting å lagre her";
+"Share a link, some text or a photo of a recipe." = "Del en lenke, litt tekst eller et bilde av en oppskrift.";

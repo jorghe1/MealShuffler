@@ -10,6 +10,15 @@ struct ImportedRecipeDraft: Hashable {
     var servings = 4
     var ingredientLines: [String] = []
     var instructions: [String] = []
+    /// Categories, so an imported recipe is immediately visible to rules. Local imports
+    /// leave this empty, which is why "fish on Tuesday" could never match one before.
+    var tags: Set<MealTag> = []
+    /// Ingredients already parsed with a classified aisle. Used when the user accepts the
+    /// import unedited; editing the text falls back to parsing it again.
+    var parsedIngredients: [Ingredient]?
+    var heroImageURL: URL?
+    /// The source was partial or hard to read. Worth the user's eye before saving.
+    var needsReview = false
     var source: MealSource = .manual
 }
 
@@ -17,12 +26,15 @@ enum RecipeImportError: LocalizedError {
     case invalidURL
     case recipeNotFound
     case unreadableImage
+    /// The extraction service explained itself; prefer its wording to a status code.
+    case service(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidURL: L10n.string("The link is not valid.")
         case .recipeNotFound: L10n.string("No structured recipe was found on this page.")
         case .unreadableImage: L10n.string("Could not read text from the image.")
+        case .service(let message): message
         }
     }
 }
@@ -93,6 +105,7 @@ struct RecipeImportService: RecipeExtractor {
               let recipe = extractRecipeObject(from: html) else {
             throw RecipeImportError.recipeNotFound
         }
+        let heroImage = Self.heroImageURL(in: html, pageURL: url)
 
         let ingredients = recipe["recipeIngredient"] as? [String] ?? []
         let instructions = parseInstructions(recipe["recipeInstructions"])
@@ -104,8 +117,29 @@ struct RecipeImportService: RecipeExtractor {
             servings: parseServings(recipe["recipeYield"]),
             ingredientLines: ingredients,
             instructions: instructions,
+            heroImageURL: heroImage,
             source: .web(url)
         )
+    }
+
+    /// The page's own hero image. Real photography for no picker, no upload and no storage.
+    static func heroImageURL(in html: String, pageURL: URL) -> URL? {
+        let patterns = [
+            #"<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']"#,
+            #"<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']"#,
+            #"<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']"#
+        ]
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+                  let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
+                  let range = Range(match.range(at: 1), in: html) else { continue }
+            let candidate = String(html[range])
+            if let resolved = URL(string: candidate, relativeTo: pageURL)?.absoluteURL,
+               resolved.scheme?.lowercased() == "https" {
+                return resolved
+            }
+        }
+        return nil
     }
 
     /// Decodes a page that may not be UTF-8.
@@ -248,6 +282,7 @@ struct RecipeOCRService: RecipeExtractor {
             emoji: "📷",
             ingredientLines: structured.ingredientLines,
             instructions: structured.instructions,
+            needsReview: true,
             source: .photo
         )
     }

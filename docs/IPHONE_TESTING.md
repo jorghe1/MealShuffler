@@ -38,10 +38,10 @@ gjør automatisk:
    App Groups.
 2. Slå på App Groups-capability på App ID-en `no.mealshuffler.app` og velg
    gruppen.
-3. Opprett App ID `no.mealshuffler.app.widget` med samme App Groups-capability
-   og samme gruppe.
-4. Regenerer provisioning profiles. Codemagic henter nå profiler for begge
-   bundle-ID-ene (`BUNDLE_ID` og `WIDGET_BUNDLE_ID`).
+3. Opprett App ID-ene `no.mealshuffler.app.widget` og `no.mealshuffler.app.share`
+   med samme App Groups-capability og samme gruppe.
+4. Regenerer provisioning profiles. Codemagic henter nå profiler for alle tre
+   bundle-ID-ene (`BUNDLE_ID`, `WIDGET_BUNDLE_ID` og `SHARE_BUNDLE_ID`).
 
 Hvis capability-en mangler, faller appen tilbake til privat lagring og
 fortsetter å virke, men widgeten viser «Ingen plan ennå» uansett hva som er
@@ -146,6 +146,14 @@ telefon som allerede har den gamle appen installert. Ikke slett appen først.
 - Spør Siri «hva er til middag».
 - Start matlaging fra ••• på en dag: skjermen skal holde seg våken, mengder skal
   følge antall porsjoner, og «vi lagde denne» skal havne i historikken.
+
+### Deling inn i appen
+
+- Del en oppskriftslenke fra Safari til Meal Shuffler, åpne appen og bekreft at
+  den ligger som «delt til Meal Shuffler» i Retter.
+- Del et bilde og en tekstsnutt på samme måte.
+- Uten `RecipeServiceBaseURL` satt: lenker skal fortsatt virke lokalt, bilder
+  bruker tekstgjenkjenning, og tekst skal si at importtjenesten ikke er satt opp.
 
 ### Handleliste med egne varer
 

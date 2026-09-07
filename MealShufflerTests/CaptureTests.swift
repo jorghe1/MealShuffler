@@ -47,8 +47,12 @@ final class CaptureTests: XCTestCase {
     func testStoredImageIsReadableBackThroughTheCapture() throws {
         RecipeInbox.removeAll()
         let bytes = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x01, 0x02, 0x03])
-        let filename = try XCTUnwrap(RecipeInbox.storeImage(bytes),
-                                     "Needs the App Group container; skipped without the entitlement")
+        // The shared container needs the App Groups entitlement, which an unsigned
+        // simulator build does not carry. Skip rather than fail: the entitlement is
+        // verified on a real device, not here.
+        guard let filename = RecipeInbox.storeImage(bytes) else {
+            throw XCTSkip("No App Group container in an unsigned build")
+        }
         RecipeInbox.add(CapturedRecipe(imageFilename: filename))
 
         let capture = try XCTUnwrap(RecipeInbox.all().first)

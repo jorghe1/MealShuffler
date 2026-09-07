@@ -92,6 +92,33 @@ workflows:
       - name: Apply provisioning profile
         script: xcode-project use-profiles
 
+      # `xcodebuild archive` reports an entitlement mismatch as a bare "Failed to archive",
+      # with the real reason buried in its own log. Printing what the project asks for next
+      # to what the profiles actually grant makes that failure readable at a glance.
+      - name: Report entitlements requested vs granted
+        ignore_failure: true
+        script: |
+          echo "=== Requested by the project ==="
+          for f in MealShuffler/MealShuffler.entitlements \
+                   MealShufflerWidget/MealShufflerWidget.entitlements \
+                   MealShufflerShare/MealShufflerShare.entitlements; do
+            echo "--- $f"
+            plutil -p "$f" || true
+          done
+          echo
+          echo "=== Granted by the fetched provisioning profiles ==="
+          for profile in "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision; do
+            [ -e "$profile" ] || continue
+            echo "--- $(basename "$profile")"
+            security cms -D -i "$profile" 2>/dev/null \
+              | plutil -extract Entitlements xml1 -o - - 2>/dev/null \
+              | plutil -p - 2>/dev/null \
+              | grep -E "application-identifier|application-groups|com.apple.developer" || echo "  (none read)"
+          done
+          echo
+          echo "If a profile is missing com.apple.security.application-groups, enable the"
+          echo "App Groups capability on that App ID in Apple Developer and rebuild."
+
       - name: Build signed IPA
         script: |
           xcode-project build-ipa \
@@ -100,7 +127,9 @@ workflows:
 
     artifacts:
       - build/ios/ipa/*.ipa
+      # Collected even on failure -- this is where the real archive error lives.
       - /tmp/xcodebuild_logs/*.log
+      - build/ios/xcarchive/**/*.xcarchive
       - build/*.xcresult
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
 

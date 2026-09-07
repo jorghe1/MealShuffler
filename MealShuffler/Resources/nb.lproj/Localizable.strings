@@ -463,3 +463,24 @@
 "Open the app to finish adding it." = "Åpne appen for å fullføre.";
 "Nothing to save here" = "Ingenting å lagre her";
 "Share a link, some text or a photo of a recipe." = "Del en lenke, litt tekst eller et bilde av en oppskrift.";
+
+/* Interface backlog: first-week preview, week strip, filters, aisle order */
+"Here's your week" = "Her er uken din";
+"Built from what you liked. Nothing is fixed — change any of it later." = "Satt sammen ut fra det dere likte. Ingenting er låst — endre det når som helst.";
+"Try another week" = "Prøv en annen uke";
+"Rules we assumed" = "Regler vi antok";
+"Start planning" = "Start planleggingen";
+"Jumps to that day" = "Hopper til den dagen";
+"All" = "Alle";
+"Favourites" = "Favoritter";
+"Mine" = "Mine";
+"%ld meals" = "%ld retter";
+"No meals yet" = "Ingen retter ennå";
+"No favourites yet" = "Ingen favoritter ennå";
+"No meals of your own yet" = "Ingen egne retter ennå";
+"Tap the heart on a meal to keep it close." = "Trykk på hjertet på en rett for å ha den lett tilgjengelig.";
+"Add one, or share a recipe into the app from Safari." = "Legg til en, eller del en oppskrift inn i appen fra Safari.";
+"Reorder aisles" = "Endre rekkefølge på avdelinger";
+"Order" = "Rekkefølge";
+"Drag the sections into the order you walk your shop. The shared list follows the same order." = "Dra avdelingene i den rekkefølgen du går gjennom butikken. Den delte listen følger samme rekkefølge.";
+"Reset to default" = "Tilbakestill til standard";

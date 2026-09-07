@@ -21,7 +21,21 @@ struct MealLibraryView: View {
     }
 
     @EnvironmentObject private var store: AppStore
+    /// Fine at fourteen meals; the share extension is designed to make that number grow.
+    private enum LibraryFilter: String, CaseIterable, Identifiable {
+        case all, favourites, mine
+        var id: String { rawValue }
+        var name: String {
+            switch self {
+            case .all: L10n.string("All")
+            case .favourites: L10n.string("Favourites")
+            case .mine: L10n.string("Mine")
+            }
+        }
+    }
+
     @State private var searchText = ""
+    @State private var filter: LibraryFilter = .all
     @State private var sheet: LibrarySheet?
     @State private var importing: CapturedRecipe?
     @State private var photoItem: PhotosPickerItem?
@@ -29,10 +43,20 @@ struct MealLibraryView: View {
     @State private var isImportingPhoto = false
 
     private var filteredMeals: [Meal] {
-        guard !searchText.isEmpty else { return store.meals }
-        return store.meals.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText) ||
-            $0.tags.contains(where: { $0.name.localizedCaseInsensitiveContains(searchText) })
+        let byKind = store.meals.filter { meal in
+            switch filter {
+            case .all: true
+            case .favourites: store.favoriteMealIDs.contains(meal.id)
+            case .mine: !meal.isBuiltIn
+            }
+        }
+        guard !searchText.isEmpty else { return byKind }
+        return byKind.filter { meal in
+            meal.name.localizedCaseInsensitiveContains(searchText)
+                || meal.subtitle.localizedCaseInsensitiveContains(searchText)
+                || meal.tags.contains { $0.name.localizedCaseInsensitiveContains(searchText) }
+                // "what can I make with spinach" is the question people actually have.
+                || meal.ingredients.contains { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
     }
 
@@ -41,7 +65,8 @@ struct MealLibraryView: View {
             LazyVStack(spacing: 12) {
                 actionCard
                 if !store.pendingCaptures.isEmpty { sharedCard }
-                if filteredMeals.isEmpty && !searchText.isEmpty { emptyState }
+                filterRow
+                if filteredMeals.isEmpty { emptyState }
                 ForEach(filteredMeals) { meal in
                     MealLibraryRow(meal: meal, isFavorite: store.favoriteMealIDs.contains(meal.id)) {
                         store.toggleFavorite(meal)
@@ -97,6 +122,28 @@ struct MealLibraryView: View {
         }
     }
 
+    private var filterRow: some View {
+        HStack(spacing: 8) {
+            ForEach(LibraryFilter.allCases) { option in
+                Button {
+                    withAnimation(.snappy) { filter = option }
+                } label: {
+                    Text(option.name)
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(filter == option ? AppTheme.accent : AppTheme.surface)
+                        .foregroundStyle(filter == option ? AppTheme.onAccent : AppTheme.ink)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(filter == option ? [.isButton, .isSelected] : [.isButton])
+            }
+            Spacer(minLength: 0)
+            Text(L10n.string("%ld meals", filteredMeals.count))
+                .font(.caption).foregroundStyle(AppTheme.muted)
+        }
+    }
+
     /// What the share extension left behind, waiting to be turned into meals.
     private var sharedCard: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -131,15 +178,34 @@ struct MealLibraryView: View {
 
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").font(.system(.largeTitle)).foregroundStyle(AppTheme.accent)
-            Text(L10n.string("No meals match “%@”", searchText))
+            Image(systemName: searchText.isEmpty ? "tray" : "magnifyingglass")
+                .font(.system(.largeTitle)).foregroundStyle(AppTheme.accent)
+            Text(emptyTitle)
                 .font(.headline).foregroundStyle(AppTheme.ink).multilineTextAlignment(.center)
-            Text("Try another word, or add it as a new meal.")
+            Text(emptyDetail)
                 .font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(30)
         .mealCard()
+    }
+
+    private var emptyTitle: String {
+        if !searchText.isEmpty { return L10n.string("No meals match “%@”", searchText) }
+        return switch filter {
+        case .favourites: L10n.string("No favourites yet")
+        case .mine: L10n.string("No meals of your own yet")
+        case .all: L10n.string("No meals yet")
+        }
+    }
+
+    private var emptyDetail: String {
+        if !searchText.isEmpty { return L10n.string("Try another word, or add it as a new meal.") }
+        return switch filter {
+        case .favourites: L10n.string("Tap the heart on a meal to keep it close.")
+        case .mine: L10n.string("Add one, or share a recipe into the app from Safari.")
+        case .all: L10n.string("Add one, or share a recipe into the app from Safari.")
+        }
     }
 
     private var actionCard: some View {

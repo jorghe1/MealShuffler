@@ -22,8 +22,8 @@ enum PlanTextExporter {
         }).joined(separator: "\n")
     }
 
-    static func groceryList(_ items: [GroceryItem]) -> String {
-        GroceryAisle.allCases.compactMap { aisle in
+    static func groceryList(_ items: [GroceryItem], aisleOrder: [GroceryAisle] = GroceryAisle.allCases) -> String {
+        aisleOrder.compactMap { aisle in
             let aisleItems = items.filter { $0.aisle == aisle }
             guard !aisleItems.isEmpty else { return nil }
             return ([aisle.name.uppercased()] + aisleItems.map { "• \($0.name) – \($0.quantityText)" }).joined(separator: "\n")

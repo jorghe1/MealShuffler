@@ -143,6 +143,7 @@ struct CookModeView: View {
                 .buttonBorderShape(.roundedRectangle(radius: 16))
             } else {
                 Button {
+                    Haptics.success()
                     store.markCooked(meal, on: day)
                     didMarkCooked = true
                     dismiss()

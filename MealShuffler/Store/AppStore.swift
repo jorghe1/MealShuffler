@@ -14,6 +14,11 @@ final class AppStore: ObservableObject {
     /// lifetimes -- one survives the shop, the other is the shop.
     @Published var stockedGroceryIDs: Set<String> { didSet { save() } }
     @Published var manualGroceryItems: [ManualGroceryItem] { didSet { save() } }
+    /// The order aisles appear in the shopping list.
+    ///
+    /// A fixed order is wrong in every shop but one, and the walk through a supermarket is
+    /// the whole reason the list is grouped at all.
+    @Published var aisleOrder: [GroceryAisle] { didSet { save() } }
     @Published var customMeals: [Meal] { didSet { save() } }
     @Published var favoriteMealIDs: Set<UUID> { didSet { save() } }
     @Published var dayContexts: [Weekday: DayPlanContext] { didSet { save() } }
@@ -60,6 +65,7 @@ final class AppStore: ObservableObject {
             checkedGroceryIDs = state.checkedGroceryIDs
             stockedGroceryIDs = state.stockedGroceryIDs
             manualGroceryItems = state.manualGroceryItems
+            aisleOrder = AppStore.completeAisleOrder(state.aisleOrder)
             customMeals = state.customMeals
             favoriteMealIDs = state.favoriteMealIDs
             dayContexts = state.dayContexts
@@ -78,6 +84,7 @@ final class AppStore: ObservableObject {
             checkedGroceryIDs = []
             stockedGroceryIDs = []
             manualGroceryItems = []
+            aisleOrder = GroceryAisle.allCases
             customMeals = []
             favoriteMealIDs = []
             dayContexts = [:]
@@ -214,6 +221,23 @@ final class AppStore: ObservableObject {
             .filter { stockedGroceryIDs.contains($0.id) }
     }
 
+    /// Keeps a stored order usable when the aisle set changes: unknown entries drop out,
+    /// and any aisle added since is appended rather than silently disappearing.
+    static func completeAisleOrder(_ stored: [GroceryAisle]) -> [GroceryAisle] {
+        let known = stored.filter(GroceryAisle.allCases.contains)
+        return known + GroceryAisle.allCases.filter { !known.contains($0) }
+    }
+
+    func moveAisles(from offsets: IndexSet, to destination: Int) {
+        var order = aisleOrder
+        order.move(fromOffsets: offsets, toOffset: destination)
+        aisleOrder = order
+    }
+
+    func resetAisleOrder() {
+        aisleOrder = GroceryAisle.allCases
+    }
+
     func addGroceryItem(name: String, quantity: Double?, unit: String, aisle: GroceryAisle) {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty else { return }
@@ -325,9 +349,13 @@ final class AppStore: ObservableObject {
         return merged
     }
 
+    /// Marks onboarding done without discarding a week the user has already been shown.
+    ///
+    /// The last step now previews a real plan, so re-shuffling here would replace the very
+    /// week they just approved.
     func completeOnboarding() {
         hasCompletedOnboarding = true
-        shuffleAll()
+        if plan.meals.isEmpty { shuffleAll() }
     }
 
     /// Re-rolls every unlocked day. This is the explicit "shuffle the week" action.
@@ -710,6 +738,7 @@ final class AppStore: ObservableObject {
             checkedGroceryIDs: checkedGroceryIDs,
             stockedGroceryIDs: stockedGroceryIDs,
             manualGroceryItems: manualGroceryItems,
+            aisleOrder: aisleOrder,
             customMeals: customMeals,
             favoriteMealIDs: favoriteMealIDs,
             dayContexts: dayContexts,

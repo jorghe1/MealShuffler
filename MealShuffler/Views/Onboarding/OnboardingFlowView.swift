@@ -21,9 +21,14 @@ struct OnboardingFlowView: View {
                 case 0:
                     WelcomeStepView { withAnimation { step = 1 } }
                 case 1:
-                    TasteSwipeView { withAnimation { step = 2 } }
+                    TasteSwipeView {
+                        // Generate before showing, so the last step is a real week rather
+                        // than a form standing between the user and the payoff.
+                        store.shuffleAll()
+                        withAnimation { step = 2 }
+                    }
                 default:
-                    StarterRulesStepView { store.completeOnboarding() }
+                    FirstWeekStepView { store.completeOnboarding() }
                 }
             }
             .id(step)
@@ -222,96 +227,6 @@ private struct ChoiceButton: View {
                     .font(.caption.weight(.semibold))
             }
             .foregroundStyle(color)
-        }
-    }
-}
-
-private struct StarterRulesStepView: View {
-    @EnvironmentObject private var store: AppStore
-    let finished: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("A few rules to get started")
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .foregroundStyle(AppTheme.ink)
-                Text("Turn off anything that doesn't fit. You can create much more detailed rules later.")
-                    .foregroundStyle(AppTheme.muted)
-                    .lineSpacing(4)
-            }
-            .padding(.top, 28)
-
-            VStack(spacing: 12) {
-                HStack {
-                    Label("People at dinner", systemImage: "person.2")
-                        .font(.headline)
-                    Spacer()
-                    Stepper(
-                        "\(store.householdSize)",
-                        value: Binding(
-                            get: { store.householdSize },
-                            set: { store.setHouseholdSize($0) }
-                        ),
-                        in: 1...12
-                    )
-                    .fixedSize()
-                }
-                .padding(16)
-                .mealCard()
-
-                ForEach(store.rules) { rule in
-                    HStack(spacing: 14) {
-                        Image(systemName: icon(for: rule))
-                            .font(.title3)
-                            .foregroundStyle(AppTheme.accent)
-                            .frame(width: 44, height: 44)
-                            .background(AppTheme.accentSoft)
-                            .clipShape(RoundedRectangle(cornerRadius: 13))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(rule.title).font(.headline)
-                            Text(rule.summary(meals: store.meals))
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.muted)
-                        }
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { store.rules.first(where: { $0.id == rule.id })?.isEnabled ?? false },
-                            set: { store.setRule(rule, enabled: $0) }
-                        ))
-                        .labelsHidden()
-                        .accessibilityLabel(rule.title)
-                    }
-                    .padding(16)
-                    .mealCard()
-                }
-            }
-
-            Spacer()
-
-            Button(action: finished) {
-                HStack {
-                    Text("Create my first week")
-                    Image(systemName: "shuffle")
-                }
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 17)
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 18))
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
-    }
-
-    private func icon(for rule: PlanningRule) -> String {
-        switch rule.constraint {
-        case .requiredOn: "calendar.badge.checkmark"
-        case .excludedOn: "calendar.badge.minus"
-        case .maximumPerWeek: "arrow.down.circle"
-        case .minimumPerWeek: "arrow.up.circle"
-        case .maximumPrepTime: "clock"
         }
     }
 }

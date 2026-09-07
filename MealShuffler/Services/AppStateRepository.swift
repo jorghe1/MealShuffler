@@ -18,6 +18,7 @@ struct AppStateSnapshot: Codable {
     let checkedGroceryIDs: Set<String>
     let stockedGroceryIDs: Set<String>
     let manualGroceryItems: [ManualGroceryItem]
+    let aisleOrder: [GroceryAisle]
     let customMeals: [Meal]
     let favoriteMealIDs: Set<UUID>
     let dayContexts: [Weekday: DayPlanContext]
@@ -31,7 +32,7 @@ struct AppStateSnapshot: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, hasCompletedOnboarding, memberPreferences, rules, plan, checkedGroceryIDs
-        case stockedGroceryIDs, manualGroceryItems
+        case stockedGroceryIDs, manualGroceryItems, aisleOrder
         case customMeals, favoriteMealIDs, dayContexts, feedbackEvents, householdSize, household
         case archivedWeeks, nextWeekPlan, dinnerReminderEnabled, dinnerReminderHour
         /// v1 key: one flat map for the whole household. Decoded only.
@@ -46,6 +47,7 @@ struct AppStateSnapshot: Codable {
         checkedGroceryIDs: Set<String>,
         stockedGroceryIDs: Set<String>,
         manualGroceryItems: [ManualGroceryItem],
+        aisleOrder: [GroceryAisle],
         customMeals: [Meal],
         favoriteMealIDs: Set<UUID>,
         dayContexts: [Weekday: DayPlanContext],
@@ -65,6 +67,7 @@ struct AppStateSnapshot: Codable {
         self.checkedGroceryIDs = checkedGroceryIDs
         self.stockedGroceryIDs = stockedGroceryIDs
         self.manualGroceryItems = manualGroceryItems
+        self.aisleOrder = aisleOrder
         self.customMeals = customMeals
         self.favoriteMealIDs = favoriteMealIDs
         self.dayContexts = dayContexts
@@ -90,6 +93,8 @@ struct AppStateSnapshot: Codable {
         stockedGroceryIDs = try values.decodeIfPresent(Set<String>.self, forKey: .stockedGroceryIDs) ?? []
         manualGroceryItems = try values
             .decodeIfPresent([ManualGroceryItem].self, forKey: .manualGroceryItems) ?? []
+        aisleOrder = try values
+            .decodeIfPresent([GroceryAisle].self, forKey: .aisleOrder) ?? GroceryAisle.allCases
         customMeals = try values.decodeIfPresent([Meal].self, forKey: .customMeals) ?? []
         favoriteMealIDs = try values.decodeIfPresent(Set<UUID>.self, forKey: .favoriteMealIDs) ?? []
         dayContexts = try values.decodeIfPresent([Weekday: DayPlanContext].self, forKey: .dayContexts) ?? [:]

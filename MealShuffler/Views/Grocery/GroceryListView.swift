@@ -5,8 +5,11 @@ struct GroceryListView: View {
     @State private var isExporting = false
     @State private var exportMessage: String?
     @State private var showingAddItem = false
+    @State private var showingAisleOrder = false
 
-    private var shareText: String { PlanTextExporter.groceryList(store.groceryItems) }
+    private var shareText: String {
+        PlanTextExporter.groceryList(store.groceryItems, aisleOrder: store.aisleOrder)
+    }
 
     var body: some View {
         ScrollView {
@@ -29,7 +32,7 @@ struct GroceryListView: View {
 
                 if store.groceryItems.isEmpty { emptyState }
 
-                ForEach(GroceryAisle.allCases) { aisle in
+                ForEach(store.aisleOrder) { aisle in
                     let items = store.groceryItems.filter { $0.aisle == aisle }
                     if !items.isEmpty {
                         VStack(alignment: .leading, spacing: 0) {
@@ -37,7 +40,10 @@ struct GroceryListView: View {
                                 .font(.caption.weight(.bold)).tracking(0.8).foregroundStyle(AppTheme.accent)
                                 .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
                             ForEach(items) { item in
-                                Button { store.toggleGroceryItem(item) } label: {
+                                Button {
+                                    Haptics.check()
+                                    store.toggleGroceryItem(item)
+                                } label: {
                                     HStack(spacing: 12) {
                                         Image(systemName: store.checkedGroceryIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
                                             .font(.title3).foregroundStyle(store.checkedGroceryIDs.contains(item.id) ? AppTheme.accent : AppTheme.muted.opacity(0.45))
@@ -83,6 +89,9 @@ struct GroceryListView: View {
         .appBackground()
         .navigationTitle("Grocery list")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingAisleOrder) {
+            AisleOrderView().environmentObject(store)
+        }
         .sheet(isPresented: $showingAddItem) {
             AddGroceryItemView { name, quantity, unit, aisle in
                 store.addGroceryItem(name: name, quantity: quantity, unit: unit, aisle: aisle)
@@ -134,6 +143,9 @@ struct GroceryListView: View {
     private var exportMenu: some View {
         Menu {
             ShareLink(item: shareText) { Label("Share as text", systemImage: "square.and.arrow.up") }
+            Button { showingAisleOrder = true } label: {
+                Label("Reorder aisles", systemImage: "arrow.up.arrow.down")
+            }
             Button {
                 Task { await exportToReminders() }
             } label: { Label("Apple Reminders", systemImage: "checklist") }

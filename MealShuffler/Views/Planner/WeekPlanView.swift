@@ -16,9 +16,11 @@ struct WeekPlanView: View {
     }
 
     var body: some View {
+        ScrollViewReader { scroll in
         ScrollView {
             LazyVStack(spacing: 14) {
                 plannerHeader
+                weekStrip(scroll: scroll)
                 if !store.blockingConflicts.isEmpty { conflictBanner }
                 if !store.planNotes.isEmpty { notesRow }
 
@@ -34,7 +36,10 @@ struct WeekPlanView: View {
                             open: { if let id = item.mealID { selectedMeal = store.meal(id: id) } },
                             editContext: { editingDay = day },
                             toggleLock: { store.toggleLock(day: day) },
-                            shuffle: { intent in withAnimation(.snappy) { store.shuffle(day: day, intent: intent) } },
+                            shuffle: { intent in
+                                Haptics.shuffle()
+                                withAnimation(.snappy) { store.shuffle(day: day, intent: intent) }
+                            },
                             snooze: {
                                 if let id = item.mealID, let meal = store.meal(id: id) { store.snooze(meal, on: day) }
                             },
@@ -54,10 +59,20 @@ struct WeekPlanView: View {
                             },
                             swapWith: { otherDay in store.swapMeals(between: day, and: otherDay) }
                         )
+                        .id(day)
+                        // Each card arrives on its own rather than the list redrawing as a
+                        // block, so the signature interaction reads as a change.
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.96).combined(with: .opacity),
+                            removal: .opacity
+                        ))
                     }
                 }
 
-                Button { withAnimation(.snappy) { store.shuffleAll() } } label: {
+                Button {
+                    Haptics.shuffle()
+                    withAnimation(.snappy) { store.shuffleAll() }
+                } label: {
                     Label("Shuffle the rest", systemImage: "shuffle")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                 }
@@ -66,6 +81,7 @@ struct WeekPlanView: View {
                 .padding(.top, 4).padding(.bottom, 28)
             }
             .padding(.horizontal, 16)
+        }
         }
         .appBackground()
         .navigationTitle("This week")
@@ -103,7 +119,10 @@ struct WeekPlanView: View {
                         .font(.system(.title, design: .rounded, weight: .bold)).foregroundStyle(AppTheme.ink)
                 }
                 Spacer()
-                Button { withAnimation(.snappy) { store.shuffleAll() } } label: {
+                Button {
+                    Haptics.shuffle()
+                    withAnimation(.snappy) { store.shuffleAll() }
+                } label: {
                     Image(systemName: "shuffle").font(.title2.bold()).frame(width: 54, height: 54)
                         .background(AppTheme.accent).foregroundStyle(AppTheme.onAccent).clipShape(Circle())
                         .shadow(color: AppTheme.accent.opacity(0.25), radius: 10, y: 5)
@@ -112,6 +131,61 @@ struct WeekPlanView: View {
             Text("Tap ••• for quicker, cheaper or favorite meals, or to swap days.")
                 .font(.subheadline).foregroundStyle(AppTheme.muted)
         }.padding(.vertical, 14)
+    }
+
+    /// Seven full-height cards mean you cannot see your own week without scrolling.
+    /// This answers "what does this week look like" in one glance, and jumps to a day.
+    private func weekStrip(scroll: ScrollViewProxy) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Weekday.ordered()) { day in
+                    let item = store.plan[day]
+                    Button {
+                        withAnimation(.snappy) { scroll.scrollTo(day, anchor: .top) }
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(day.shortName.uppercased())
+                                .font(.caption2.bold()).foregroundStyle(AppTheme.muted)
+                            Text(glanceEmoji(item))
+                                .font(.system(size: 22))
+                        }
+                        .frame(width: 48, height: 58)
+                        .background(AppTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(isToday(day) ? AppTheme.accent : .clear, lineWidth: 2)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(glanceLabel(day: day, item: item))
+                    .accessibilityHint(L10n.string("Jumps to that day"))
+                }
+            }
+            .padding(.horizontal, 2)
+            .padding(.vertical, 4)
+        }
+        .scrollClipDisabled()
+    }
+
+    private func isToday(_ day: Weekday) -> Bool {
+        Calendar.current.isDateInToday(store.plan.date(for: day))
+    }
+
+    private func glanceEmoji(_ item: PlannedMeal?) -> String {
+        guard let item else { return "·" }
+        if let meal = item.mealID.flatMap({ store.meal(id: $0) }) { return meal.emoji }
+        switch item.kind {
+        case .away: return "🏃"
+        case .takeaway: return "🥡"
+        case .leftovers: return "♻️"
+        case .meal: return "🍽️"
+        }
+    }
+
+    private func glanceLabel(day: Weekday, item: PlannedMeal?) -> String {
+        let meal = item?.mealID.flatMap { store.meal(id: $0) }
+        return "\(day.name), \(meal?.name ?? L10n.string("Not planned"))"
     }
 
     private var conflictBanner: some View {

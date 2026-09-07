@@ -99,6 +99,14 @@ telefon som allerede har den gamle appen installert. Ikke slett appen først.
   (feltet er omdøpt fra `estimatedCostNOK`, men leses fra den gamle nøkkelen).
 - Kontroller at smaksvalg fra onboarding fortsatt gjelder.
 
+### Onboarding
+
+- Kjør onboarding på en fersk installasjon og bekreft at du får se en ferdig uke
+  **før** du blir bedt om å justere noe.
+- Trykk «Prøv en annen uke» et par ganger og bekreft at den varierer.
+- Åpne «Regler vi antok», skru av en regel, og bekreft at uken oppdateres.
+- Trykk «Start planleggingen» og bekreft at uken du så er den du får — ikke en ny.
+
 ### Planlegging
 
 - Fullfør swipe-onboarding og kontroller at valg blir lagret etter omstart.
@@ -109,6 +117,8 @@ telefon som allerede har den gamle appen installert. Ikke slett appen først.
 - **Slå av en regel og bekreft at bare dagene regelen gjelder blir planlagt på
   nytt.**
 - Bruk «bytt med en annen dag» og bekreft at porsjoner følger med.
+- Bruk ukestripen øverst til å hoppe til en dag, og bekreft at dagens dato er
+  markert.
 
 ### Handleliste
 
@@ -116,6 +126,8 @@ telefon som allerede har den gamle appen installert. Ikke slett appen først.
   består.**
 - Bekreft at mengder følger antall personer.
 - Eksporter til Påminnelser.
+- Endre rekkefølgen på avdelingene og bekreft at både listen og delt tekst
+  følger den nye rekkefølgen.
 - Kontroller tom tilstand ved å sette alle dager til «ingen hjemme».
 
 ### Dato og uke
@@ -127,6 +139,12 @@ telefon som allerede har den gamle appen installert. Ikke slett appen først.
 - Slå på middagspåminnelse og bekreft at varselet kommer og navngir riktig rett.
 - Bytt telefonens region til en der uken starter på søndag og kontroller at
   planleggeren følger den rekkefølgen.
+
+### Retter
+
+- Bytt mellom Alle / Favoritter / Mine og bekreft at antallet stemmer.
+- Søk på en ingrediens (for eksempel «spinat») og bekreft at retter som bruker
+  den dukker opp.
 
 ### Import
 

@@ -80,6 +80,31 @@ struct AppStateSnapshot: Codable {
         self.dinnerReminderHour = dinnerReminderHour
     }
 
+    // Written explicitly because `preferences` is a decode-only legacy key with no matching
+    // property, which would otherwise defeat synthesis of Encodable.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
+        try container.encode(memberPreferences, forKey: .memberPreferences)
+        try container.encode(rules, forKey: .rules)
+        try container.encode(plan, forKey: .plan)
+        try container.encode(checkedGroceryIDs, forKey: .checkedGroceryIDs)
+        try container.encode(stockedGroceryIDs, forKey: .stockedGroceryIDs)
+        try container.encode(manualGroceryItems, forKey: .manualGroceryItems)
+        try container.encode(aisleOrder, forKey: .aisleOrder)
+        try container.encode(customMeals, forKey: .customMeals)
+        try container.encode(favoriteMealIDs, forKey: .favoriteMealIDs)
+        try container.encode(dayContexts, forKey: .dayContexts)
+        try container.encode(feedbackEvents, forKey: .feedbackEvents)
+        try container.encode(householdSize, forKey: .householdSize)
+        try container.encode(household, forKey: .household)
+        try container.encode(archivedWeeks, forKey: .archivedWeeks)
+        try container.encodeIfPresent(nextWeekPlan, forKey: .nextWeekPlan)
+        try container.encode(dinnerReminderEnabled, forKey: .dinnerReminderEnabled)
+        try container.encode(dinnerReminderHour, forKey: .dinnerReminderHour)
+    }
+
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         let version = try values.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1

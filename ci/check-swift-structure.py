@@ -7,7 +7,7 @@ import io, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = [os.path.join(dp, f)
-       for base in ('MealShuffler', 'MealShufflerTests')
+       for base in ('MealShuffler', 'MealShufflerTests', 'MealShufflerWidget', 'MealShufflerShare')
        for dp, _, fs in os.walk(os.path.join(ROOT, base))
        for f in fs if f.endswith('.swift')]
 
@@ -73,6 +73,63 @@ for path in SRC:
 for name, paths in sorted(decls.items()):
     if len(set(paths)) > 1:
         problems.append("duplicate type %s in %s" % (name, ', '.join(sorted(set(paths)))))
+
+# 5. a CodingKey with no matching stored property defeats Encodable synthesis
+#
+# Both AppStateSnapshot and Meal keep a decode-only legacy key so old saved state still
+# reads. Swift will not synthesise encode(to:) around one, and the error it gives names the
+# protocol rather than the key -- so it is worth catching here instead.
+TYPE_DECL = re.compile(
+    r'^(?:public |private |internal |final )*(?:struct|class|enum)\s+(\w+)', re.M)
+
+for path in SRC:
+    text = io.open(path, encoding='utf-8').read()
+    rel = os.path.relpath(path, ROOT)
+    for decl in TYPE_DECL.finditer(text):
+        start = decl.start()
+        following = [m.start() for m in TYPE_DECL.finditer(text) if m.start() > start]
+        body = text[start:following[0]] if following else text[start:]
+
+        keys_block = re.search(r'enum CodingKeys[^{]*\{(.*?)\n\s*\}', body, re.S)
+        if not keys_block:
+            continue
+        keys = set()
+        for line in keys_block.group(1).splitlines():
+            line = re.sub(r'//.*', '', line).strip()
+            if not line.startswith('case '):
+                continue
+            for name in line[len('case '):].split(','):
+                name = name.split('=')[0].strip()
+                if name:
+                    keys.add(name)
+
+        properties = set(re.findall(
+            r'^\s*(?:private |public |internal |fileprivate )*(?:let|var)\s+(\w+)\s*[:=]',
+            body, re.M))
+        orphans = sorted(keys - properties)
+        if orphans and 'func encode(to encoder: Encoder)' not in body:
+            problems.append(
+                "%s: %s has CodingKey(s) %s with no stored property and no explicit "
+                "encode(to:) -- Encodable synthesis will fail"
+                % (rel, decl.group(1), ', '.join(orphans)))
+
+# 6. a nested type must not shadow a SwiftUI property wrapper
+#
+# `private enum State` inside a View makes @State resolve to the enum, and the compiler
+# reports "Enum 'State' cannot be used as an attribute" rather than naming the collision.
+WRAPPERS = ('State', 'Binding', 'Environment', 'EnvironmentObject', 'StateObject',
+            'ObservedObject', 'FocusState', 'AppStorage', 'SceneStorage', 'Namespace')
+for path in SRC:
+    text = io.open(path, encoding='utf-8').read()
+    rel = os.path.relpath(path, ROOT)
+    for m in re.finditer(
+        r'^\s+(?:public |private |internal |fileprivate )*(?:struct|class|enum|typealias)\s+(\w+)',
+        text, re.M
+    ):
+        if m.group(1) in WRAPPERS:
+            problems.append(
+                "%s:%d nested type named %s shadows the SwiftUI property wrapper"
+                % (rel, lineno(text, m.start()), m.group(1)))
 
 # 4. every generate(...) call uses the current label set
 def argument_list(text, open_index):

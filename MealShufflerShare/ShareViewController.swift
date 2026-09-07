@@ -83,15 +83,17 @@ private struct ShareConfirmationView: View {
     let capture: () async -> Bool
     let done: () -> Void
 
-    @State private var state: State = .working
+    @State private var outcome: Outcome = .working
 
-    private enum State {
+    /// Not named `State`: a nested type by that name shadows SwiftUI's property wrapper
+    /// inside this view, and `@State` then fails to resolve.
+    private enum Outcome {
         case working, saved, failed
     }
 
     var body: some View {
         VStack(spacing: 16) {
-            switch state {
+            switch outcome {
             case .working:
                 ProgressView()
                 Text("Saving…").font(.headline)
@@ -115,9 +117,9 @@ private struct ShareConfirmationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
         .task {
-            state = await capture() ? .saved : .failed
+            outcome = await capture() ? .saved : .failed
             // Long enough to read, short enough not to be in the way.
-            try? await Task.sleep(for: .milliseconds(state == .saved ? 900 : 1600))
+            try? await Task.sleep(for: .milliseconds(outcome == .saved ? 900 : 1600))
             done()
         }
     }

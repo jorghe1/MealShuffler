@@ -150,6 +150,43 @@ for path in SRC:
                 "the member onto the type instead"
                 % (rel, lineno(text, m.start()), hit[0]))
 
+# 8. a test touching AppStore must be on the main actor
+#
+# AppStore is @MainActor, so a plain XCTestCase method that constructs one does not compile.
+# The compiler is clear about it, but hearing it costs a CI round trip.
+_store_source = ''
+_store_path = os.path.join(ROOT, 'MealShuffler', 'Store', 'AppStore.swift')
+if os.path.exists(_store_path):
+    _store_source = io.open(_store_path, encoding='utf-8').read()
+NONISOLATED_APPSTORE = set(
+    re.findall(r'nonisolated\s+(?:static\s+)?(?:func|var|let)\s+(\w+)', _store_source))
+
+for path in SRC:
+    if os.sep + 'MealShufflerTests' + os.sep not in path:
+        continue
+    text = io.open(path, encoding='utf-8').read()
+    rel = os.path.relpath(path, ROOT)
+    # @MainActor on the enclosing class covers every method in the file.
+    if re.search(r'@MainActor[^\n]*\n[^\n]*(?:final )?class\s+\w+', text):
+        continue
+    lines = text.splitlines()
+    starts = [i for i, l in enumerate(lines)
+              if re.match(r'\s*(?:private |internal |fileprivate )?func\s+\w+', l)]
+    for index, start in enumerate(starts):
+        end = starts[index + 1] if index + 1 < len(starts) else len(lines)
+        body = chr(10).join(lines[start:end])
+        # The initializer is always isolated; a `nonisolated` member is not.
+        referenced = set(re.findall(r'\bAppStore\.(\w+)', body))
+        isolated_use = 'AppStore(' in body or bool(referenced - NONISOLATED_APPSTORE)
+        if not isolated_use:
+            continue
+        if '@MainActor' in chr(10).join(lines[max(0, start - 3):start]):
+            continue
+        name = re.match(r'\s*(?:private |internal |fileprivate )?func\s+(\w+)', lines[start]).group(1)
+        problems.append(
+            "%s:%d %s touches AppStore without @MainActor -- AppStore is main-actor isolated"
+            % (rel, start + 1, name))
+
 # 4. every generate(...) call uses the current label set
 def argument_list(text, open_index):
     """Text between the matching parentheses starting at open_index."""

@@ -5,6 +5,7 @@ import XCTest
 /// owned, and the reader the widget uses to answer "what is for dinner" from another process.
 final class GroceryAndWidgetTests: XCTestCase {
 
+    @MainActor
     private func makeStore() throws -> (AppStore, UserDefaults, String) {
         let suite = "GroceryWidgetTests-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

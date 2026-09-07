@@ -5,6 +5,7 @@ import XCTest
 /// filtering, and onboarding no longer discarding the week it just showed.
 final class InterfaceStateTests: XCTestCase {
 
+    @MainActor
     private func makeStore(seed: UInt64 = 11) throws -> (AppStore, UserDefaults, String) {
         let suite = "InterfaceStateTests-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

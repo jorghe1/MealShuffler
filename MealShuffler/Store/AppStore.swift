@@ -223,7 +223,7 @@ final class AppStore: ObservableObject {
 
     /// Keeps a stored order usable when the aisle set changes: unknown entries drop out,
     /// and any aisle added since is appended rather than silently disappearing.
-    static func completeAisleOrder(_ stored: [GroceryAisle]) -> [GroceryAisle] {
+    nonisolated static func completeAisleOrder(_ stored: [GroceryAisle]) -> [GroceryAisle] {
         let known = stored.filter(GroceryAisle.allCases.contains)
         return known + GroceryAisle.allCases.filter { !known.contains($0) }
     }

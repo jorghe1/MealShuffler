@@ -131,6 +131,25 @@ for path in SRC:
                 "%s:%d nested type named %s shadows the SwiftUI property wrapper"
                 % (rel, lineno(text, m.start()), m.group(1)))
 
+# 7. a file-scope extension cannot name a type nested inside a `private` one
+#
+# The compiler says "'X' is inaccessible due to 'private' protection level" without saying
+# which declaration is at fault, and the tempting fix -- widening the access level -- is the
+# wrong one when the member simply belongs on the type.
+for path in SRC:
+    text = io.open(path, encoding='utf-8').read()
+    rel = os.path.relpath(path, ROOT)
+    private_nested = set(re.findall(
+        r'^\s+private\s+(?:struct|class|enum)\s+(\w+)', text, re.M))
+    for m in re.finditer(r'^(?:private |fileprivate )?extension\s+([\w.]+)', text, re.M):
+        components = m.group(1).split('.')[:-1]
+        hit = [c for c in components if c in private_nested]
+        if hit:
+            problems.append(
+                "%s:%d extension names %s, which is private to its enclosing type -- move "
+                "the member onto the type instead"
+                % (rel, lineno(text, m.start()), hit[0]))
+
 # 4. every generate(...) call uses the current label set
 def argument_list(text, open_index):
     """Text between the matching parentheses starting at open_index."""

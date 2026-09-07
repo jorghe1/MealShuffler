@@ -106,6 +106,22 @@ struct RemoteRecipeExtractor: RecipeExtractor {
             let quantity: Double?
             let unit: String
             let aisle: String
+
+            /// Rendered back into a line so it flows through the same parser and editor as
+            /// every other import, rather than becoming a second, privileged path into the
+            /// library.
+            var line: String {
+                let amount = quantity.map { value -> String in
+                    value == value.rounded()
+                        ? String(Int(value))
+                        : String(format: "%.2f", value)
+                            .replacingOccurrences(of: "0$", with: "", options: .regularExpression)
+                }
+                return [amount, unit.isEmpty ? nil : unit, name]
+                    .compactMap { $0 }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " ")
+            }
         }
 
         let name: String
@@ -136,21 +152,5 @@ struct RemoteRecipeExtractor: RecipeExtractor {
                 source: source
             )
         }
-    }
-}
-
-private extension RemoteRecipeExtractor.ExtractedRecipe.RemoteIngredient {
-    /// Rendered back into a line so it flows through the same parser and editor as every
-    /// other import, rather than becoming a second, privileged path into the library.
-    var line: String {
-        let amount = quantity.map { value -> String in
-            value == value.rounded()
-                ? String(Int(value))
-                : String(format: "%.2f", value).replacingOccurrences(of: "0$", with: "", options: .regularExpression)
-        }
-        return [amount, unit.isEmpty ? nil : unit, name]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
     }
 }

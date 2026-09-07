@@ -125,7 +125,8 @@ struct MealPlanGenerator {
                 intent: intent,
                 currentMeal: currentMeal,
                 favoriteMealIDs: taste.favoriteMealIDs,
-                enforceWeeklyMaximums: true
+                enforceWeeklyMaximums: true,
+                excludingUsed: true
             )
             let fallback = candidatePool(
                 for: day,
@@ -137,7 +138,8 @@ struct MealPlanGenerator {
                 intent: intent,
                 currentMeal: currentMeal,
                 favoriteMealIDs: taste.favoriteMealIDs,
-                enforceWeeklyMaximums: true
+                enforceWeeklyMaximums: true,
+                excludingUsed: true
             )
             let relaxed = candidates(
                 for: day,
@@ -222,7 +224,8 @@ struct MealPlanGenerator {
         intent: MealSwapIntent?,
         currentMeal: Meal?,
         favoriteMealIDs: Set<UUID>,
-        enforceWeeklyMaximums: Bool
+        enforceWeeklyMaximums: Bool,
+        excludingUsed: Bool = false
     ) -> [Meal] {
         let base = candidates(
             for: day,
@@ -231,7 +234,8 @@ struct MealPlanGenerator {
             rules: rules,
             context: context,
             avoiding: avoiding,
-            enforceWeeklyMaximums: enforceWeeklyMaximums
+            enforceWeeklyMaximums: enforceWeeklyMaximums,
+            excludingUsed: excludingUsed
         )
         guard let intent else { return base }
 
@@ -256,10 +260,17 @@ struct MealPlanGenerator {
         rules: [PlanningRule],
         context: DayPlanContext,
         avoiding: UUID?,
-        enforceWeeklyMaximums: Bool
+        enforceWeeklyMaximums: Bool,
+        /// Serving the same dinner twice in one week is a constraint, not a preference.
+        /// Expressing it as a score bonus made it merely improbable -- roughly one week in
+        /// thirteen still repeated. The relaxed pool leaves it off, so a small library or
+        /// tight rules degrade to a repeat rather than to no plan at all.
+        excludingUsed: Bool = false
     ) -> [Meal] {
-        meals.filter { meal in
+        let usedIDs = excludingUsed ? Set(selected.values.map(\.id)) : []
+        return meals.filter { meal in
             if meal.id == avoiding { return false }
+            if usedIDs.contains(meal.id) { return false }
             if let maximum = context.maximumPrepMinutes, meal.prepMinutes > maximum { return false }
             guard allows(meal: meal, on: day, rules: rules) else { return false }
             return !enforceWeeklyMaximums || !exceedsMaximum(meal: meal, selected: selected, rules: rules)
@@ -385,7 +396,14 @@ struct MealPlanGenerator {
         for rule in rules {
             guard case .minimumPerWeek(let matcher, let minimum) = rule.constraint else { continue }
             while selected.values.filter(matcher.matches).count < minimum {
-                let replacement = (preferredMeals + allMeals).first { meal in
+                let usedIDs = Set(selected.values.map(\.id))
+                let pool = preferredMeals + allMeals
+                // Prefer a meal not already on the plan, but accept one rather than leave a
+                // required minimum unmet.
+                let replacement = pool.first { meal in
+                    matcher.matches(meal) && !usedIDs.contains(meal.id)
+                        && !exceedsMaximum(meal: meal, selected: selected, rules: rules)
+                } ?? pool.first { meal in
                     matcher.matches(meal) && !exceedsMaximum(meal: meal, selected: selected, rules: rules)
                 }
                 guard let replacement else { break }

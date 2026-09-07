@@ -67,6 +67,37 @@ final class PlanVarietyTests: XCTestCase {
         }
     }
 
+    /// The flip side of making no-repeat a hard constraint: a library too small to fill a
+    /// week must still produce seven dinners, not five and two blanks.
+    func testASmallLibraryStillFillsTheWeek() throws {
+        let threeMeals = Array(meals.prefix(3))
+        for seed in UInt64(0)..<10 {
+            let result = generator(seed: seed)
+                .generate(preferredMeals: threeMeals, allMeals: threeMeals, rules: [])
+            let cooked = result.plan.meals.compactMap { $0.kind == .meal ? $0.mealID : nil }
+            XCTAssertEqual(cooked.count, 7, "Seed \(seed) left a day unplanned")
+            XCTAssertTrue(
+                cooked.allSatisfy { id in threeMeals.contains { $0.id == id } },
+                "Only meals from the library may be planned"
+            )
+        }
+    }
+
+    /// A required rule outranks the no-repeat constraint. If the only meal that satisfies
+    /// Saturday's rule was already used earlier, it is used again rather than breaking
+    /// the rule.
+    func testARequiredRuleWinsOverAvoidingARepeat() throws {
+        let pizza = try XCTUnwrap(meals.first { $0.tags.contains(.pizza) })
+        let rules = [
+            PlanningRule(title: "Pizza Friday", constraint: .requiredOn(day: .friday, matcher: .exactMeal(pizza.id))),
+            PlanningRule(title: "Pizza Saturday", constraint: .requiredOn(day: .saturday, matcher: .exactMeal(pizza.id)))
+        ]
+        let result = generator(seed: 42).generate(preferredMeals: meals, allMeals: meals, rules: rules)
+        XCTAssertEqual(result.plan[.friday]?.mealID, pizza.id)
+        XCTAssertEqual(result.plan[.saturday]?.mealID, pizza.id)
+        XCTAssertTrue(result.conflicts.isEmpty, "Satisfying both rules is not a conflict")
+    }
+
     func testDislikedMealsArePenalisedInTheFallbackPool() {
         let salmon = meals.first { $0.tags.contains(.fish) }!
         // Only fish is allowed on Tuesday, so the pool is small and the penalty must show.

@@ -42,3 +42,28 @@ jobs:
                   plistlib.load(handle)
               print("ok", path)
           PY
+
+  server:
+    name: Recipe service
+    runs-on: ubuntu-latest
+    # The Worker had drifted past its own pinned SDK: `messages.parse` and the zod helper
+    # arrived after 0.71, so the committed source could not have compiled. Nothing was
+    # running tsc, which is why nobody noticed.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install
+        working-directory: server
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: server
+        run: npm run typecheck
+
+      - name: Test
+        working-directory: server
+        run: npm test

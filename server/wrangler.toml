@@ -3,13 +3,24 @@ main = "src/index.ts"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Per-install cap. Not authentication -- it exists so one misbehaving client cannot
-# run up the model bill, and it is cheaper to add now than after that happens.
+# Per-install cap. A courtesy limit: the key comes from a header the client chooses, so it
+# stops an honest client looping and nothing else.
 [[unsafe.bindings]]
 name = "RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 20, period = 60 }
+
+# Per-IP cap. The one that actually holds, because the caller does not pick the key.
+#
+# Without it the whole control was `X-Install-Id`, and a fresh UUID per request bought
+# unlimited access to a model call carrying tens of thousands of input tokens. Set a little
+# above the per-install limit so a household behind one NAT is not throttled by itself.
+[[unsafe.bindings]]
+name = "IP_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1002"
+simple = { limit = 40, period = 60 }
 
 # Set with: wrangler secret put ANTHROPIC_API_KEY
 # Never commit the key; the whole point of the proxy is keeping it out of the IPA.

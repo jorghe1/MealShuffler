@@ -12,7 +12,7 @@ settings:
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "0.2.0"
+    MARKETING_VERSION: "0.3.0"
     CURRENT_PROJECT_VERSION: "1"
     VERSIONING_SYSTEM: apple-generic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
@@ -69,6 +69,12 @@ targets:
     info:
       path: MealShufflerWidget/Info.plist
       properties:
+        # XcodeGen defaults a generated extension plist to 1.0/1, while the app's own
+        # checked-in plist expands the build settings. App Store validation rejects that
+        # mismatch outright -- ITMS-90474 for the marketing version, ITMS-90473 for the
+        # build number -- at upload, after the whole signed archive has been produced.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: Meal Shuffler
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
@@ -102,6 +108,12 @@ targets:
     info:
       path: MealShufflerShare/Info.plist
       properties:
+        # XcodeGen defaults a generated extension plist to 1.0/1, while the app's own
+        # checked-in plist expands the build settings. App Store validation rejects that
+        # mismatch outright -- ITMS-90474 for the marketing version, ITMS-90473 for the
+        # build number -- at upload, after the whole signed archive has been produced.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: Meal Shuffler
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services

@@ -6,8 +6,10 @@ En native SwiftUI-app for enkel, regelstyrt middagsplanlegging.
 
 - Swipe-onboarding som lærer hvilke hverdagsretter familien liker, og som spør om
   varsler i det øyeblikket den første uka står ferdig på skjermen.
-- Regelbygger med dagregler, ukentlige minimum og maksimum, som harde eller
-  myke regler.
+- Regelbygger som dekker det familier faktisk sier: dagregler, ukentlige
+  minimum og maksimum, tidsgrenser, dagsplan (spise ute, rester, ingen middag),
+  ingen gjentakelser innen N uker, hent tilbake, ikke to dager på rad og
+  ukesbudsjett — som harde eller myke regler.
 - En lokal planmotor som respekterer låste dager og forklarer regelkonflikter.
 - Ukevisning forankret i en ekte kalenderuke, med automatisk ukeskifte,
   arkivert historikk og planlegging av neste uke.
@@ -17,10 +19,14 @@ En native SwiftUI-app for enkel, regelstyrt middagsplanlegging.
 - Dagskontekst for antall personer, tidsgrense, ekstra porsjoner, rester,
   takeaway og dager borte.
 - Intensjonsbasert bytte: raskere, billigere, favoritt eller overraskelse.
-- Egne retter med manuell registrering, schema.org-import fra lenke og
-  strukturert tekstgjenkjenning fra bilde.
+- Fire veier inn i biblioteket: manuell registrering, lenke (JSON-LD med
+  microdata som reserve), skanning av kokebokside eller skjermbilde, og innliming
+  av fritekst. Alt som leses av seg selv havner i redigeringen med ingrediensene
+  tolket, kategorier gjettet og et varsel om at det bør sjekkes.
 - Automatisk, kategorisert handleliste med porsjonsskalering og
   enhetsnormalisering, og eksport til Apple Påminnelser eller iOS-deling.
+- Basisvarer: salt, olje og mel skjules fast fra handlelisten i stedet for å
+  hukes av på nytt hver uke.
 - Lokal historikk med rotasjonsvisning: hva dere har laget, og hva som er lengst
   siden sist.
 - Ukesammensetning som viser fordelingen mellom fisk, kylling, kjøtt og vegetar.
@@ -32,11 +38,18 @@ Biblioteket har 40 innebygde retter med fremgangsmåte, fordelt over fisk, kylli
 kjøtt, vegetar, pizza, pasta, suppe og taco — nok til at «fisk to dager i uka» og
 «pizza på lørdag» kan oppfylles uten at uka gjentar seg selv.
 
-MVP-en leveres med fire aktive startregler:
+Appen leveres med startregler som er ment å bli endret:
 
 1. Fisk på tirsdag og torsdag.
 2. Kylling maksimalt to ganger i uka.
 3. Pizza på lørdag — som kategori, ikke én bestemt pizza.
+4. Ingen gjentakelser innen tre uker, som en myk regel.
+
+En regel kan handle om en kategori, én bestemt rett, en ingrediens (der allergier
+hører hjemme), en egen merkelapp familien har funnet på, eller om hva ett
+familiemedlem ikke liker. Dager kan navngis enkeltvis eller som «hverdager»,
+«helgen» og «hver dag». Appen nekter å lagre en regel som sier det samme som en
+regel som allerede finnes, eller som motsier den, og forteller hvilken.
 
 Community-fanen er slått av bak `FeatureFlags.communityEnabled` til
 innlogging og moderering er på plass. Invitasjonskoden er slått av bak
@@ -51,11 +64,36 @@ påminnelse om å planlegge den — ellers ville appen blitt taus fra mandagen e
 
 Alt dette settes opp under Innstillinger.
 
+## Oppskriftsimport
+
+Et bibliotek som må skrives inn for hånd blir aldri bygget, så det finnes fire veier inn,
+og alle ender samme sted: i redigeringen, med det som ble lest fylt ut på forhånd.
+
+- **Lenke.** Leser `Recipe`-blokker i JSON-LD — alle blokkene på siden, og velger den
+  rikeste, slik at en side med «relaterte oppskrifter» ikke importerer teaseren.
+  Ingredienser leses i alle formene sider faktisk bruker, og fremgangsmåten følges gjennom
+  `HowToSection` ned til hvert steg. Sider uten JSON-LD leses som microdata.
+- **Skann.** Flersidig dokumentskanning av en kokebokside. Linjene sorteres i leserekkefølge,
+  ikke i den rekkefølgen Vision svarer, og tittelen er den største teksten øverst — ikke den
+  øverste linjen, som på et skjermbilde er statuslinjen.
+- **Lim inn.** En kopiert oppskrift fra en melding eller en nettside, uten at tjenesten må
+  være satt opp.
+- **Manuelt.** Som før, med ingrediensene tolket mens du skriver.
+
+Alt som gjettes merkes «sjekk detaljene før du lagrer», ingrediensene vises slik
+handlelisten vil lese dem, med avdeling per linje, og appen sier fra hvis navnet finnes
+i biblioteket fra før. Importerte retter får kategorier, slik at de er synlige for reglene
+med én gang — en laksemiddag hentet fra en lenke kan oppfylle «fisk på tirsdag».
+
+Tjenesten i `server/` leser prosa bedre enn heuristikkene over og får første forsøk når den
+er satt opp. Den er ikke satt opp som standard: `RECIPE_SERVICE_BASE_URL` i `project.yml` er
+tom, og appen blir da værende på egne parsere. Se [server/README.md](server/README.md).
+
 ## Fanene
 
 `Uke` · `Handle` · `Retter` · `Regler` · `Innstillinger`
 
-Innstillinger samler familie, historikk, butikkrekkefølge, varsler og
+Innstillinger samler familie, historikk, butikkrekkefølge, basisvarer, varsler og
 onboarding-omstart. Regler beholder sin egen fane: de er det appen handler om.
 
 ## Kjøring
@@ -68,6 +106,13 @@ make open
 
 Velg en iPhone-simulator og kjør `MealShuffler`-scheme. Testene ligger i
 `MealShufflerTests`.
+
+Oppskriftstjenesten er avslått som standard. Skal den brukes, settes
+`RECIPE_SERVICE_BASE_URL` i `project.yml` — eller per build:
+
+```sh
+xcodebuild ... RECIPE_SERVICE_BASE_URL=https://your-worker.workers.dev
+```
 
 Prosjektet har også Codemagic-workflows for usignert simulator-test og signert
 TestFlight-opplasting. Se [docs/IPHONE_TESTING.md](docs/IPHONE_TESTING.md) for

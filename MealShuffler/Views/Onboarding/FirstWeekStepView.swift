@@ -145,7 +145,7 @@ struct FirstWeekStepView: View {
                     )) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(rule.title).font(.subheadline.weight(.semibold))
-                            Text(rule.summary(meals: store.meals))
+                            Text(rule.summary(meals: store.meals, context: store.matchContext))
                                 .font(.caption).foregroundStyle(AppTheme.muted)
                         }
                     }

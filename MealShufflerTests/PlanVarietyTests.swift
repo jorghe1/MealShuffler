@@ -118,8 +118,8 @@ final class PlanVarietyTests: XCTestCase {
     func testARequiredRuleWinsOverAvoidingARepeat() throws {
         let pizza = try XCTUnwrap(meals.first { $0.tags.contains(.pizza) })
         let rules = [
-            PlanningRule(title: "Pizza Friday", constraint: .requiredOn(day: .friday, matcher: .exactMeal(pizza.id))),
-            PlanningRule(title: "Pizza Saturday", constraint: .requiredOn(day: .saturday, matcher: .exactMeal(pizza.id)))
+            PlanningRule(title: "Pizza Friday", constraint: .requiredOn(day: .day(.friday), matcher: .exactMeal(pizza.id))),
+            PlanningRule(title: "Pizza Saturday", constraint: .requiredOn(day: .day(.saturday), matcher: .exactMeal(pizza.id)))
         ]
         let result = generator(seed: 42).generate(preferredMeals: meals, allMeals: meals, rules: rules)
         XCTAssertEqual(result.plan[.friday]?.mealID, pizza.id)
@@ -130,7 +130,7 @@ final class PlanVarietyTests: XCTestCase {
     func testDislikedMealsArePenalisedInTheFallbackPool() {
         let salmon = meals.first { $0.tags.contains(.fish) }!
         // Only fish is allowed on Tuesday, so the pool is small and the penalty must show.
-        let rules = [PlanningRule(title: "Fish Tuesday", constraint: .requiredOn(day: .tuesday, matcher: .tag(.fish)))]
+        let rules = [PlanningRule(title: "Fish Tuesday", constraint: .requiredOn(day: .day(.tuesday), matcher: .tag(.fish)))]
         var picks: [UUID] = []
         for seed in UInt64(0)..<40 {
             let result = generator(seed: seed).generate(

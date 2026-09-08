@@ -11,11 +11,13 @@ struct MealLibraryView: View {
     private enum LibrarySheet: Identifiable {
         case editor(existing: Meal?, draft: ImportedRecipeDraft)
         case linkImport
+        case paste
 
         var id: String {
             switch self {
             case .editor(let existing, _): "editor-\(existing?.id.uuidString ?? "new")"
             case .linkImport: "link"
+            case .paste: "paste"
             }
         }
     }
@@ -29,6 +31,7 @@ struct MealLibraryView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var importError: String?
     @State private var isImportingPhoto = false
+    @State private var isScanning = false
 
     private var filteredMeals: [Meal] {
         store.meals
@@ -98,7 +101,22 @@ struct MealLibraryView: View {
                 RecipeLinkImportView { imported in
                     sheet = .editor(existing: nil, draft: imported)
                 }
+            case .paste:
+                PasteRecipeView { imported in
+                    sheet = .editor(existing: nil, draft: imported)
+                }
             }
+        }
+        .fullScreenCover(isPresented: $isScanning) {
+            DocumentScannerView(
+                scanned: { pages in
+                    isScanning = false
+                    guard !pages.isEmpty else { return }
+                    Task { @MainActor in await importScan(pages) }
+                },
+                cancelled: { isScanning = false }
+            )
+            .ignoresSafeArea()
         }
         .alert("Import stopped", isPresented: Binding(
             get: { importError != nil },
@@ -205,18 +223,39 @@ struct MealLibraryView: View {
                 if isImportingPhoto { ProgressView() }
             }
 
-            HStack(spacing: 9) {
-                ActionChip(title: L10n.string("New"), symbol: "plus") {
-                    sheet = .editor(existing: nil, draft: ImportedRecipeDraft())
+            // Five ways in, because a recipe arrives in five ways: typed, a link, a photo
+            // already on the phone, a page on the counter, and text copied from a message.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 9) {
+                    ActionChip(title: L10n.string("New"), symbol: "plus") {
+                        sheet = .editor(existing: nil, draft: ImportedRecipeDraft())
+                    }
+                    ActionChip(title: L10n.string("Link"), symbol: "link") { sheet = .linkImport }
+                    if DocumentScannerView.isAvailable {
+                        ActionChip(title: L10n.string("Scan"), symbol: "doc.viewfinder") { isScanning = true }
+                    }
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label("Photo", systemImage: "text.viewfinder").actionChip()
+                    }
+                    ActionChip(title: L10n.string("Paste"), symbol: "doc.on.clipboard") { sheet = .paste }
                 }
-                ActionChip(title: L10n.string("Link"), symbol: "link") { sheet = .linkImport }
-                PhotosPicker(selection: $photoItem, matching: .images) {
-                    Label("Photo", systemImage: "text.viewfinder").actionChip()
-                }
+                .padding(.vertical, 2)
             }
+            .scrollClipDisabled()
         }
         .padding(18)
         .mealCard()
+    }
+
+    /// A scan can be several pages of one recipe, which is why it is not the photo path.
+    private func importScan(_ pages: [Data]) async {
+        isImportingPhoto = true
+        defer { isImportingPhoto = false }
+        do {
+            sheet = .editor(existing: nil, draft: try await RecipeCapture.extract(fromImages: pages))
+        } catch {
+            importError = error.localizedDescription
+        }
     }
 
     private func importPhoto(_ item: PhotosPickerItem) async {

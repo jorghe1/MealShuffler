@@ -30,6 +30,9 @@ struct SettingsView: View {
                 NavigationLink { AisleOrderView() } label: {
                     Label("Shop order", systemImage: "arrow.up.arrow.down")
                 }
+                NavigationLink { PantryStaplesView() } label: {
+                    Label("Pantry staples", systemImage: "cabinet")
+                }
                 if FeatureFlags.communityEnabled {
                     NavigationLink { RulesView() } label: {
                         Label("Rules", systemImage: "slider.horizontal.3")

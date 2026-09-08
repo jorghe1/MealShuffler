@@ -6,6 +6,7 @@ struct GroceryListView: View {
     @State private var exportMessage: String?
     @State private var showingAddItem = false
     @State private var showingAisleOrder = false
+    @State private var showingStaples = false
 
     private var shareText: String {
         PlanTextExporter.groceryList(store.groceryItems, aisleOrder: store.aisleOrder)
@@ -58,6 +59,9 @@ struct GroceryListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAisleOrder) {
             AisleOrderView().environmentObject(store)
+        }
+        .sheet(isPresented: $showingStaples) {
+            NavigationStack { PantryStaplesView().environmentObject(store) }
         }
         .sheet(isPresented: $showingAddItem) {
             AddGroceryItemView { name, quantity, unit, aisle in
@@ -122,6 +126,11 @@ struct GroceryListView: View {
             Button { store.setStocked(item, stocked: true) } label: {
                 Label("Already have it", systemImage: "house")
             }
+            // "We have this right now" against "we always have this". The second one is why
+            // salt and oil kept reappearing on a list nobody needed them on.
+            Button { store.setStaple(item, isStaple: true) } label: {
+                Label("Always have this", systemImage: "cabinet")
+            }
             if let manual = store.manualItem(matching: item) {
                 Button(role: .destructive) {
                     store.removeManualGroceryItems([manual.id])
@@ -172,6 +181,9 @@ struct GroceryListView: View {
             ShareLink(item: shareText) { Label("Share as text", systemImage: "square.and.arrow.up") }
             Button { showingAisleOrder = true } label: {
                 Label("Reorder aisles", systemImage: "arrow.up.arrow.down")
+            }
+            Button { showingStaples = true } label: {
+                Label("Pantry staples", systemImage: "cabinet")
             }
             Button {
                 Task { await exportToReminders() }

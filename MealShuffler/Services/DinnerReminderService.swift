@@ -48,30 +48,30 @@ protocol ReminderScheduling: Sendable {
 }
 
 /// Records what it was asked to schedule instead of scheduling it.
+///
+/// Serialised on a queue rather than behind an `NSLock`: `reschedule` is async, and taking a
+/// lock across a suspension point is unavailable from an asynchronous context.
 final class RecordingReminderScheduler: ReminderScheduling, @unchecked Sendable {
-    private let lock = NSLock()
+    private let queue = DispatchQueue(label: "no.mealshuffler.recording-reminder-scheduler")
     private var schedules: [ReminderSchedule] = []
-
-    /// Whether `isAuthorized` should answer yes, so a test can drive both branches.
-    var authorized: Bool
+    private var isAuthorizedValue: Bool
 
     init(authorized: Bool = true) {
-        self.authorized = authorized
+        isAuthorizedValue = authorized
     }
 
-    var rescheduleCount: Int {
-        lock.lock(); defer { lock.unlock() }
-        return schedules.count
+    /// Whether `isAuthorized` should answer yes, so a test can drive both branches.
+    var authorized: Bool {
+        get { queue.sync { isAuthorizedValue } }
+        set { queue.sync { isAuthorizedValue = newValue } }
     }
 
-    var lastSchedule: ReminderSchedule? {
-        lock.lock(); defer { lock.unlock() }
-        return schedules.last
-    }
+    var rescheduleCount: Int { queue.sync { schedules.count } }
+
+    var lastSchedule: ReminderSchedule? { queue.sync { schedules.last } }
 
     func reschedule(_ schedule: ReminderSchedule) async {
-        lock.lock(); defer { lock.unlock() }
-        schedules.append(schedule)
+        queue.sync { schedules.append(schedule) }
     }
 
     func requestAuthorization() async -> Bool { authorized }
@@ -85,7 +85,10 @@ final class RecordingReminderScheduler: ReminderScheduling, @unchecked Sendable 
 /// also means identifiers are dated: the old fixed set of seven could only ever describe one
 /// week, so nothing beyond Sunday could be scheduled and the household went quiet until it
 /// next opened the app.
-struct DinnerReminderService: ReminderScheduling {
+struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
+    // Thread-safe in fact but not in the type system, and the reference is only ever
+    // read. `@unchecked` states that deliberately rather than leaving a warning that
+    // becomes an error under the Swift 6 language mode.
     private let center: UNUserNotificationCenter
 
     static let categoryIdentifier = "dinner-reminder"

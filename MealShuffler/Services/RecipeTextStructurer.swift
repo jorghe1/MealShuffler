@@ -12,6 +12,34 @@ enum RecipeTextStructurer {
         var instructions: [String]
     }
 
+    /// Turns a pasted block into a reviewable draft.
+    ///
+    /// Pasting text used to be the one path that genuinely required the service, so with no
+    /// service deployed it answered with an error instead of a recipe. The same structurer
+    /// that reads a scanned page reads a pasted one; the service, when configured, still gets
+    /// first refusal because it reads prose far better than these heuristics.
+    static func draft(fromPastedText text: String) throws -> ImportedRecipeDraft {
+        let lines = text.components(separatedBy: .newlines)
+        let structured = structure(lines: lines)
+        guard !structured.title.isEmpty,
+              !(structured.ingredientLines.isEmpty && structured.instructions.isEmpty) else {
+            throw RecipeImportError.recipeNotFound
+        }
+        let parsed = IngredientParser.parse(lines: structured.ingredientLines)
+        let tags = RecipeClassifier.tags(name: structured.title, ingredients: parsed.map(\.name))
+        return ImportedRecipeDraft(
+            name: structured.title,
+            subtitle: L10n.string("Pasted in – check the details before saving"),
+            emoji: RecipeClassifier.emoji(for: tags),
+            ingredientLines: structured.ingredientLines,
+            instructions: structured.instructions,
+            tags: tags,
+            parsedIngredients: parsed,
+            needsReview: true,
+            source: .manual
+        )
+    }
+
     static func structure(lines rawLines: [String]) -> Structured {
         let lines = rawLines
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

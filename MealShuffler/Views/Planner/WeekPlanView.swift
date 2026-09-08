@@ -111,8 +111,12 @@ struct WeekPlanView: View {
             MealPickerView(day: day).environmentObject(store)
         }
         .sheet(item: $editingDay) { day in
-            DayContextEditor(day: day, initialContext: store.context(for: day)) { store.updateContext($0, for: day) }
-                .presentationDetents([.medium, .large])
+            DayContextEditor(
+                day: day,
+                initialContext: store.context(for: day),
+                governingRule: store.dinnerModeRule(for: day)?.summary(meals: store.meals, context: store.matchContext)
+            ) { store.updateContext($0, for: day) }
+            .presentationDetents([.medium, .large])
         }
     }
 
@@ -135,6 +139,10 @@ struct WeekPlanView: View {
                 shuffleButton
             }
             WeekCompositionView(plan: store.plan, meals: store.meals)
+            if store.estimatedWeeklyCost > 0 {
+                Text(L10n.string("About %@ of food this week", MealCost.formatted(store.estimatedWeeklyCost)))
+                    .font(.caption).foregroundStyle(AppTheme.muted)
+            }
         }
         .padding(.vertical, 14)
     }
@@ -496,12 +504,20 @@ private struct DayPlanCard: View {
 private struct DayContextEditor: View {
     @Environment(\.dismiss) private var dismiss
     let day: Weekday
+    /// Set when a rule already decides this day's plan, so the picker can say why it will
+    /// not stick rather than silently losing the choice on the next shuffle.
+    let governingRule: String?
     let save: (DayPlanContext) -> Void
     @State private var context: DayPlanContext
     @State private var hasTimeLimit: Bool
 
-    init(day: Weekday, initialContext: DayPlanContext, save: @escaping (DayPlanContext) -> Void) {
-        self.day = day; self.save = save
+    init(
+        day: Weekday,
+        initialContext: DayPlanContext,
+        governingRule: String?,
+        save: @escaping (DayPlanContext) -> Void
+    ) {
+        self.day = day; self.governingRule = governingRule; self.save = save
         _context = State(initialValue: initialContext)
         _hasTimeLimit = State(initialValue: initialContext.maximumPrepMinutes != nil)
     }
@@ -509,11 +525,18 @@ private struct DayContextEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(L10n.string("What's happening on %@?", day.name.lowercased())) {
+                Section {
                     Picker("Plan", selection: $context.mode) {
                         ForEach(DayDinnerMode.allCases) { Label($0.name, systemImage: symbol($0)).tag($0) }
                     }
+                    .disabled(governingRule != nil)
                     Stepper(L10n.string("%ld people eating", context.diners), value: $context.diners, in: 1...20)
+                } header: {
+                    Text(L10n.string("What's happening on %@?", day.name.lowercased()))
+                } footer: {
+                    if let governingRule {
+                        Text(L10n.string("The rule “%@” already decides this. Change it under Rules.", governingRule))
+                    }
                 }
                 if context.mode == .cook {
                     Section("Cooking") {

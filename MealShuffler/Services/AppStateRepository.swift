@@ -18,6 +18,8 @@ struct AppStateSnapshot: Codable {
     let checkedGroceryIDs: Set<String>
     let stockedGroceryIDs: Set<String>
     let manualGroceryItems: [ManualGroceryItem]
+    /// Things the household always has in, so they never reach the shopping list.
+    let pantryStaples: Set<String>
     let aisleOrder: [GroceryAisle]
     let customMeals: [Meal]
     let favoriteMealIDs: Set<UUID>
@@ -37,7 +39,7 @@ struct AppStateSnapshot: Codable {
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, hasCompletedOnboarding, memberPreferences, rules, plan, checkedGroceryIDs
-        case stockedGroceryIDs, manualGroceryItems, aisleOrder
+        case stockedGroceryIDs, manualGroceryItems, pantryStaples, aisleOrder
         case customMeals, favoriteMealIDs, dayContexts, feedbackEvents, householdSize, household
         case archivedWeeks, nextWeekPlan, dinnerReminderEnabled, dinnerReminderHour
         case prepLeadReminderEnabled, groceryReminderEnabled, groceryReminderWeekday, groceryReminderHour
@@ -53,6 +55,7 @@ struct AppStateSnapshot: Codable {
         checkedGroceryIDs: Set<String>,
         stockedGroceryIDs: Set<String>,
         manualGroceryItems: [ManualGroceryItem],
+        pantryStaples: Set<String>,
         aisleOrder: [GroceryAisle],
         customMeals: [Meal],
         favoriteMealIDs: Set<UUID>,
@@ -77,6 +80,7 @@ struct AppStateSnapshot: Codable {
         self.checkedGroceryIDs = checkedGroceryIDs
         self.stockedGroceryIDs = stockedGroceryIDs
         self.manualGroceryItems = manualGroceryItems
+        self.pantryStaples = pantryStaples
         self.aisleOrder = aisleOrder
         self.customMeals = customMeals
         self.favoriteMealIDs = favoriteMealIDs
@@ -106,6 +110,7 @@ struct AppStateSnapshot: Codable {
         try container.encode(checkedGroceryIDs, forKey: .checkedGroceryIDs)
         try container.encode(stockedGroceryIDs, forKey: .stockedGroceryIDs)
         try container.encode(manualGroceryItems, forKey: .manualGroceryItems)
+        try container.encode(pantryStaples, forKey: .pantryStaples)
         try container.encode(aisleOrder, forKey: .aisleOrder)
         try container.encode(customMeals, forKey: .customMeals)
         try container.encode(favoriteMealIDs, forKey: .favoriteMealIDs)
@@ -136,6 +141,7 @@ struct AppStateSnapshot: Codable {
         stockedGroceryIDs = try values.decodeIfPresent(Set<String>.self, forKey: .stockedGroceryIDs) ?? []
         manualGroceryItems = try values
             .decodeIfPresent([ManualGroceryItem].self, forKey: .manualGroceryItems) ?? []
+        pantryStaples = try values.decodeIfPresent(Set<String>.self, forKey: .pantryStaples) ?? []
         aisleOrder = try values
             .decodeIfPresent([GroceryAisle].self, forKey: .aisleOrder) ?? GroceryAisle.allCases
         customMeals = try values.decodeIfPresent([Meal].self, forKey: .customMeals) ?? []
@@ -191,9 +197,12 @@ protocol AppStateRepository: Sendable {
 /// Falls back to defaults when the App Group container is not available -- an unsigned test
 /// run, or a provisioning profile that was not regenerated -- because degrading is better
 /// than starting empty.
-struct FileStateRepository: AppStateRepository {
+struct FileStateRepository: AppStateRepository, @unchecked Sendable {
     private let fileURL: URL
     /// Where state used to live. Read once, then cleared, so there is exactly one copy.
+    // Thread-safe in fact but not in the type system, and the reference is only ever
+    // read. `@unchecked` states that deliberately rather than leaving a warning that
+    // becomes an error under the Swift 6 language mode.
     private let legacyDefaults: UserDefaults?
 
     private static let directoryName = "State"
@@ -263,7 +272,7 @@ struct FileStateRepository: AppStateRepository {
 
 /// The user-defaults implementation. Still the fallback when there is no shared container,
 /// and what the tests use, since a defaults suite is trivially disposable.
-struct UserDefaultsStateRepository: AppStateRepository {
+struct UserDefaultsStateRepository: AppStateRepository, @unchecked Sendable {
     /// The key is versioned separately from the payload: `schemaVersion` inside the snapshot
     /// handles ordinary migration, and this only changes for a break too large to migrate.
     static let storageKey = "meal-shuffler-state-v1"

@@ -3,11 +3,11 @@
 One stateless Cloudflare Worker behind `POST /v1/recipes/extract`. No accounts, no database,
 no stored user content.
 
-It exists because the app's two import paths were its weakest code: link import broke on
+It exists because the app's import paths were its weakest code: link import broke on
 character encoding, user-agent blocking and any page without schema.org markup, and photo
 import turned a cookbook page into twelve junk shopping-list rows. The app keeps its
-on-device schema.org parser as a fast path and only falls back to here, so an outage here
-degrades import rather than breaking it.
+on-device parsers as a fast path and only falls back to here, so an outage here degrades
+import rather than breaking it.
 
 ## Why a server at all
 
@@ -46,9 +46,22 @@ npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler deploy
 ```
 
-Then point the app at the deployed URL by setting `RecipeServiceBaseURL` in
-`MealShuffler/Info.plist`. Leave it empty and the app silently stays on the local
-parser, which is the correct behaviour before the service exists.
+Then point the app at the deployed URL. The plist key `RecipeServiceBaseURL` now reads a
+build setting rather than a hardcoded string, so the URL lives in `project.yml`:
+
+```yaml
+settings:
+  base:
+    RECIPE_SERVICE_BASE_URL: https://your-worker.workers.dev
+```
+
+or is passed per build, `xcodebuild ... RECIPE_SERVICE_BASE_URL=https://your-worker.workers.dev`.
+Leave it empty and the app stays on its on-device parsers, which is the correct behaviour
+before the service exists. That is also the state the app shipped in, and it is why import
+looked like it only ever extracted the name: every path fell back, and the fallbacks were
+thin. They are no longer thin -- see the app README -- but this service still reads prose
+better than they do, and it is the only path that reads a photo of a cookbook page as
+anything but lines of text.
 
 ## Checks
 

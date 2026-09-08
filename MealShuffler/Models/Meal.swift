@@ -77,6 +77,12 @@ struct Meal: Identifiable, Codable, Hashable {
     let emoji: String
     let prepMinutes: Int
     let tags: Set<MealTag>
+    /// Labels the household invented, alongside the fixed ten.
+    ///
+    /// Families think in "kid-friendly", "cheap", "freezer" and "grandma's", none of which a
+    /// closed enum can grow to hold. Kept separate from `tags` so the built-in categories
+    /// stay a known set the generator can reason about.
+    let customTags: Set<String>
     let ingredients: [Ingredient]
     let defaultServings: Int
     /// Rough cost of the whole meal, in the household's currency (minor units not used).
@@ -102,6 +108,7 @@ struct Meal: Identifiable, Codable, Hashable {
         emoji: String,
         prepMinutes: Int,
         tags: Set<MealTag>,
+        customTags: Set<String> = [],
         ingredients: [Ingredient],
         defaultServings: Int = 4,
         estimatedCost: Int? = nil,
@@ -118,6 +125,7 @@ struct Meal: Identifiable, Codable, Hashable {
         self.emoji = emoji
         self.prepMinutes = prepMinutes
         self.tags = tags
+        self.customTags = customTags
         self.ingredients = ingredients
         self.defaultServings = max(defaultServings, 1)
         self.estimatedCost = estimatedCost
@@ -130,7 +138,7 @@ struct Meal: Identifiable, Codable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, subtitle, emoji, prepMinutes, tags, ingredients
+        case id, name, subtitle, emoji, prepMinutes, tags, customTags, ingredients
         case defaultServings, estimatedCost, instructions, source, heroImageURL
         case updatedAt, updatedBy, deletedAt
         /// Pre-rename key, decoded only.
@@ -145,6 +153,7 @@ struct Meal: Identifiable, Codable, Hashable {
         emoji = try values.decode(String.self, forKey: .emoji)
         prepMinutes = try values.decode(Int.self, forKey: .prepMinutes)
         tags = try values.decode(Set<MealTag>.self, forKey: .tags)
+        customTags = try values.decodeIfPresent(Set<String>.self, forKey: .customTags) ?? []
         ingredients = try values.decode([Ingredient].self, forKey: .ingredients)
         defaultServings = try values.decodeIfPresent(Int.self, forKey: .defaultServings) ?? 4
         estimatedCost = try values.decodeIfPresent(Int.self, forKey: .estimatedCost)
@@ -167,6 +176,7 @@ struct Meal: Identifiable, Codable, Hashable {
         try container.encode(emoji, forKey: .emoji)
         try container.encode(prepMinutes, forKey: .prepMinutes)
         try container.encode(tags, forKey: .tags)
+        try container.encode(customTags, forKey: .customTags)
         try container.encode(ingredients, forKey: .ingredients)
         try container.encode(defaultServings, forKey: .defaultServings)
         try container.encodeIfPresent(estimatedCost, forKey: .estimatedCost)

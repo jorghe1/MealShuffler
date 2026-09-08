@@ -20,14 +20,18 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
-    <!-- Deployed URL of server/. Left empty on purpose: with no URL the app stays
-         entirely on its on-device parser, which is correct before the service exists. -->
+    <!-- Deployed URL of server/, injected from the RECIPE_SERVICE_BASE_URL build setting so
+         a build can be pointed at the service without editing a checked-in file. Empty, or
+         an unexpanded placeholder, leaves the app entirely on its on-device parsers, which
+         is correct until the service is deployed. -->
     <key>RecipeServiceBaseURL</key>
-    <string></string>
+    <string>$(RECIPE_SERVICE_BASE_URL)</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>Meal Shuffler uses the camera to scan a recipe from a page or a cookbook.</string>
     <key>NSRemindersFullAccessUsageDescription</key>
     <string>Meal Shuffler needs access to export the grocery list you choose.</string>
     <key>CFBundleURLTypes</key>

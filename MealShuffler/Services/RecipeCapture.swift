@@ -32,15 +32,28 @@ enum RecipeCapture {
         ])
     }
 
-    /// Text shared from another app. There is no local equivalent, so this is the one path
-    /// that genuinely requires the service.
+    /// Text pasted in or shared from another app.
+    ///
+    /// The service reads prose far better than heuristics, so it goes first -- but it is no
+    /// longer required. This was the one path with no local equivalent, which meant that with
+    /// no service deployed, pasting a recipe answered with an error.
     static func extractText(_ text: String) async throws -> ImportedRecipeDraft {
-        guard let configuration = remoteConfiguration else {
-            throw RecipeImportError.service(
-                L10n.string("Reading pasted text needs the import service, which is not set up yet.")
-            )
+        if let configuration = remoteConfiguration,
+           let draft = try? await RemoteRecipeExtractor(configuration: configuration).extract(fromText: text) {
+            return draft
         }
-        return try await RemoteRecipeExtractor(configuration: configuration).extract(fromText: text)
+        return try RecipeTextStructurer.draft(fromPastedText: text)
+    }
+
+    /// A scan of one or more pages.
+    ///
+    /// The service reads a single image best, so one page still goes to it first. A recipe
+    /// spread across two pages has no single image to send, so those are read on device and
+    /// stitched in page order.
+    static func extract(fromImages images: [Data]) async throws -> ImportedRecipeDraft {
+        guard let first = images.first else { throw RecipeImportError.unreadableImage }
+        guard images.count > 1 else { return try await imageExtractor.extract(fromImage: first) }
+        return try await RecipeOCRService().recognizeRecipe(fromPages: images)
     }
 
     static func extract(_ capture: CapturedRecipe) async throws -> ImportedRecipeDraft {

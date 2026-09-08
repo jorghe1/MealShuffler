@@ -14,6 +14,11 @@ final class AppStore: ObservableObject {
     /// lifetimes -- one survives the shop, the other is the shop.
     @Published var stockedGroceryIDs: Set<String> { didSet { save() } }
     @Published var manualGroceryItems: [ManualGroceryItem] { didSet { save() } }
+    /// Things the household always has in: salt, oil, rice.
+    ///
+    /// Distinct from `stockedGroceryIDs`, which is "we happen to have this right now" and is
+    /// meant to be put back. A staple is a standing fact, so it never reaches the list at all.
+    @Published var pantryStaples: Set<String> { didSet { save() } }
     /// The order aisles appear in the shopping list.
     ///
     /// A fixed order is wrong in every shop but one, and the walk through a supermarket is
@@ -101,6 +106,7 @@ final class AppStore: ObservableObject {
             checkedGroceryIDs = state.checkedGroceryIDs
             stockedGroceryIDs = state.stockedGroceryIDs
             manualGroceryItems = state.manualGroceryItems
+            pantryStaples = state.pantryStaples
             aisleOrder = AppStore.completeAisleOrder(state.aisleOrder)
             customMeals = state.customMeals
             favoriteMealIDs = state.favoriteMealIDs
@@ -124,6 +130,7 @@ final class AppStore: ObservableObject {
             checkedGroceryIDs = []
             stockedGroceryIDs = []
             manualGroceryItems = []
+            pantryStaples = []
             aisleOrder = GroceryAisle.allCases
             customMeals = []
             favoriteMealIDs = []
@@ -199,7 +206,8 @@ final class AppStore: ObservableObject {
             allMeals: meals,
             rules: rules,
             contexts: resolvedContexts,
-            taste: taste
+            taste: taste,
+            matchContext: matchContext
         )
         nextWeekPlan = result.plan.anchored(to: start)
     }
@@ -331,10 +339,52 @@ final class AppStore: ObservableObject {
         return accepted.isEmpty ? meals : accepted
     }
 
-    /// Everything the plan calls for, plus anything typed in, minus what is already in.
+    /// Everything the plan calls for, plus anything typed in, minus the staples the
+    /// household always has and anything set aside as already in.
     var groceryItems: [GroceryItem] {
         GroceryListBuilder.build(plan: plan, meals: meals, manualItems: manualGroceryItems)
-            .filter { !stockedGroceryIDs.contains($0.id) }
+            .filter { !stockedGroceryIDs.contains($0.id) && !isStaple($0) }
+    }
+
+    /// Matches on the name alone: a staple is "we always have olive oil", not "we always have
+    /// exactly one bottle of it".
+    func isStaple(_ item: GroceryItem) -> Bool {
+        pantryStaples.contains(AppStore.stapleKey(item.name))
+    }
+
+    nonisolated static func stapleKey(_ name: String) -> String {
+        name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func setStaple(_ item: GroceryItem, isStaple: Bool) {
+        let key = AppStore.stapleKey(item.name)
+        if isStaple {
+            pantryStaples.insert(key)
+            checkedGroceryIDs.remove(item.id)
+            stockedGroceryIDs.remove(item.id)
+        } else {
+            pantryStaples.remove(key)
+        }
+    }
+
+    func removeStaples(_ keys: Set<String>) {
+        guard !keys.isEmpty else { return }
+        pantryStaples.subtract(keys)
+    }
+
+    /// Staples in the order they read, for a screen that lists them.
+    var pantryStapleNames: [String] { pantryStaples.sorted() }
+
+    /// What this week's dinners come to, using each meal's own figure where it has one.
+    ///
+    /// `estimatedCost` and `planningCost` have existed since the beginning and nothing ever
+    /// showed them, which also left `maximumCostPerWeek` with no way to be understood.
+    var estimatedWeeklyCost: Int {
+        plan.meals.reduce(0) { total, item in
+            guard item.kind == .meal, let id = item.mealID, let meal = meal(id: id) else { return total }
+            return total + meal.planningCost
+        }
     }
 
     /// Items set aside as already owned. Surfaced so they can be put back.
@@ -403,7 +453,8 @@ final class AppStore: ObservableObject {
             likedMealIDs: Set(preferences.filter { $0.value == .liked }.keys),
             dislikedMealIDs: Set(preferences.filter { $0.value == .disliked }.keys),
             learnedScores: learnedMealScores,
-            recentlyCookedMealIDs: recentlyCookedMealIDs
+            recentlyCookedMealIDs: recentlyCookedMealIDs,
+            weeksSinceLastPlanned: weeksSinceLastPlanned
         )
     }
 
@@ -448,6 +499,16 @@ final class AppStore: ObservableObject {
 
     func meal(id: UUID) -> Meal? {
         meals.first(where: { $0.id == id })
+    }
+
+    /// A meal already in the library under this name.
+    ///
+    /// Importing the same page twice used to produce two meals with no hint that it had
+    /// happened, and the second one then competed with the first for every day of the week.
+    func mealNamed(_ name: String) -> Meal? {
+        let target = AppStore.stapleKey(name)
+        guard !target.isEmpty else { return nil }
+        return meals.first { AppStore.stapleKey($0.name) == target }
     }
 
     func context(for day: Weekday) -> DayPlanContext {
@@ -565,7 +626,8 @@ final class AppStore: ObservableObject {
             rules: rules,
             contexts: resolvedContexts,
             taste: taste,
-            existingPlan: WeeklyPlan(meals: plan.meals.filter(\.isLocked))
+            existingPlan: WeeklyPlan(meals: plan.meals.filter(\.isLocked)),
+            matchContext: matchContext
         )
         apply(result)
     }
@@ -602,7 +664,8 @@ final class AppStore: ObservableObject {
             taste: taste,
             existingPlan: pinned,
             avoidingMealOnDay: avoiding,
-            swapIntents: intents
+            swapIntents: intents,
+            matchContext: matchContext
         )
         var updated = result.plan.anchored(to: plan.startDate)
         for index in updated.meals.indices {
@@ -683,9 +746,35 @@ final class AppStore: ObservableObject {
         regenerate(days: rules[index].constraint.affectedDays)
     }
 
-    func addRule(_ rule: PlanningRule) {
+    /// What happened when a rule was offered.
+    enum RuleAdditionOutcome: Equatable {
+        case added
+        /// An enabled rule already says exactly this.
+        case duplicate(existingTitle: String)
+        /// An enabled rule says the opposite, so one of them can never hold.
+        case contradiction(existingTitle: String)
+    }
+
+    /// Adds a rule unless the rule list already answers it.
+    ///
+    /// `addRule` used to append unconditionally, so a household could hold "fish on Tuesday"
+    /// twice and learn about a flat contradiction only from a conflict banner after the week
+    /// was built. Both are cheap to answer at the moment of asking.
+    @discardableResult
+    func addRule(_ rule: PlanningRule) -> RuleAdditionOutcome {
+        if let existing = rules.first(where: {
+            $0.isEnabled && $0.constraint.saysTheSameAs(rule.constraint)
+        }) {
+            return .duplicate(existingTitle: existing.summary(meals: meals, context: matchContext))
+        }
+        if let existing = rules.first(where: {
+            $0.isEnabled && $0.constraint.contradicts(rule.constraint)
+        }) {
+            return .contradiction(existingTitle: existing.summary(meals: meals, context: matchContext))
+        }
         rules.append(rule)
         regenerate(days: rule.constraint.affectedDays)
+        return .added
     }
 
     func deleteRules(at offsets: IndexSet) {
@@ -857,13 +946,20 @@ final class AppStore: ObservableObject {
         let matching = rules.filter { rule in
             guard rule.isEnabled else { return false }
             switch rule.constraint {
-            case .requiredOn(let ruleDay, let matcher): return ruleDay == day && matcher.matches(meal)
-            case .maximumPrepTime(let ruleDay, let minutes): return ruleDay == day && meal.prepMinutes <= minutes
+            case .requiredOn(let scope, let matcher):
+                return scope.covers(day) && matcher.matches(meal, context: matchContext)
+            case .maximumPrepTime(let scope, let minutes):
+                return scope.covers(day) && meal.prepMinutes <= minutes
+            case .requiredEvery(_, let matcher):
+                return matcher.matches(meal, context: matchContext)
             default: return false
             }
         }
         if let rule = matching.first {
-            return L10n.string("Chosen because the rule “%@” applies on this day.", rule.summary(meals: meals))
+            return L10n.string(
+                "Chosen because the rule “%@” applies on this day.",
+                rule.summary(meals: meals, context: matchContext)
+            )
         }
         if context(for: day).maximumPrepMinutes != nil {
             return L10n.string("Fits the time limit you set for %@.", day.name.lowercased())
@@ -873,8 +969,72 @@ final class AppStore: ObservableObject {
             : L10n.string("Adds variety to the rest of the week.")
     }
 
+    /// Everything a rule needs that does not live on the meal.
+    ///
+    /// Per-member dislikes have been stored since preferences became per-person; nothing read
+    /// them until `.dislikedBy` gave a rule a way to ask.
+    var matchContext: MealMatcher.MatchContext {
+        var dislikes: [UUID: Set<UUID>] = [:]
+        for (memberID, opinions) in memberPreferences {
+            dislikes[memberID] = Set(opinions.filter { $0.value == .disliked }.map(\.key))
+        }
+        let names = Dictionary(
+            household.members.map { ($0.id, $0.displayName) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return MealMatcher.MatchContext(dislikes: dislikes, memberNames: names)
+    }
+
+    /// Whole weeks since each meal was last on a plan, read from the archive.
+    ///
+    /// What `noRepeatWithin` and `requiredEvery` measure against. The archive holds 26 weeks,
+    /// which is further back than any sensible rule reaches.
+    var weeksSinceLastPlanned: [UUID: Int] {
+        let calendar = Calendar.current
+        let thisWeek = WeekAnchor.startOfWeek(containing: .now, calendar: calendar)
+        var result: [UUID: Int] = [:]
+        for archived in archivedWeeks {
+            let weeks = calendar
+                .dateComponents([.weekOfYear], from: archived.startDate, to: thisWeek).weekOfYear ?? 0
+            guard weeks > 0 else { continue }
+            for item in archived.plan.meals where item.kind == .meal {
+                guard let id = item.mealID else { continue }
+                if let existing = result[id], existing <= weeks { continue }
+                result[id] = weeks
+            }
+        }
+        return result
+    }
+
+    /// Every custom label in use across the library, for the rule builder to offer.
+    var customTagsInUse: [String] {
+        Array(Set(meals.flatMap(\.customTags))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    /// The per-day plan, with any dinner-mode rule applied over the top.
+    ///
+    /// A rule is the household's standing statement -- "we eat out on Fridays" -- so it wins
+    /// over the day's stored defaults. "Plan this day" still owns how many are eating, the
+    /// extra servings and the time limit.
     private var resolvedContexts: [Weekday: DayPlanContext] {
-        Dictionary(uniqueKeysWithValues: Weekday.allCases.map { ($0, context(for: $0)) })
+        var contexts = Dictionary(uniqueKeysWithValues: Weekday.allCases.map { ($0, context(for: $0)) })
+        for rule in rules where rule.isEnabled {
+            guard case .dinnerMode(let scope, let mode) = rule.constraint else { continue }
+            for day in scope.days() {
+                contexts[day]?.mode = mode
+                if mode != .leftovers { contexts[day]?.leftoverSourceDay = nil }
+            }
+        }
+        return contexts
+    }
+
+    /// The dinner-mode rule governing a day, if one does. Views show it so a household can
+    /// see why "Plan this day" will not stick.
+    func dinnerModeRule(for day: Weekday) -> PlanningRule? {
+        rules.first { rule in
+            guard rule.isEnabled, case .dinnerMode(let scope, _) = rule.constraint else { return false }
+            return scope.covers(day)
+        }
     }
 
     private func refreshConflicts() {
@@ -885,7 +1045,8 @@ final class AppStore: ObservableObject {
             rules: rules,
             contexts: resolvedContexts,
             taste: taste,
-            existingPlan: WeeklyPlan(meals: plan.meals.map { item in var copy = item; copy.isLocked = true; return copy })
+            existingPlan: WeeklyPlan(meals: plan.meals.map { item in var copy = item; copy.isLocked = true; return copy }),
+            matchContext: matchContext
         )
         conflicts = result.conflicts
     }
@@ -941,6 +1102,7 @@ final class AppStore: ObservableObject {
             checkedGroceryIDs: checkedGroceryIDs,
             stockedGroceryIDs: stockedGroceryIDs,
             manualGroceryItems: manualGroceryItems,
+            pantryStaples: pantryStaples,
             aisleOrder: aisleOrder,
             customMeals: customMeals,
             favoriteMealIDs: favoriteMealIDs,

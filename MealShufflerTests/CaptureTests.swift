@@ -189,7 +189,7 @@ private extension URLSession {
     }
 }
 
-extension RecipeImportError: Equatable {
+extension RecipeImportError: @retroactive Equatable {
     public static func == (lhs: RecipeImportError, rhs: RecipeImportError) -> Bool {
         lhs.localizedDescription == rhs.localizedDescription
     }

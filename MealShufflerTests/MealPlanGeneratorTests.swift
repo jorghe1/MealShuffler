@@ -36,8 +36,8 @@ final class MealPlanGeneratorTests: XCTestCase {
 
     func testContradictingHardRulesProduceReadableConflict() {
         let rules = [
-            PlanningRule(title: "Fish on Tuesday", constraint: .requiredOn(day: .tuesday, matcher: .tag(.fish))),
-            PlanningRule(title: "No fish on Tuesday", constraint: .excludedOn(day: .tuesday, matcher: .tag(.fish)))
+            PlanningRule(title: "Fish on Tuesday", constraint: .requiredOn(day: .day(.tuesday), matcher: .tag(.fish))),
+            PlanningRule(title: "No fish on Tuesday", constraint: .excludedOn(day: .day(.tuesday), matcher: .tag(.fish)))
         ]
         let result = generator.generate(preferredMeals: meals, allMeals: meals, rules: rules)
         XCTAssertFalse(result.conflicts.isEmpty)
@@ -46,8 +46,8 @@ final class MealPlanGeneratorTests: XCTestCase {
 
     func testSoftRuleNeverCreatesHardConflict() {
         let rules = [
-            PlanningRule(title: "Fish on Tuesday", constraint: .requiredOn(day: .tuesday, matcher: .tag(.fish))),
-            PlanningRule(title: "Preferably no fish", strength: .preferred, constraint: .excludedOn(day: .tuesday, matcher: .tag(.fish)))
+            PlanningRule(title: "Fish on Tuesday", constraint: .requiredOn(day: .day(.tuesday), matcher: .tag(.fish))),
+            PlanningRule(title: "Preferably no fish", strength: .preferred, constraint: .excludedOn(day: .day(.tuesday), matcher: .tag(.fish)))
         ]
         let result = generator.generate(preferredMeals: meals, allMeals: meals, rules: rules)
         XCTAssertTrue(result.conflicts.isEmpty)
@@ -68,7 +68,7 @@ final class MealPlanGeneratorTests: XCTestCase {
 
     func testLeftoversAreNotAddedTwiceToGroceryList() throws {
         let soup = meals[7]
-        let rules = [PlanningRule(title: "Soup on Monday", constraint: .requiredOn(day: .monday, matcher: .exactMeal(soup.id)))]
+        let rules = [PlanningRule(title: "Soup on Monday", constraint: .requiredOn(day: .day(.monday), matcher: .exactMeal(soup.id)))]
         let contexts: [Weekday: DayPlanContext] = [
             .monday: DayPlanContext(diners: 4, extraServings: 4),
             .tuesday: DayPlanContext(diners: 4, mode: .leftovers, leftoverSourceDay: .monday),

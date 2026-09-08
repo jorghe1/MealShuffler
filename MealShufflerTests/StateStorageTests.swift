@@ -24,6 +24,7 @@ final class StateStorageTests: XCTestCase {
             checkedGroceryIDs: [],
             stockedGroceryIDs: [],
             manualGroceryItems: [],
+            pantryStaples: ["olivenolje"],
             aisleOrder: GroceryAisle.allCases,
             customMeals: [],
             favoriteMealIDs: [],
@@ -58,6 +59,7 @@ final class StateStorageTests: XCTestCase {
         XCTAssertTrue(restored.prepLeadReminderEnabled)
         XCTAssertEqual(restored.groceryReminderWeekday, .friday)
         XCTAssertEqual(restored.groceryReminderHour, 9)
+        XCTAssertEqual(restored.pantryStaples, ["olivenolje"])
     }
 
     /// The new reminder settings are additive, so an older blob must decode with defaults
@@ -81,6 +83,7 @@ final class StateStorageTests: XCTestCase {
         XCTAssertFalse(restored.groceryReminderEnabled)
         XCTAssertEqual(restored.groceryReminderWeekday, .saturday)
         XCTAssertEqual(restored.groceryReminderHour, 10)
+        XCTAssertTrue(restored.pantryStaples.isEmpty)
     }
 
     /// An install already in the wild keeps its plan, and the old copy goes away so there is

@@ -21,6 +21,20 @@ final class PlanVarietyTests: XCTestCase {
         }
     }
 
+    /// How many of `runs` generated weeks contain `mealID` on any day.
+    ///
+    /// Seven observations per generated week instead of one, which is what makes a taste
+    /// signal measurable. Sampling a single weekday was fine against fourteen meals, where a
+    /// favourite landed on Monday about a third of the time; against forty it lands there
+    /// twice in sixty weeks, and comparing two numbers that small is a coin toss.
+    private func weeksContaining(_ mealID: UUID, taste: TasteProfile, runs: Int) -> Int {
+        (0..<runs).filter { seed in
+            let result = generator(seed: UInt64(seed) &* 2_654_435_761)
+                .generate(preferredMeals: meals, allMeals: meals, rules: [], taste: taste)
+            return result.plan.meals.contains { $0.mealID == mealID }
+        }.count
+    }
+
     /// Share of the single most frequently chosen meal.
     private func topShare(_ picks: [UUID]) -> Double {
         guard !picks.isEmpty else { return 1 }
@@ -43,14 +57,29 @@ final class PlanVarietyTests: XCTestCase {
         XCTAssertLessThan(topShare(picks), 0.75, "No single meal should dominate the shuffle")
     }
 
+    /// A hearted, often-cooked meal must reach the table more often than an anonymous one.
+    ///
+    /// Measured over whole weeks with a margin, not as a bare greater-than on two counts:
+    /// favourite (+18) and a full learned score (10 x 3) is +48, which at the scorer's
+    /// temperature of 30 is roughly a five-fold weight. That is a large, real effect and it
+    /// should clear the margin comfortably -- while a genuine regression, where the signal
+    /// stops reaching the scorer at all, lands the two counts on top of each other and fails.
     func testLearnedPreferenceStillBiasesSelection() {
         let taco = meals.first { $0.name == "Taco" }!
-        let neutral = mondayMeals(taste: .empty)
-        let biased = mondayMeals(taste: TasteProfile(favoriteMealIDs: [taco.id], learnedScores: [taco.id: 10]))
+        let runs = 150
 
-        let neutralTacos = neutral.filter { $0 == taco.id }.count
-        let biasedTacos = biased.filter { $0 == taco.id }.count
-        XCTAssertGreaterThan(biasedTacos, neutralTacos, "Taste signals must still change the outcome")
+        let neutral = weeksContaining(taco.id, taste: .empty, runs: runs)
+        let biased = weeksContaining(
+            taco.id,
+            taste: TasteProfile(favoriteMealIDs: [taco.id], learnedScores: [taco.id: 10]),
+            runs: runs
+        )
+
+        XCTAssertGreaterThan(
+            biased, neutral + runs / 20,
+            "Taste signals must still change the outcome: \(taco.name) reached "
+                + "\(neutral) of \(runs) neutral weeks and \(biased) of \(runs) biased ones"
+        )
     }
 
     func testSameSeedProducesSamePlan() {

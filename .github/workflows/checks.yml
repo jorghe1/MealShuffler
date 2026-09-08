@@ -24,6 +24,9 @@ jobs:
       - name: Validate Norwegian localization
         run: python3 ci/validate-localizations.py
 
+      - name: Check localized format arguments
+        run: python3 ci/check-localized-format.py
+
       - name: Check Swift structure
         run: python3 ci/check-swift-structure.py
 

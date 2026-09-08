@@ -187,6 +187,22 @@ for path in SRC:
             "%s:%d %s touches AppStore without @MainActor -- AppStore is main-actor isolated"
             % (rel, start + 1, name))
 
+# 9. every AppTheme token a view names actually exists
+#
+# The palette and the radius/size scale are the one place these are defined, and a typo in a
+# token name is a compile error that costs a CI round trip on a machine that has Xcode.
+_theme_path = os.path.join(ROOT, 'MealShuffler', 'Theme', 'AppTheme.swift')
+if os.path.exists(_theme_path):
+    _theme = io.open(_theme_path, encoding='utf-8').read()
+    theme_members = set(re.findall(r'static\s+(?:let|var|func)\s+(\w+)', _theme))
+    for path in SRC:
+        text = io.open(path, encoding='utf-8').read()
+        rel = os.path.relpath(path, ROOT)
+        for m in re.finditer(r'AppTheme\.(\w+)', text):
+            if m.group(1) not in theme_members:
+                problems.append("%s:%d unknown AppTheme.%s"
+                                % (rel, lineno(text, m.start()), m.group(1)))
+
 # 4. every generate(...) call uses the current label set
 def argument_list(text, open_index):
     """Text between the matching parentheses starting at open_index."""

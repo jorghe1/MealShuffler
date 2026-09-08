@@ -18,7 +18,7 @@ struct PlannedDinnerReader {
 
     private let repository: any AppStateRepository
 
-    init(repository: any AppStateRepository = UserDefaultsStateRepository()) {
+    init(repository: any AppStateRepository = FileStateRepository.live()) {
         self.repository = repository
     }
 

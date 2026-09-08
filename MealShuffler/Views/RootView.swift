@@ -24,6 +24,11 @@ struct RootView: View {
     }
 }
 
+/// Tab labels match the screen titles behind them.
+///
+/// Settings is a tab of its own now. Notification setup, the family and history all used to
+/// be a section inside Rules, which is not a place anyone looks for them. Rules keep their
+/// tab: they are the thing the app is about, not a preference.
 private struct MainTabView: View {
     var body: some View {
         TabView {
@@ -36,17 +41,18 @@ private struct MainTabView: View {
             NavigationStack { MealLibraryView() }
                 .tabItem { Label("Meals", systemImage: "fork.knife") }
 
-            NavigationStack { RulesView() }
-                .tabItem { Label("Rules", systemImage: "slider.horizontal.3") }
-
             if FeatureFlags.communityEnabled {
+                // Rules move under Settings to make room; five tabs is the limit before iOS
+                // collapses the rest into a "More" list nobody opens.
                 NavigationStack { CommunityView() }
                     .tabItem { Label("Explore", systemImage: "person.3") }
             } else {
-                // The slot Community occupied, given to the screen that actually works.
-                NavigationStack { HouseholdView() }
-                    .tabItem { Label("Family", systemImage: "person.2") }
+                NavigationStack { RulesView() }
+                    .tabItem { Label("Rules", systemImage: "slider.horizontal.3") }
             }
+
+            NavigationStack { SettingsView() }
+                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
     }
 }

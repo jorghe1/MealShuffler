@@ -3,6 +3,9 @@ import SwiftUI
 @main
 struct MealShufflerApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    /// Present for notifications only -- foreground presentation and the reminder's own
+    /// action buttons both need a delegate that exists before the first delivery.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = AppStore()
     @StateObject private var communityStore = CommunityStore()
 
@@ -12,6 +15,13 @@ struct MealShufflerApp: App {
                 .environmentObject(store)
                 .environmentObject(communityStore)
                 .tint(AppTheme.accent)
+                .task {
+                    // Drains anything that arrived while the scene was still building, which
+                    // is the normal case when the app is launched *by* a notification action.
+                    appDelegate.setActionHandler { [store] action in
+                        store.handleReminderAction(action)
+                    }
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

@@ -3,7 +3,6 @@ import SwiftUI
 struct RulesView: View {
     @EnvironmentObject private var store: AppStore
     @State private var showingAddRule = false
-    @State private var showingResetConfirmation = false
 
     var body: some View {
         List {
@@ -25,8 +24,8 @@ struct RulesView: View {
                         Image(systemName: symbol(for: rule.constraint))
                             .foregroundStyle(rule.isEnabled ? AppTheme.accent : AppTheme.muted)
                             .frame(width: 36, height: 36)
-                            .background(rule.isEnabled ? AppTheme.accentSoft : Color.gray.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .background(rule.isEnabled ? AppTheme.accentSoft : AppTheme.raised)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous))
                         VStack(alignment: .leading, spacing: 5) {
                             Text(rule.summary(meals: store.meals)).font(.headline).foregroundStyle(AppTheme.ink)
                             Menu {
@@ -57,45 +56,12 @@ struct RulesView: View {
                 }
             }
 
-            Section("Settings") {
-                Toggle(isOn: Binding(
-                    get: { store.dinnerReminderEnabled },
-                    set: { store.setDinnerReminder(enabled: $0) }
-                )) {
-                    Label("Remind me what's for dinner", systemImage: "bell")
-                }
-                if store.dinnerReminderEnabled {
-                    Picker(
-                        L10n.string("Reminder time"),
-                        selection: Binding(
-                            get: { store.dinnerReminderHour },
-                            set: { store.setDinnerReminderHour($0) }
-                        )
-                    ) {
-                        ForEach(Array(stride(from: 6, through: 20, by: 1)), id: \.self) { hour in
-                            Text(verbatim: String(format: "%02d:00", hour)).tag(hour)
-                        }
-                    }
-                }
-                // Family has its own tab unless Community is occupying that slot.
-                if FeatureFlags.communityEnabled {
-                    NavigationLink { HouseholdView() } label: {
-                        Label("Family and sharing", systemImage: "person.2")
-                    }
-                }
-                Button("Show onboarding again") { showingResetConfirmation = true }
-                    .foregroundStyle(AppTheme.warning)
-            }
         }
         .scrollContentBackground(.hidden)
         .appBackground()
         .navigationTitle("Rules")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAddRule) { AddRuleView().environmentObject(store) }
-        .confirmationDialog("Start onboarding again?", isPresented: $showingResetConfirmation) {
-            Button("Start over", role: .destructive) { store.resetForPreview() }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text("Rules and custom meals are kept, but taste choices and the weekly plan are reset.") }
     }
 
     private func symbol(for constraint: RuleConstraint) -> String {
@@ -137,11 +103,7 @@ private struct AddRuleView: View {
                             ForEach(RuleMode.allCases) { option in
                                 Button { withAnimation(.snappy) { mode = option } } label: {
                                     Label(option.shortName, systemImage: option.symbol)
-                                        .font(.subheadline.weight(.semibold))
-                                        .padding(.horizontal, 12).padding(.vertical, 10)
-                                        .background(mode == option ? AppTheme.accent : AppTheme.raised)
-                                        .foregroundStyle(mode == option ? AppTheme.onAccent : AppTheme.ink)
-                                        .clipShape(Capsule())
+                                        .chipStyle(selected: mode == option)
                                 }
                             }
                         }
@@ -176,7 +138,7 @@ private struct AddRuleView: View {
                         Text("Add rule").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                     }
                     .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.roundedRectangle(radius: 18))
+                    .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
                     .disabled(matchingMealCount == 0 && mode != .excludedDay)
                 }
                 .padding(20)
@@ -220,7 +182,7 @@ private struct AddRuleView: View {
     }
 
     private var dayMenu: some View {
-        Menu { ForEach(Weekday.allCases) { day in Button(day.name) { weekday = day } } } label: {
+        Menu { ForEach(Weekday.ordered()) { day in Button(day.name) { weekday = day } } } label: {
             SentenceToken(text: weekday.name)
         }
     }
@@ -281,7 +243,7 @@ private struct SentenceToken: View {
         .padding(.horizontal, 10).padding(.vertical, 7)
         .background(AppTheme.accentSoft)
         .foregroundStyle(AppTheme.accent)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous))
     }
 }
 

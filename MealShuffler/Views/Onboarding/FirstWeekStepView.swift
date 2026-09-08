@@ -11,6 +11,7 @@ struct FirstWeekStepView: View {
     let finished: () -> Void
 
     @State private var isTuning = false
+    @State private var remindersDeclined = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,8 +39,9 @@ struct FirstWeekStepView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 13)
                     }
                     .buttonStyle(.bordered)
-                    .buttonBorderShape(.roundedRectangle(radius: 16))
+                    .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
 
+                    reminderCard
                     rules
 
                     Color.clear.frame(height: 12)
@@ -52,7 +54,7 @@ struct FirstWeekStepView: View {
                     .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 17)
             }
             .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 18))
+            .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
             .padding(.top, 6)
@@ -68,6 +70,39 @@ struct FirstWeekStepView: View {
                 .foregroundStyle(AppTheme.muted).lineSpacing(3)
         }
         .padding(.top, 20)
+    }
+
+    /// Asks for notifications here, and only here.
+    ///
+    /// The only way to find this was a toggle buried in a section called "Settings" inside
+    /// the Rules tab, default off -- so most households never learned the feature existed.
+    /// This is the moment it makes sense: a real week is on screen, and the offer is about
+    /// that week rather than about permissions.
+    private var reminderCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle(isOn: Binding(
+                get: { store.dinnerReminderEnabled },
+                set: { wanted in
+                    Task { @MainActor in
+                        let granted = await store.setDinnerReminder(enabled: wanted)
+                        remindersDeclined = wanted && !granted
+                    }
+                }
+            )) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Remind me what's for dinner")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.ink)
+                    Text("One notification a day, at a time you choose.")
+                        .font(.caption).foregroundStyle(AppTheme.muted)
+                }
+            }
+            if remindersDeclined {
+                Text("Notifications are off for Meal Shuffler. You can turn them on later in Settings.")
+                    .font(.caption).foregroundStyle(AppTheme.warning)
+            }
+        }
+        .padding(16)
+        .mealCard()
     }
 
     /// Folded away by default. The rules are worth adjusting once you can see their effect,
@@ -151,12 +186,7 @@ private struct FirstWeekRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(emoji)
-                .font(.system(size: 26))
-                .frame(width: 46, height: 46)
-                .background(AppTheme.accentSoft.opacity(0.7))
-                .clipShape(RoundedRectangle(cornerRadius: 13))
-                .accessibilityHidden(true)
+            MealThumbnail(emoji: emoji, size: AppTheme.emojiTileCompact)
             VStack(alignment: .leading, spacing: 2) {
                 Text(day.name.uppercased())
                     .font(.caption2.bold()).tracking(0.7).foregroundStyle(AppTheme.accent)

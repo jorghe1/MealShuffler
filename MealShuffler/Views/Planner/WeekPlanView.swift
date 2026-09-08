@@ -4,6 +4,7 @@ struct WeekPlanView: View {
     @EnvironmentObject private var store: AppStore
     @State private var selectedMeal: Meal?
     @State private var editingDay: Weekday?
+    @State private var pickingDay: Weekday?
     @State private var cooking: CookingSession?
 
     /// Which meal is being cooked, and for which day, so the "we cooked this" at the end
@@ -34,6 +35,7 @@ struct WeekPlanView: View {
                             explanation: store.explanation(for: day),
                             isFavorite: item.mealID.map { store.favoriteMealIDs.contains($0) } ?? false,
                             open: { if let id = item.mealID { selectedMeal = store.meal(id: id) } },
+                            chooseMeal: { pickingDay = day },
                             editContext: { editingDay = day },
                             toggleLock: { store.toggleLock(day: day) },
                             shuffle: { intent in
@@ -77,8 +79,12 @@ struct WeekPlanView: View {
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                 }
                 .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: 18))
-                .padding(.top, 4).padding(.bottom, 28)
+                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+                .padding(.top, 4)
+
+                nextWeekCard
+                historyLink
+                Color.clear.frame(height: 24)
             }
             .padding(.horizontal, 16)
         }
@@ -87,13 +93,11 @@ struct WeekPlanView: View {
         .navigationTitle("This week")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                NavigationLink { NextWeekView() } label: { Image(systemName: "calendar.badge.plus") }
-                    .accessibilityLabel("Next week")
-                NavigationLink { MealHistoryView() } label: { Image(systemName: "clock.arrow.circlepath") }
-                    .accessibilityLabel("History")
-                ShareLink(item: PlanTextExporter.weeklyPlan(store.plan, meals: store.meals)) { Image(systemName: "square.and.arrow.up") }
-                    .accessibilityLabel("Share this week")
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(item: PlanTextExporter.weeklyPlan(store.plan, meals: store.meals)) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel("Share this week")
             }
         }
         .sheet(item: $selectedMeal) { meal in
@@ -103,34 +107,120 @@ struct WeekPlanView: View {
             CookModeView(meal: session.meal, day: session.day, servings: session.servings)
                 .environmentObject(store)
         }
+        .sheet(item: $pickingDay) { day in
+            MealPickerView(day: day).environmentObject(store)
+        }
         .sheet(item: $editingDay) { day in
             DayContextEditor(day: day, initialContext: store.context(for: day)) { store.updateContext($0, for: day) }
                 .presentationDetents([.medium, .large])
         }
     }
 
+    /// The week's date range, the two actions that change it, and what kind of week it
+    /// turned out to be.
+    ///
+    /// Replaces a slogan and a permanent tooltip, neither of which told anyone anything
+    /// about their own week.
     private var plannerHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(WeekAnchor.label(forWeekStarting: store.plan.startDate))
                         .font(.caption.bold()).foregroundStyle(AppTheme.accent)
-                    Text("A good week, a great appetite")
+                    Text("Your week")
                         .font(.system(.title, design: .rounded, weight: .bold)).foregroundStyle(AppTheme.ink)
                 }
                 Spacer()
-                Button {
-                    Haptics.shuffle()
-                    withAnimation(.snappy) { store.shuffleAll() }
-                } label: {
-                    Image(systemName: "shuffle").font(.title2.bold()).frame(width: 54, height: 54)
-                        .background(AppTheme.accent).foregroundStyle(AppTheme.onAccent).clipShape(Circle())
-                        .shadow(color: AppTheme.accent.opacity(0.25), radius: 10, y: 5)
-                }.accessibilityLabel("Shuffle week")
+                if store.canUndo { undoButton }
+                shuffleButton
             }
-            Text("Tap ••• for quicker, cheaper or favorite meals, or to swap days.")
-                .font(.subheadline).foregroundStyle(AppTheme.muted)
-        }.padding(.vertical, 14)
+            WeekCompositionView(plan: store.plan, meals: store.meals)
+        }
+        .padding(.vertical, 14)
+    }
+
+    private var shuffleButton: some View {
+        Button {
+            Haptics.shuffle()
+            withAnimation(.snappy) { store.shuffleAll() }
+        } label: {
+            Image(systemName: "shuffle").font(.title2.bold())
+                .frame(width: AppTheme.primaryAction, height: AppTheme.primaryAction)
+                .background(AppTheme.accent).foregroundStyle(AppTheme.onAccent).clipShape(Circle())
+                .shadow(color: AppTheme.accent.opacity(0.25), radius: 10, y: 5)
+        }
+        .accessibilityLabel("Shuffle week")
+    }
+
+    /// Sits next to shuffle because that is what usually creates the need for it. Shuffle
+    /// used to throw the previous week away with no way back, in an app named after it.
+    private var undoButton: some View {
+        Button {
+            Haptics.check()
+            withAnimation(.snappy) { store.undoLastChange() }
+        } label: {
+            Image(systemName: "arrow.uturn.backward").font(.body.bold())
+                .frame(width: AppTheme.tapTarget, height: AppTheme.tapTarget)
+                .background(AppTheme.raised).foregroundStyle(AppTheme.ink).clipShape(Circle())
+        }
+        .transition(.scale.combined(with: .opacity))
+        .accessibilityLabel(store.undoLabel.map { L10n.string("Undo: %@", $0) } ?? L10n.string("Undo"))
+    }
+
+    /// Next week used to be an unlabelled toolbar glyph. It is one of the app's better
+    /// ideas, and it sits here because the end of this week is when you think about it.
+    private var nextWeekCard: some View {
+        NavigationLink {
+            NextWeekView()
+        } label: {
+            HStack(spacing: 13) {
+                Image(systemName: "calendar.badge.plus")
+                    .font(.title3).foregroundStyle(AppTheme.accent)
+                    .frame(width: AppTheme.emojiTileCompact, height: AppTheme.emojiTileCompact)
+                    .background(AppTheme.accentSoft.opacity(0.7))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Next week").font(.headline).foregroundStyle(AppTheme.ink)
+                    Text(nextWeekSummary).font(.caption).foregroundStyle(AppTheme.muted)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(AppTheme.muted)
+            }
+            .padding(12)
+            .mealCard()
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var nextWeekSummary: String {
+        guard let next = store.nextWeekPlan else {
+            return L10n.string("Nothing planned yet. Get ahead in one tap.")
+        }
+        let dinners = next.meals.filter { $0.kind == .meal && $0.mealID != nil }.count
+        return L10n.string("%ld dinners ready to take over", dinners)
+    }
+
+    private var historyLink: some View {
+        NavigationLink {
+            MealHistoryView()
+        } label: {
+            HStack(spacing: 13) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.title3).foregroundStyle(AppTheme.accent)
+                    .frame(width: AppTheme.emojiTileCompact, height: AppTheme.emojiTileCompact)
+                    .background(AppTheme.accentSoft.opacity(0.7))
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("History").font(.headline).foregroundStyle(AppTheme.ink)
+                    Text("What you have cooked, and what is due a turn").font(.caption).foregroundStyle(AppTheme.muted)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(AppTheme.muted)
+            }
+            .padding(12)
+            .mealCard()
+        }
+        .buttonStyle(.plain)
     }
 
     /// Seven full-height cards mean you cannot see your own week without scrolling.
@@ -143,17 +233,24 @@ struct WeekPlanView: View {
                     Button {
                         withAnimation(.snappy) { scroll.scrollTo(day, anchor: .top) }
                     } label: {
-                        VStack(spacing: 4) {
+                        VStack(spacing: 3) {
                             Text(day.shortName.uppercased())
                                 .font(.caption2.bold()).foregroundStyle(AppTheme.muted)
                             Text(glanceEmoji(item))
                                 .font(.system(size: 22))
+                                .opacity(isCooking(item) ? 1 : 0.55)
+                            // A locked day is the one thing about a week worth seeing at a
+                            // glance: it is what shuffle will not touch.
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 8))
+                                .foregroundStyle(AppTheme.accent)
+                                .opacity(item?.isLocked == true ? 1 : 0)
                         }
-                        .frame(width: 48, height: 58)
+                        .frame(width: 48, height: 62)
                         .background(AppTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous)
                                 .stroke(isToday(day) ? AppTheme.accent : .clear, lineWidth: 2)
                         )
                     }
@@ -172,9 +269,13 @@ struct WeekPlanView: View {
         Calendar.current.isDateInToday(store.plan.date(for: day))
     }
 
+    private func isCooking(_ item: PlannedMeal?) -> Bool {
+        item?.kind == .meal && item?.mealID != nil
+    }
+
     private func glanceEmoji(_ item: PlannedMeal?) -> String {
         guard let item else { return "·" }
-        if let meal = item.mealID.flatMap({ store.meal(id: $0) }) { return meal.emoji }
+        if let meal = item.mealID.flatMap({ store.meal(id: $0) }), item.kind == .meal { return meal.emoji }
         switch item.kind {
         case .away: return "🏃"
         case .takeaway: return "🥡"
@@ -211,7 +312,9 @@ struct WeekPlanView: View {
             )
                 .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.warning)
         }
-        .padding(14).background(AppTheme.warning.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(14)
+        .background(AppTheme.warning.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
     }
 
     /// Nothing is broken here, so this deliberately avoids the warning styling the
@@ -233,7 +336,7 @@ struct WeekPlanView: View {
         }
         .padding(14)
         .background(AppTheme.accentSoft.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
     }
 }
 
@@ -245,6 +348,7 @@ private struct DayPlanCard: View {
     let explanation: String?
     let isFavorite: Bool
     let open: () -> Void
+    let chooseMeal: () -> Void
     let editContext: () -> Void
     let toggleLock: () -> Void
     let shuffle: (MealSwapIntent) -> Void
@@ -258,24 +362,18 @@ private struct DayPlanCard: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 13) {
-                Text(cardEmoji).font(.system(size: 36)).frame(width: 60, height: 60)
-                    .background(AppTheme.accentSoft.opacity(0.7)).clipShape(RoundedRectangle(cornerRadius: 17))
-                    .accessibilityHidden(true)
+                MealThumbnail(meal: isCooking ? meal : nil, fallbackEmoji: cardEmoji)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dayLabel).font(.caption2.bold()).tracking(0.8).foregroundStyle(AppTheme.accent)
                     Text(cardTitle).font(.headline).foregroundStyle(AppTheme.ink).lineLimit(1)
                     Text(cardMetadata).font(.caption).foregroundStyle(AppTheme.muted)
                 }
                 Spacer(minLength: 4)
-                Button(action: toggleLock) {
-                    Image(systemName: item.isLocked ? "lock.fill" : "lock.open")
-                        .frame(width: 34, height: 34).foregroundStyle(item.isLocked ? AppTheme.accent : AppTheme.muted)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(item.isLocked ? L10n.string("Unlock this day") : L10n.string("Lock this day"))
-                menu
             }
-            .padding(12).contentShape(Rectangle()).onTapGesture(perform: open)
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: open)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(dayLabel), \(cardTitle), \(cardMetadata)")
             .accessibilityHint(L10n.string("Opens the recipe"))
@@ -286,13 +384,44 @@ private struct DayPlanCard: View {
                     Text(explanation).font(.caption).foregroundStyle(AppTheme.muted)
                     Spacer()
                 }
-                .padding(.horizontal, 14).padding(.bottom, 11)
+                .padding(.horizontal, 12).padding(.top, 9)
             }
-        }.mealCard()
+
+            // Controls sit on their own row rather than inside the card's tap area, where a
+            // near miss on a 34pt lock opened the recipe instead.
+            HStack(spacing: 4) {
+                Button(action: chooseMeal) {
+                    Label("Choose", systemImage: "hand.tap")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10).padding(.vertical, 7)
+                        .background(AppTheme.accentSoft)
+                        .foregroundStyle(AppTheme.accent)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.string("Choose the dinner for %@", day.name))
+
+                Spacer(minLength: 0)
+
+                Button(action: toggleLock) {
+                    Image(systemName: item.isLocked ? "lock.fill" : "lock.open")
+                        .foregroundStyle(item.isLocked ? AppTheme.accent : AppTheme.muted)
+                        .iconButtonFrame()
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.isLocked ? L10n.string("Unlock this day") : L10n.string("Lock this day"))
+
+                menu
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 4)
+        }
+        .mealCard()
     }
 
     private var menu: some View {
         Menu {
+            Button(action: chooseMeal) { Label("Choose a dinner", systemImage: "hand.tap") }
             Section("Replace dinner") {
                 ForEach(MealSwapIntent.allCases) { intent in
                     Button { shuffle(intent) } label: { Label(intent.name, systemImage: intent.symbol) }
@@ -319,10 +448,14 @@ private struct DayPlanCard: View {
             }
             Button(action: editContext) { Label("Plan this day", systemImage: "person.2") }
         } label: {
-            Image(systemName: "ellipsis.circle").font(.title3).frame(width: 36, height: 36).foregroundStyle(AppTheme.muted)
+            Image(systemName: "ellipsis.circle").font(.title3)
+                .foregroundStyle(AppTheme.muted)
+                .iconButtonFrame()
         }
         .accessibilityLabel(L10n.string("Options for %@", day.name))
     }
+
+    private var isCooking: Bool { item.kind == .meal }
 
     /// Shows the actual date alongside the weekday now that the plan is anchored.
     private var dayLabel: String {
@@ -331,7 +464,7 @@ private struct DayPlanCard: View {
     }
 
     private var cardEmoji: String {
-        if let meal { return meal.emoji }
+        if let meal, isCooking { return meal.emoji }
         return switch item.kind {
         case .away: "🏃"
         case .takeaway: "🥡"
@@ -339,6 +472,7 @@ private struct DayPlanCard: View {
         case .meal: "🍽️"
         }
     }
+
     private var cardTitle: String {
         if case .leftovers = item.kind {
             return meal.map { L10n.string("Leftovers: %@", $0.name) } ?? L10n.string("Leftovers")
@@ -350,8 +484,9 @@ private struct DayPlanCard: View {
         default: L10n.string("Not planned")
         }
     }
+
     private var cardMetadata: String {
-        if let meal { return L10n.string("%ld min · %ld servings", meal.prepMinutes, item.servings) }
+        if let meal, isCooking { return L10n.string("%ld min · %ld servings", meal.prepMinutes, item.servings) }
         return item.kind == .away
             ? L10n.string("Day off")
             : L10n.string("%ld people", item.servings)
@@ -430,26 +565,33 @@ private struct DayContextEditor: View {
     }
 }
 
-private struct MealDetailView: View {
+struct MealDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let meal: Meal
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    ZStack { RoundedRectangle(cornerRadius: 28).fill(AppTheme.accentSoft); Text(meal.emoji).font(.system(size: 105)) }
-                        .frame(height: 220)
-                        .accessibilityHidden(true)
+                    hero
                     VStack(alignment: .leading, spacing: 7) {
                         Text(meal.name).font(.system(.title, design: .rounded, weight: .bold))
                         Text(meal.subtitle).foregroundStyle(AppTheme.muted)
-                        Label(L10n.string("%ld minutes · %ld servings", meal.prepMinutes, meal.defaultServings), systemImage: "clock")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
+                        Label(
+                            L10n.string("%ld minutes · %ld servings", meal.prepMinutes, meal.defaultServings),
+                            systemImage: "clock"
+                        )
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
                     }
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Ingredients").font(.title3.bold())
                         ForEach(meal.ingredients) { ingredient in
-                            HStack { Text(ingredient.name); Spacer(); Text(IngredientUnits.display(quantity: ingredient.quantity, unit: ingredient.unit)).foregroundStyle(AppTheme.muted) }
+                            HStack {
+                                Text(ingredient.name)
+                                Spacer()
+                                Text(IngredientUnits.display(quantity: ingredient.quantity, unit: ingredient.unit))
+                                    .foregroundStyle(AppTheme.muted)
+                            }
                             Divider()
                         }
                     }
@@ -457,13 +599,40 @@ private struct MealDetailView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Instructions").font(.title3.bold())
                             ForEach(Array(meal.instructions.enumerated()), id: \.offset) { index, instruction in
-                                HStack(alignment: .top) { Text("\(index + 1)").font(.caption.bold()).frame(width: 26, height: 26).background(AppTheme.accentSoft).clipShape(Circle()); Text(instruction) }
+                                HStack(alignment: .top, spacing: 10) {
+                                    Text("\(index + 1)").font(.caption.bold())
+                                        .frame(width: 26, height: 26)
+                                        .background(AppTheme.accentSoft).clipShape(Circle())
+                                    Text(instruction)
+                                }
                             }
                         }
                     }
                 }.padding(20)
-            }.appBackground()
+            }
+            .appBackground()
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
         }
+    }
+
+    /// Uses the imported photograph when the recipe came with one.
+    private var hero: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous).fill(AppTheme.accentSoft)
+            if let url = meal.heroImageURL {
+                AsyncImage(url: url) { phase in
+                    if case .success(let image) = phase {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Text(meal.emoji).font(.system(size: 105))
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous))
+            } else {
+                Text(meal.emoji).font(.system(size: 105))
+            }
+        }
+        .frame(height: 220)
+        .accessibilityHidden(true)
     }
 }

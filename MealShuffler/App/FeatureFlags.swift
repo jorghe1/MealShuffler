@@ -9,4 +9,9 @@ enum FeatureFlags {
     /// identity and moderation work: publishing, rating and reporting are all unsafe while
     /// anyone can act as anyone.
     static let communityEnabled = false
+
+    /// The invitation link and code describe a sync that does not exist: following one opens
+    /// an alert saying so. The household model, tombstones and `updatedBy` stamps are all in
+    /// place for it -- turn this on with the backend that answers them.
+    static let householdSyncEnabled = false
 }

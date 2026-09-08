@@ -21,21 +21,9 @@ struct MealLibraryView: View {
     }
 
     @EnvironmentObject private var store: AppStore
-    /// Fine at fourteen meals; the share extension is designed to make that number grow.
-    private enum LibraryFilter: String, CaseIterable, Identifiable {
-        case all, favourites, mine
-        var id: String { rawValue }
-        var name: String {
-            switch self {
-            case .all: L10n.string("All")
-            case .favourites: L10n.string("Favourites")
-            case .mine: L10n.string("Mine")
-            }
-        }
-    }
 
     @State private var searchText = ""
-    @State private var filter: LibraryFilter = .all
+    @State private var filter: MealFilter = .all
     @State private var sheet: LibrarySheet?
     @State private var importing: CapturedRecipe?
     @State private var photoItem: PhotosPickerItem?
@@ -43,21 +31,9 @@ struct MealLibraryView: View {
     @State private var isImportingPhoto = false
 
     private var filteredMeals: [Meal] {
-        let byKind = store.meals.filter { meal in
-            switch filter {
-            case .all: true
-            case .favourites: store.favoriteMealIDs.contains(meal.id)
-            case .mine: !meal.isBuiltIn
-            }
-        }
-        guard !searchText.isEmpty else { return byKind }
-        return byKind.filter { meal in
-            meal.name.localizedCaseInsensitiveContains(searchText)
-                || meal.subtitle.localizedCaseInsensitiveContains(searchText)
-                || meal.tags.contains { $0.name.localizedCaseInsensitiveContains(searchText) }
-                // "what can I make with spinach" is the question people actually have.
-                || meal.ingredients.contains { $0.name.localizedCaseInsensitiveContains(searchText) }
-        }
+        store.meals
+            .filter { filter.matches($0, favorites: store.favoriteMealIDs) }
+            .filter { $0.matches(searchText: searchText) }
     }
 
     var body: some View {
@@ -68,12 +44,24 @@ struct MealLibraryView: View {
                 filterRow
                 if filteredMeals.isEmpty { emptyState }
                 ForEach(filteredMeals) { meal in
-                    MealLibraryRow(meal: meal, isFavorite: store.favoriteMealIDs.contains(meal.id)) {
-                        store.toggleFavorite(meal)
-                    }
+                    MealRow(
+                        meal: meal,
+                        isFavorite: store.favoriteMealIDs.contains(meal.id),
+                        toggleFavorite: { store.toggleFavorite(meal) }
+                    )
+                    .mealCard()
                     .contentShape(Rectangle())
                     .onTapGesture { sheet = .editor(existing: meal, draft: ImportedRecipeDraft()) }
                     .contextMenu {
+                        // The other half of choosing a dinner: from a meal you are looking
+                        // at, rather than from the day you are filling.
+                        Menu {
+                            ForEach(Weekday.ordered()) { day in
+                                Button(day.name) { store.setMeal(meal, on: day) }
+                            }
+                        } label: {
+                            Label("Plan for a day", systemImage: "calendar.badge.plus")
+                        }
                         Button(store.favoriteMealIDs.contains(meal.id)
                             ? L10n.string("Remove family favorite")
                             : L10n.string("Mark as family favorite")) {
@@ -89,7 +77,7 @@ struct MealLibraryView: View {
             .padding(16)
         }
         .appBackground()
-        .navigationTitle("My meals")
+        .navigationTitle("Meals")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search meals")
         .sheet(item: $importing) { capture in
@@ -118,22 +106,17 @@ struct MealLibraryView: View {
         )) { Button("OK", role: .cancel) {} } message: { Text(importError ?? L10n.string("Unknown error")) }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
-            Task { await importPhoto(item) }
+            Task { @MainActor in await importPhoto(item) }
         }
     }
 
     private var filterRow: some View {
         HStack(spacing: 8) {
-            ForEach(LibraryFilter.allCases) { option in
+            ForEach(MealFilter.allCases) { option in
                 Button {
                     withAnimation(.snappy) { filter = option }
                 } label: {
-                    Text(option.name)
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(filter == option ? AppTheme.accent : AppTheme.surface)
-                        .foregroundStyle(filter == option ? AppTheme.onAccent : AppTheme.ink)
-                        .clipShape(Capsule())
+                    Text(option.name).chipStyle(selected: filter == option)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(filter == option ? [.isButton, .isSelected] : [.isButton])
@@ -228,12 +211,7 @@ struct MealLibraryView: View {
                 }
                 ActionChip(title: L10n.string("Link"), symbol: "link") { sheet = .linkImport }
                 PhotosPicker(selection: $photoItem, matching: .images) {
-                    Label("Photo", systemImage: "text.viewfinder")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(AppTheme.accentSoft)
-                        .clipShape(Capsule())
+                    Label("Photo", systemImage: "text.viewfinder").actionChip()
                 }
             }
         }
@@ -261,52 +239,21 @@ private struct ActionChip: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: symbol)
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(AppTheme.accentSoft)
-                .clipShape(Capsule())
+            Label(title, systemImage: symbol).actionChip()
         }
     }
 }
 
-private struct MealLibraryRow: View {
-    let meal: Meal
-    let isFavorite: Bool
-    let toggleFavorite: () -> Void
-
-    var body: some View {
-        HStack(spacing: 13) {
-            Text(meal.emoji)
-                .font(.system(size: 34))
-                .frame(width: 58, height: 58)
-                .background(AppTheme.accentSoft.opacity(0.7))
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(meal.name).font(.headline).lineLimit(1)
-                    if !meal.isBuiltIn {
-                        Text("MINE").font(.caption2.bold()).foregroundStyle(AppTheme.accent)
-                    }
-                }
-                Text(L10n.string("%ld min · %ld servings", meal.prepMinutes, meal.defaultServings))
-                    .font(.caption).foregroundStyle(AppTheme.muted)
-            }
-            Spacer()
-            Button(action: toggleFavorite) {
-                Image(systemName: isFavorite ? "heart.fill" : "heart")
-                    .foregroundStyle(isFavorite ? AppTheme.destructive : AppTheme.muted)
-                    .frame(width: 38, height: 38)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(
-                isFavorite ? L10n.string("Remove family favorite") : L10n.string("Mark as family favorite")
-            )
-        }
-        .padding(12)
-        .mealCard()
+private extension View {
+    /// A tinted pill that performs an action, as opposed to `chipStyle` which shows a
+    /// selection. Shared so the picker and the buttons beside it cannot drift.
+    func actionChip() -> some View {
+        font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(AppTheme.accentSoft)
+            .foregroundStyle(AppTheme.accent)
+            .clipShape(Capsule())
     }
 }
 

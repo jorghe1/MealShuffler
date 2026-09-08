@@ -18,13 +18,15 @@ struct GroceryListView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("Ready to shop")
                             .font(.system(.title, design: .rounded, weight: .bold)).foregroundStyle(AppTheme.ink)
-                        Text(L10n.string("%ld of %ld items remaining", remainingCount, store.groceryItems.count))
+                        Text(L10n.string("%ld of %ld still to buy", remainingCount, store.groceryItems.count))
                             .font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
                     Button { showingAddItem = true } label: {
-                        Image(systemName: "plus").font(.title3.bold()).frame(width: 48, height: 48)
-                            .background(AppTheme.accentSoft).clipShape(Circle())
+                        Image(systemName: "plus").font(.title3.bold())
+                            .frame(width: AppTheme.tapTarget, height: AppTheme.tapTarget)
+                            .background(AppTheme.accentSoft).foregroundStyle(AppTheme.accent)
+                            .clipShape(Circle())
                     }
                     .accessibilityLabel(L10n.string("Add an item"))
                     exportMenu
@@ -40,42 +42,7 @@ struct GroceryListView: View {
                                 .font(.caption.weight(.bold)).tracking(0.8).foregroundStyle(AppTheme.accent)
                                 .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
                             ForEach(items) { item in
-                                Button {
-                                    Haptics.check()
-                                    store.toggleGroceryItem(item)
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: store.checkedGroceryIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
-                                            .font(.title3).foregroundStyle(store.checkedGroceryIDs.contains(item.id) ? AppTheme.accent : AppTheme.muted.opacity(0.45))
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(item.name).foregroundStyle(AppTheme.ink).strikethrough(store.checkedGroceryIDs.contains(item.id))
-                                            if !item.mealNames.isEmpty {
-                                                Text(item.mealNames.sorted().joined(separator: ", ")).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
-                                            }
-                                        }
-                                        Spacer()
-                                        Text(item.quantityText).font(.subheadline).foregroundStyle(AppTheme.muted)
-                                    }
-                                    .padding(.horizontal, 16).padding(.vertical, 11).contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityElement(children: .combine)
-                                .accessibilityLabel("\(item.name), \(item.quantityText)")
-                                .accessibilityAddTraits(
-                                    store.checkedGroceryIDs.contains(item.id) ? [.isButton, .isSelected] : [.isButton]
-                                )
-                                // A List would allow swipe actions; this is a LazyVStack, where
-                                // they render but never fire. Long press is the honest affordance.
-                                .contextMenu {
-                                    Button { store.setStocked(item, stocked: true) } label: {
-                                        Label("Already have it", systemImage: "house")
-                                    }
-                                    if let manual = store.manualItem(matching: item) {
-                                        Button(role: .destructive) {
-                                            store.removeManualGroceryItems([manual.id])
-                                        } label: { Label("Remove", systemImage: "trash") }
-                                    }
-                                }
+                                groceryRow(item)
                                 if item.id != items.last?.id { Divider().padding(.leading, 52) }
                             }
                         }.mealCard()
@@ -87,7 +54,7 @@ struct GroceryListView: View {
             }.padding(.horizontal, 16)
         }
         .appBackground()
-        .navigationTitle("Grocery list")
+        .navigationTitle("Shop")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAisleOrder) {
             AisleOrderView().environmentObject(store)
@@ -101,6 +68,66 @@ struct GroceryListView: View {
         .alert("Export", isPresented: Binding(get: { exportMessage != nil }, set: { if !$0 { exportMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(exportMessage ?? "") }
+    }
+
+    /// One line on the list.
+    ///
+    /// "Already have it" was a long-press context menu with no visible affordance at all --
+    /// a LazyVStack cannot offer swipe actions, so the feature was effectively invisible. It
+    /// gets a real button; the context menu stays for the manual-item delete.
+    private func groceryRow(_ item: GroceryItem) -> some View {
+        let isChecked = store.checkedGroceryIDs.contains(item.id)
+        return HStack(spacing: 4) {
+            Button {
+                Haptics.check()
+                store.toggleGroceryItem(item)
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isChecked ? AppTheme.accent : AppTheme.muted.opacity(0.45))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name).foregroundStyle(AppTheme.ink).strikethrough(isChecked)
+                        if !item.mealNames.isEmpty {
+                            Text(item.mealNames.sorted().joined(separator: ", "))
+                                .font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Text(item.quantityText).font(.subheadline).foregroundStyle(AppTheme.muted)
+                }
+                .padding(.leading, 16).padding(.vertical, 11)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(item.name), \(item.quantityText)")
+            .accessibilityAddTraits(isChecked ? [.isButton, .isSelected] : [.isButton])
+
+            Button {
+                Haptics.check()
+                store.setStocked(item, stocked: true)
+            } label: {
+                Image(systemName: "house")
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.muted)
+                    .iconButtonFrame()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.string("%@, already at home", item.name))
+            .accessibilityHint(L10n.string("Takes it off the list"))
+            .padding(.trailing, 6)
+        }
+        .contextMenu {
+            Button { store.setStocked(item, stocked: true) } label: {
+                Label("Already have it", systemImage: "house")
+            }
+            if let manual = store.manualItem(matching: item) {
+                Button(role: .destructive) {
+                    store.removeManualGroceryItems([manual.id])
+                } label: { Label("Remove", systemImage: "trash") }
+            }
+        }
     }
 
     /// Items set aside as already owned, kept visible so they can be put back.
@@ -151,10 +178,13 @@ struct GroceryListView: View {
             } label: { Label("Apple Reminders", systemImage: "checklist") }
             .disabled(isExporting || store.groceryItems.isEmpty)
         } label: {
-            if isExporting { ProgressView().frame(width: 48, height: 48) }
-            else {
-                Image(systemName: "square.and.arrow.up").font(.title3.bold()).frame(width: 48, height: 48)
-                    .background(AppTheme.raised).clipShape(Circle())
+            if isExporting {
+                ProgressView().frame(width: AppTheme.tapTarget, height: AppTheme.tapTarget)
+            } else {
+                Image(systemName: "square.and.arrow.up").font(.title3.bold())
+                    .frame(width: AppTheme.tapTarget, height: AppTheme.tapTarget)
+                    .background(AppTheme.raised).foregroundStyle(AppTheme.ink)
+                    .clipShape(Circle())
             }
         }
         .accessibilityLabel(L10n.string("Export grocery list"))

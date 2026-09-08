@@ -131,7 +131,7 @@ struct CookModeView: View {
                         .font(.headline).padding(.vertical, 15).padding(.horizontal, 18)
                 }
                 .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle(radius: 16))
+                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
             }
 
             if hasSteps, step < meal.instructions.count - 1 {
@@ -140,7 +140,7 @@ struct CookModeView: View {
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
                 }
                 .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: 16))
+                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
             } else {
                 Button {
                     Haptics.success()
@@ -152,7 +152,7 @@ struct CookModeView: View {
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
                 }
                 .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: 16))
+                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
                 .disabled(didMarkCooked)
             }
         }

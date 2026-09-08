@@ -58,6 +58,15 @@ extension Weekday {
         ) ?? weekStart
     }
 
+    /// This day in `Calendar`'s own numbering, where Sunday is 1.
+    ///
+    /// `allCases` is declared Monday-first, so the two disagree by one rotation. Needed
+    /// wherever a `DateComponents` is built by hand -- a repeating weekly notification, for
+    /// instance.
+    var calendarWeekday: Int {
+        ((Weekday.allCases.firstIndex(of: self) ?? 0) + 1) % 7 + 1
+    }
+
     /// Locale-correct short name. Replaces a three-character prefix of the localized name,
     /// which only worked by coincidence for English and Norwegian.
     static func shortSymbol(for day: Weekday, calendar: Calendar = .current) -> String {

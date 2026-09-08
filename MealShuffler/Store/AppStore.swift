@@ -29,13 +29,37 @@ final class AppStore: ObservableObject {
     @Published var nextWeekPlan: WeeklyPlan? { didSet { save() } }
     @Published var dinnerReminderEnabled: Bool { didSet { save() } }
     @Published var dinnerReminderHour: Int { didSet { save() } }
+    /// A second, earlier nudge timed off the recipe's own prep time.
+    @Published var prepLeadReminderEnabled: Bool { didSet { save() } }
+    @Published var groceryReminderEnabled: Bool { didSet { save() } }
+    @Published var groceryReminderWeekday: Weekday { didSet { save() } }
+    @Published var groceryReminderHour: Int { didSet { save() } }
     @Published var inviteNotice: String?
     /// Recipes shared in from other apps, waiting to be turned into meals.
     @Published var pendingCaptures: [CapturedRecipe] = []
 
+    /// The plan as it stood before the last change, so the signature action is reversible.
+    ///
+    /// Shuffle threw the previous week away with nothing to put it back, which is a hard
+    /// thing to ship in an app named after shuffling. Session-only on purpose: an undo the
+    /// user last saw a week ago is not an undo.
+    @Published private var undoCheckpoint: PlanCheckpoint?
+
+    private struct PlanCheckpoint {
+        let plan: WeeklyPlan
+        let contexts: [Weekday: DayPlanContext]
+        let feedbackEvents: [MealFeedbackEvent]
+        let label: String
+    }
+
     private let generator: MealPlanGenerator
     private var isRestoring = true
     private let repository: any AppStateRepository
+    private let widgetRefresher: any WidgetRefreshing
+    private let reminderService: any ReminderScheduling
+    /// Hash of everything the widget and the notification schedule are derived from, so a
+    /// grocery tick does not reschedule seven notifications.
+    private var lastBackgroundSignature: Int?
     private var pendingSave: Task<Void, Never>?
     private static let feedbackRetentionDays = 400
     private static let feedbackEventLimit = 2_000
@@ -50,12 +74,24 @@ final class AppStore: ObservableObject {
     /// Resolution lives in `MealCatalog` so the widget resolves the library identically.
     var meals: [Meal] { MealCatalog.resolve(custom: customMeals) }
 
-    convenience init(defaults: UserDefaults = .standard, random: RandomSource = SystemRandomSource()) {
+    /// Test seam: a disposable defaults suite instead of the shared container.
+    convenience init(defaults: UserDefaults, random: RandomSource = SystemRandomSource()) {
         self.init(repository: UserDefaultsStateRepository(defaults: defaults), random: random)
     }
 
-    init(repository: any AppStateRepository, random: RandomSource = SystemRandomSource()) {
+    convenience init(random: RandomSource = SystemRandomSource()) {
+        self.init(repository: FileStateRepository.live(), random: random)
+    }
+
+    init(
+        repository: any AppStateRepository,
+        random: RandomSource = SystemRandomSource(),
+        widgetRefresher: any WidgetRefreshing = WidgetKitRefresher(),
+        reminderService: any ReminderScheduling = DinnerReminderService()
+    ) {
         self.repository = repository
+        self.widgetRefresher = widgetRefresher
+        self.reminderService = reminderService
         generator = MealPlanGenerator(random: random)
         if let state = repository.load() {
             hasCompletedOnboarding = state.hasCompletedOnboarding
@@ -76,6 +112,10 @@ final class AppStore: ObservableObject {
             nextWeekPlan = state.nextWeekPlan
             dinnerReminderEnabled = state.dinnerReminderEnabled
             dinnerReminderHour = state.dinnerReminderHour
+            prepLeadReminderEnabled = state.prepLeadReminderEnabled
+            groceryReminderEnabled = state.groceryReminderEnabled
+            groceryReminderWeekday = state.groceryReminderWeekday
+            groceryReminderHour = state.groceryReminderHour
         } else {
             hasCompletedOnboarding = false
             memberPreferences = [:]
@@ -95,12 +135,19 @@ final class AppStore: ObservableObject {
             nextWeekPlan = nil
             dinnerReminderEnabled = false
             dinnerReminderHour = 16
+            prepLeadReminderEnabled = false
+            groceryReminderEnabled = false
+            groceryReminderWeekday = .saturday
+            groceryReminderHour = 10
         }
         isRestoring = false
         inviteNotice = nil
         pendingCaptures = RecipeInbox.all()
         rollOverIfNeeded()
         refreshConflicts()
+        // Unconditional: permission may have been granted in Settings.app since the last
+        // launch, in which case nothing has changed here but nothing is scheduled either.
+        refreshBackgroundSurfaces(force: true)
     }
 
     // MARK: - Week rollover
@@ -138,7 +185,8 @@ final class AppStore: ObservableObject {
             plan = plan.anchored(to: currentWeekStart)
             if hasCompletedOnboarding { shuffleAll() }
         }
-        refreshReminders()
+        // A week that has already turned cannot be undone back into.
+        undoCheckpoint = nil
     }
 
     // MARK: - Next week
@@ -162,43 +210,117 @@ final class AppStore: ObservableObject {
 
     // MARK: - Reminders
 
-    func setDinnerReminder(enabled: Bool) {
-        dinnerReminderEnabled = enabled
-        guard enabled else { refreshReminders(); return }
-        Task { [weak self] in
-            let service = DinnerReminderService()
-            let authorized = await service.isAuthorized()
-            if !authorized {
-                let granted = await service.requestAuthorization()
-                if !granted {
-                    self?.dinnerReminderEnabled = false
-                    return
-                }
-            }
-            self?.refreshReminders()
+    /// Turns the daily reminder on, asking for permission the first time.
+    ///
+    /// Returns whether it ended up on, so a caller that offered the toggle can say something
+    /// useful when the system prompt was declined.
+    @discardableResult
+    func setDinnerReminder(enabled: Bool) async -> Bool {
+        guard enabled else {
+            dinnerReminderEnabled = false
+            // Forced, so pending notifications are withdrawn now rather than after the
+            // save debounce. Turning a reminder off should feel immediate.
+            refreshBackgroundSurfaces(force: true)
+            return false
         }
+        let authorized = await reminderService.isAuthorized()
+        if !authorized {
+            guard await reminderService.requestAuthorization() else {
+                dinnerReminderEnabled = false
+                return false
+            }
+        }
+        dinnerReminderEnabled = true
+        refreshBackgroundSurfaces(force: true)
+        return true
     }
 
     func setDinnerReminderHour(_ hour: Int) {
         dinnerReminderHour = max(0, min(hour, 23))
-        refreshReminders()
     }
 
-    /// Keeps scheduled notifications in step with the plan, so a reshuffled day never
-    /// announces the meal it replaced.
-    private func refreshReminders() {
-        let currentPlan = plan
-        let currentMeals = meals
-        let hour = dinnerReminderHour
-        let enabled = dinnerReminderEnabled
-        Task {
-            let service = DinnerReminderService()
-            if enabled {
-                await service.reschedule(plan: currentPlan, meals: currentMeals, hour: hour)
-            } else {
-                service.cancelAll()
+    func setGroceryReminderHour(_ hour: Int) {
+        groceryReminderHour = max(0, min(hour, 23))
+    }
+
+    /// The same permission gate as the dinner reminder, for the two secondary toggles.
+    @discardableResult
+    func setGroceryReminder(enabled: Bool) async -> Bool {
+        guard enabled else {
+            groceryReminderEnabled = false
+            refreshBackgroundSurfaces(force: true)
+            return false
+        }
+        let authorized = await reminderService.isAuthorized()
+        if !authorized {
+            guard await reminderService.requestAuthorization() else {
+                groceryReminderEnabled = false
+                return false
             }
         }
+        groceryReminderEnabled = true
+        refreshBackgroundSurfaces(force: true)
+        return true
+    }
+
+    /// Acts on a button tapped on a dinner reminder, without the household opening the app.
+    func handleReminderAction(_ action: DinnerReminderAction) {
+        switch action {
+        case .cooked(let mealID, let day):
+            guard let meal = meal(id: mealID) else { return }
+            markCooked(meal, on: day)
+        case .somethingElse(let mealID, let day):
+            guard let meal = meal(id: mealID) else { return }
+            markSkipped(meal, on: day)
+        }
+    }
+
+    /// Everything the notification schedule is derived from.
+    private var reminderSchedule: ReminderSchedule {
+        ReminderSchedule(
+            plan: plan,
+            nextWeekPlan: nextWeekPlan,
+            meals: meals,
+            dinnerEnabled: dinnerReminderEnabled,
+            dinnerHour: dinnerReminderHour,
+            prepLeadEnabled: prepLeadReminderEnabled,
+            groceryEnabled: groceryReminderEnabled,
+            groceryWeekday: groceryReminderWeekday,
+            groceryHour: groceryReminderHour
+        )
+    }
+
+    private var backgroundSignature: Int {
+        var hasher = Hasher()
+        hasher.combine(plan)
+        hasher.combine(nextWeekPlan)
+        hasher.combine(customMeals)
+        hasher.combine(dinnerReminderEnabled)
+        hasher.combine(dinnerReminderHour)
+        hasher.combine(prepLeadReminderEnabled)
+        hasher.combine(groceryReminderEnabled)
+        hasher.combine(groceryReminderWeekday)
+        hasher.combine(groceryReminderHour)
+        return hasher.finalize()
+    }
+
+    /// Brings the widget and the notification schedule back in line with the state that was
+    /// just written.
+    ///
+    /// Driven from the single write funnel rather than from each mutating method. Every
+    /// place that forgot to call the old `refreshReminders()` was a day announcing the meal
+    /// it replaced -- swapping two days was one of them -- and the widget had no such call
+    /// anywhere at all, so it showed a stale dinner until its timeline happened to expire.
+    private func refreshBackgroundSurfaces(force: Bool = false) {
+        let signature = backgroundSignature
+        guard force || signature != lastBackgroundSignature else { return }
+        lastBackgroundSignature = signature
+
+        widgetRefresher.reload()
+
+        let schedule = reminderSchedule
+        let service = reminderService
+        Task { await service.reschedule(schedule) }
     }
 
     var preferredMeals: [Meal] {
@@ -305,6 +427,20 @@ final class AppStore: ObservableObject {
             }
     }
 
+    /// When each meal was last actually cooked.
+    ///
+    /// The rotation view's whole content: "what have we not had in a while" is the question
+    /// a variety-driven planner should be able to answer, and history could only show a flat
+    /// list of events.
+    var lastCookedByMeal: [UUID: Date] {
+        var latest: [UUID: Date] = [:]
+        for event in feedbackEvents where event.kind == .cooked {
+            if let existing = latest[event.mealID], existing >= event.timestamp { continue }
+            latest[event.mealID] = event.timestamp
+        }
+        return latest
+    }
+
     var recentlyCookedMealIDs: Set<UUID> {
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: .now) ?? .distantPast
         return Set(feedbackEvents.filter { $0.kind == .cooked && $0.timestamp >= cutoff }.map(\.mealID))
@@ -356,10 +492,73 @@ final class AppStore: ObservableObject {
     func completeOnboarding() {
         hasCompletedOnboarding = true
         if plan.meals.isEmpty { shuffleAll() }
+        // There is nothing sensible to undo back into before the first week existed.
+        undoCheckpoint = nil
+    }
+
+    // MARK: - Undo
+
+    var canUndo: Bool { undoCheckpoint != nil }
+
+    /// What undoing would put back, for a button that says so rather than just "Undo".
+    var undoLabel: String? { undoCheckpoint?.label }
+
+    /// Remembers the plan before a change that replaces dinners.
+    ///
+    /// Feedback events come along because snoozing and skipping write one before re-rolling
+    /// the day; restoring the plan without them would leave the meal quietly suppressed for
+    /// four weeks with no visible cause.
+    private func rememberForUndo(_ label: String) {
+        undoCheckpoint = PlanCheckpoint(
+            plan: plan,
+            contexts: dayContexts,
+            feedbackEvents: feedbackEvents,
+            label: label
+        )
+    }
+
+    func undoLastChange() {
+        guard let restore = undoCheckpoint else { return }
+        undoCheckpoint = nil
+        dayContexts = restore.contexts
+        feedbackEvents = restore.feedbackEvents
+        plan = restore.plan
+        refreshConflicts()
+        reconcileGroceryChecks()
+    }
+
+    // MARK: - Choosing a dinner
+
+    /// Puts a specific meal on a specific day.
+    ///
+    /// The one thing the app could not express: rules, intents and locks all describe what
+    /// the generator should pick, and none of them says "Thursday is lasagne". The day is
+    /// locked afterwards because a dinner chosen by hand should survive the next shuffle.
+    func setMeal(_ meal: Meal, on day: Weekday) {
+        rememberForUndo(L10n.string("Dinner on %@", day.name.lowercased()))
+
+        var context = context(for: day)
+        // Choosing a dinner for a day nobody was eating at home means eating at home again.
+        if context.mode != .cook {
+            context.mode = .cook
+            context.leftoverSourceDay = nil
+            dayContexts[day] = context
+        }
+
+        var item = plan[day] ?? PlannedMeal(day: day, mealID: nil, isLocked: false)
+        item.mealID = meal.id
+        item.kind = .meal
+        item.servings = context.cookedServings
+        item.isLocked = true
+        plan[day] = item
+
+        refreshConflicts()
+        reconcileGroceryChecks()
     }
 
     /// Re-rolls every unlocked day. This is the explicit "shuffle the week" action.
     func shuffleAll() {
+        rememberForUndo(L10n.string("Shuffle week"))
         let result = generator.generate(
             preferredMeals: preferredMeals,
             allMeals: meals,
@@ -412,10 +611,10 @@ final class AppStore: ObservableObject {
         plan = updated
         conflicts = result.conflicts
         reconcileGroceryChecks()
-        refreshReminders()
     }
 
     func shuffle(day: Weekday, intent: MealSwapIntent = .different) {
+        rememberForUndo(L10n.string("Dinner on %@", day.name.lowercased()))
         let currentID = plan[day]?.mealID
         regenerate(
             days: [day],
@@ -432,6 +631,7 @@ final class AppStore: ObservableObject {
     }
 
     func updateContext(_ context: DayPlanContext, for day: Weekday) {
+        rememberForUndo(L10n.string("Plan for %@", day.name.lowercased()))
         dayContexts[day] = context
         // Days eating this day's leftovers depend on what it cooks, so they re-roll too.
         var affected: Set<Weekday> = [day]
@@ -447,6 +647,7 @@ final class AppStore: ObservableObject {
 
     func swapMeals(between firstDay: Weekday, and secondDay: Weekday) {
         guard var first = plan[firstDay], var second = plan[secondDay] else { return }
+        rememberForUndo(L10n.string("Swap of two days"))
         let firstPayload = (first.mealID, first.kind)
         first.mealID = second.mealID
         first.kind = second.kind
@@ -501,8 +702,9 @@ final class AppStore: ObservableObject {
     }
 
     func snooze(_ meal: Meal, on day: Weekday) {
+        rememberForUndo(L10n.string("Pausing %@", meal.name))
         appendFeedback(MealFeedbackEvent(mealID: meal.id, kind: .snoozed, weekday: day))
-        shuffle(day: day, intent: .different)
+        regenerate(days: [day], respectingLocks: false, intents: [day: .different], avoiding: [day: meal.id])
     }
 
     func markCooked(_ meal: Meal, on day: Weekday) {
@@ -510,8 +712,9 @@ final class AppStore: ObservableObject {
     }
 
     func markSkipped(_ meal: Meal, on day: Weekday) {
+        rememberForUndo(L10n.string("Replacing %@", meal.name))
         appendFeedback(MealFeedbackEvent(mealID: meal.id, kind: .skipped, weekday: day))
-        shuffle(day: day, intent: .different)
+        regenerate(days: [day], respectingLocks: false, intents: [day: .different], avoiding: [day: meal.id])
     }
 
     private func appendFeedback(_ event: MealFeedbackEvent) {
@@ -633,6 +836,7 @@ final class AppStore: ObservableObject {
     }
 
     func resetForPreview() {
+        undoCheckpoint = nil
         hasCompletedOnboarding = false
         memberPreferences = [:]
         plan = .empty
@@ -691,7 +895,6 @@ final class AppStore: ObservableObject {
         plan = result.plan.anchored(to: plan.startDate)
         conflicts = result.conflicts
         reconcileGroceryChecks()
-        refreshReminders()
     }
 
     /// Keeps ticks for items that are still on the list and drops the rest. Wiping the whole
@@ -748,8 +951,14 @@ final class AppStore: ObservableObject {
             archivedWeeks: archivedWeeks,
             nextWeekPlan: nextWeekPlan,
             dinnerReminderEnabled: dinnerReminderEnabled,
-            dinnerReminderHour: dinnerReminderHour
+            dinnerReminderHour: dinnerReminderHour,
+            prepLeadReminderEnabled: prepLeadReminderEnabled,
+            groceryReminderEnabled: groceryReminderEnabled,
+            groceryReminderWeekday: groceryReminderWeekday,
+            groceryReminderHour: groceryReminderHour
         )
         repository.save(snapshot)
+        // After the write, never before: the widget reads the saved blob in another process.
+        refreshBackgroundSurfaces()
     }
 }

@@ -37,7 +37,7 @@ struct CapturedRecipeImportView: View {
                         .multilineTextAlignment(.center)
                     Button("Try again") { Task { await run() } }
                         .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.roundedRectangle(radius: 14))
+                        .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
                         .padding(.top, 4)
                 }
                 Spacer()

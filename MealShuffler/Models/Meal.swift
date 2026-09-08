@@ -205,3 +205,15 @@ struct Meal: Identifiable, Codable, Hashable {
 enum MealPreference: String, Codable {
     case liked, neutral, disliked
 }
+
+/// Renders a meal's rough price in the reader's own currency.
+///
+/// `estimatedCost` was deliberately renamed off `estimatedCostNOK` to get a currency out of
+/// the persisted schema, but the editor still said "NOK" out loud. The number is a household's
+/// own rough figure, so it is shown in their locale's currency rather than converted.
+enum MealCost {
+    static func formatted(_ amount: Int) -> String {
+        let code = Locale.current.currency?.identifier ?? "USD"
+        return amount.formatted(.currency(code: code).precision(.fractionLength(0)))
+    }
+}

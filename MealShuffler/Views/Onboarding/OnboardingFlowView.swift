@@ -4,10 +4,12 @@ struct OnboardingFlowView: View {
     @EnvironmentObject private var store: AppStore
     @State private var step = 0
 
+    private static let stepCount = 3
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                ForEach(0..<3, id: \.self) { index in
+                ForEach(0..<Self.stepCount, id: \.self) { index in
                     Capsule()
                         .fill(index <= step ? AppTheme.accent : AppTheme.ink.opacity(0.12))
                         .frame(height: 5)
@@ -15,6 +17,8 @@ struct OnboardingFlowView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 14)
+            .accessibilityElement()
+            .accessibilityLabel(L10n.string("Step %ld of %ld", step + 1, Self.stepCount))
 
             Group {
                 switch step {
@@ -73,7 +77,7 @@ private struct WelcomeStepView: View {
                     .padding(.vertical, 17)
             }
             .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 18))
+            .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
         }
         .padding(24)
     }
@@ -83,9 +87,12 @@ private struct TasteSwipeView: View {
     @EnvironmentObject private var store: AppStore
     @State private var index = 0
     @State private var offset: CGSize = .zero
+    /// Fixed once, so the deck does not reshuffle underneath the person swiping it.
+    @State private var deck: [Meal] = []
 
     let finished: () -> Void
-    private var onboardingMeals: [Meal] { Array(store.meals.prefix(7)) }
+
+    private static let deckSize = 8
 
     var body: some View {
         VStack(spacing: 18) {
@@ -98,14 +105,14 @@ private struct TasteSwipeView: View {
             }
             .padding(.top, 22)
 
-            Text(L10n.string("%ld of %ld", min(index + 1, onboardingMeals.count), onboardingMeals.count))
+            Text(L10n.string("%ld of %ld", min(index + 1, deck.count), deck.count))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(AppTheme.muted)
 
             Spacer(minLength: 6)
 
-            if index < onboardingMeals.count {
-                let meal = onboardingMeals[index]
+            if index < deck.count {
+                let meal = deck[index]
                 TasteCard(meal: meal, offset: offset)
                     .offset(offset)
                     .rotationEffect(.degrees(Double(offset.width / 18)))
@@ -126,27 +133,71 @@ private struct TasteSwipeView: View {
             Spacer(minLength: 6)
 
             HStack(spacing: 22) {
-                ChoiceButton(symbol: "xmark", label: L10n.string("No thanks"), color: .red) { choose(.disliked) }
-                ChoiceButton(symbol: "heart.fill", label: L10n.string("Like"), color: AppTheme.accent) { choose(.liked) }
+                ChoiceButton(symbol: "xmark", label: L10n.string("No thanks"), color: AppTheme.destructive) {
+                    choose(.disliked)
+                }
+                ChoiceButton(symbol: "heart.fill", label: L10n.string("Like"), color: AppTheme.accent) {
+                    choose(.liked)
+                }
             }
-            .padding(.bottom, 24)
+
+            // One mis-swipe used to be permanent, on a screen whose entire purpose is
+            // recording opinions correctly.
+            Button {
+                goBack()
+            } label: {
+                Label("Back", systemImage: "arrow.uturn.backward")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .disabled(index == 0)
+            .opacity(index == 0 ? 0 : 1)
+            .padding(.bottom, 20)
+        }
+        .onAppear {
+            if deck.isEmpty { deck = Self.buildDeck(from: store.meals) }
         }
     }
 
+    /// A spread across the library rather than the first seven rows of it.
+    ///
+    /// `prefix(7)` asked every household on earth the same seven questions, in the same
+    /// order, and never showed anything from the back half of the library.
+    static func buildDeck(from meals: [Meal]) -> [Meal] {
+        var byCategory: [WeekCompositionView.Category: [Meal]] = [:]
+        for meal in meals { byCategory[WeekCompositionView.Category.of(meal), default: []].append(meal) }
+
+        var chosen: [Meal] = []
+        for category in WeekCompositionView.Category.allCases {
+            if let pick = byCategory[category]?.randomElement() { chosen.append(pick) }
+        }
+        let chosenIDs = Set(chosen.map(\.id))
+        let filler = meals.filter { !chosenIDs.contains($0.id) }.shuffled()
+        chosen.append(contentsOf: filler.prefix(max(0, deckSize - chosen.count)))
+        return chosen.shuffled()
+    }
+
     private func choose(_ preference: MealPreference) {
-        guard index < onboardingMeals.count else { return }
+        guard index < deck.count else { return }
         let direction: CGFloat = preference == .liked ? 1 : -1
-        store.setPreference(preference, for: onboardingMeals[index])
+        store.setPreference(preference, for: deck[index])
         withAnimation(.easeIn(duration: 0.16)) { offset.width = direction * 520 }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
             offset = .zero
-            if index + 1 >= onboardingMeals.count {
+            if index + 1 >= deck.count {
                 finished()
             } else {
                 index += 1
             }
         }
+    }
+
+    private func goBack() {
+        guard index > 0 else { return }
+        index -= 1
+        offset = .zero
+        // Clears the opinion rather than leaving the old one standing behind the card.
+        store.setPreference(.neutral, for: deck[index])
     }
 }
 
@@ -170,12 +221,12 @@ private struct TasteCard: View {
                 if abs(offset.width) > 35 {
                     Text(offset.width > 0 ? L10n.string("LIKE") : L10n.string("NO THANKS"))
                         .font(.title2.bold())
-                        .foregroundStyle(offset.width > 0 ? AppTheme.accent : .red)
+                        .foregroundStyle(offset.width > 0 ? AppTheme.accent : AppTheme.destructive)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(offset.width > 0 ? AppTheme.accent : .red, lineWidth: 3)
+                            RoundedRectangle(cornerRadius: AppTheme.chipRadius)
+                                .stroke(offset.width > 0 ? AppTheme.accent : AppTheme.destructive, lineWidth: 3)
                         )
                         .rotationEffect(.degrees(offset.width > 0 ? -8 : 8))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: offset.width > 0 ? .topLeading : .topTrailing)
@@ -203,7 +254,7 @@ private struct TasteCard: View {
         }
         // Was a fixed 430pt, which clipped its own text at larger accessibility sizes.
         .frame(minHeight: 380)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous))
         .shadow(color: AppTheme.ink.opacity(0.13), radius: 22, y: 12)
     }
 }

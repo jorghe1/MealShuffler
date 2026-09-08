@@ -29,12 +29,18 @@ struct AppStateSnapshot: Codable {
     let nextWeekPlan: WeeklyPlan?
     let dinnerReminderEnabled: Bool
     let dinnerReminderHour: Int
+    /// A second, earlier reminder timed off the recipe's own prep time.
+    let prepLeadReminderEnabled: Bool
+    let groceryReminderEnabled: Bool
+    let groceryReminderWeekday: Weekday
+    let groceryReminderHour: Int
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, hasCompletedOnboarding, memberPreferences, rules, plan, checkedGroceryIDs
         case stockedGroceryIDs, manualGroceryItems, aisleOrder
         case customMeals, favoriteMealIDs, dayContexts, feedbackEvents, householdSize, household
         case archivedWeeks, nextWeekPlan, dinnerReminderEnabled, dinnerReminderHour
+        case prepLeadReminderEnabled, groceryReminderEnabled, groceryReminderWeekday, groceryReminderHour
         /// v1 key: one flat map for the whole household. Decoded only.
         case preferences
     }
@@ -57,7 +63,11 @@ struct AppStateSnapshot: Codable {
         archivedWeeks: [ArchivedWeek],
         nextWeekPlan: WeeklyPlan?,
         dinnerReminderEnabled: Bool,
-        dinnerReminderHour: Int
+        dinnerReminderHour: Int,
+        prepLeadReminderEnabled: Bool,
+        groceryReminderEnabled: Bool,
+        groceryReminderWeekday: Weekday,
+        groceryReminderHour: Int
     ) {
         schemaVersion = AppStateSnapshot.currentVersion
         self.hasCompletedOnboarding = hasCompletedOnboarding
@@ -78,6 +88,10 @@ struct AppStateSnapshot: Codable {
         self.nextWeekPlan = nextWeekPlan
         self.dinnerReminderEnabled = dinnerReminderEnabled
         self.dinnerReminderHour = dinnerReminderHour
+        self.prepLeadReminderEnabled = prepLeadReminderEnabled
+        self.groceryReminderEnabled = groceryReminderEnabled
+        self.groceryReminderWeekday = groceryReminderWeekday
+        self.groceryReminderHour = groceryReminderHour
     }
 
     // Written explicitly because `preferences` is a decode-only legacy key with no matching
@@ -103,6 +117,10 @@ struct AppStateSnapshot: Codable {
         try container.encodeIfPresent(nextWeekPlan, forKey: .nextWeekPlan)
         try container.encode(dinnerReminderEnabled, forKey: .dinnerReminderEnabled)
         try container.encode(dinnerReminderHour, forKey: .dinnerReminderHour)
+        try container.encode(prepLeadReminderEnabled, forKey: .prepLeadReminderEnabled)
+        try container.encode(groceryReminderEnabled, forKey: .groceryReminderEnabled)
+        try container.encode(groceryReminderWeekday, forKey: .groceryReminderWeekday)
+        try container.encode(groceryReminderHour, forKey: .groceryReminderHour)
     }
 
     init(from decoder: Decoder) throws {
@@ -131,6 +149,13 @@ struct AppStateSnapshot: Codable {
         nextWeekPlan = try values.decodeIfPresent(WeeklyPlan.self, forKey: .nextWeekPlan)
         dinnerReminderEnabled = try values.decodeIfPresent(Bool.self, forKey: .dinnerReminderEnabled) ?? false
         dinnerReminderHour = try values.decodeIfPresent(Int.self, forKey: .dinnerReminderHour) ?? 16
+        prepLeadReminderEnabled = try values
+            .decodeIfPresent(Bool.self, forKey: .prepLeadReminderEnabled) ?? false
+        groceryReminderEnabled = try values
+            .decodeIfPresent(Bool.self, forKey: .groceryReminderEnabled) ?? false
+        groceryReminderWeekday = try values
+            .decodeIfPresent(Weekday.self, forKey: .groceryReminderWeekday) ?? .saturday
+        groceryReminderHour = try values.decodeIfPresent(Int.self, forKey: .groceryReminderHour) ?? 10
 
         if let stored = try values.decodeIfPresent([UUID: [UUID: MealPreference]].self, forKey: .memberPreferences) {
             memberPreferences = stored
@@ -156,11 +181,93 @@ protocol AppStateRepository: Sendable {
     func save(_ snapshot: AppStateSnapshot)
 }
 
-/// The local, offline implementation. Also the fallback whatever else is added later.
+/// Where state lives in a shipping build.
+///
+/// A file, not user defaults: defaults is a property list the system reads into memory whole
+/// and rewrites whole, and this blob grows with 26 archived weeks, up to 2,000 feedback
+/// events and a meal library that now carries instructions. Both extensions decode all of it
+/// just to answer "what is for dinner".
+///
+/// Falls back to defaults when the App Group container is not available -- an unsigned test
+/// run, or a provisioning profile that was not regenerated -- because degrading is better
+/// than starting empty.
+struct FileStateRepository: AppStateRepository {
+    private let fileURL: URL
+    /// Where state used to live. Read once, then cleared, so there is exactly one copy.
+    private let legacyDefaults: UserDefaults?
+
+    private static let directoryName = "State"
+    private static let fileName = "state.json"
+
+    /// The repository the app and its extensions actually use.
+    static func live() -> any AppStateRepository {
+        guard let directory = sharedDirectory else { return UserDefaultsStateRepository() }
+        return FileStateRepository(directory: directory)
+    }
+
+    static var sharedDirectory: URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: AppGroup.identifier)?
+            .appendingPathComponent(directoryName, isDirectory: true)
+    }
+
+    init(directory: URL, migratingFrom legacyDefaults: UserDefaults? = AppGroup.defaults) {
+        fileURL = directory.appendingPathComponent(Self.fileName)
+        self.legacyDefaults = legacyDefaults
+    }
+
+    func load() -> AppStateSnapshot? {
+        if let data = try? Data(contentsOf: fileURL),
+           let snapshot = try? JSONDecoder().decode(AppStateSnapshot.self, from: data) {
+            return snapshot
+        }
+        return adoptStateWrittenBeforeTheFileExisted()
+    }
+
+    func save(_ snapshot: AppStateSnapshot) {
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        write(data)
+    }
+
+    @discardableResult
+    private func write(_ data: Data) -> Bool {
+        do {
+            try FileManager.default.createDirectory(
+                at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            // Readable by the widget once the device has been unlocked once, which is what a
+            // timeline refresh on a locked phone needs.
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Moves an install forward from the user-defaults era, exactly once.
+    ///
+    /// The old copy is removed only after the file is written and reads back, so a failed
+    /// migration leaves the household's plan where it was rather than nowhere.
+    private func adoptStateWrittenBeforeTheFileExisted() -> AppStateSnapshot? {
+        guard let legacyDefaults,
+              let data = legacyDefaults.data(forKey: UserDefaultsStateRepository.storageKey),
+              let snapshot = try? JSONDecoder().decode(AppStateSnapshot.self, from: data)
+        else { return nil }
+
+        if write(data), (try? Data(contentsOf: fileURL)) != nil {
+            legacyDefaults.removeObject(forKey: UserDefaultsStateRepository.storageKey)
+        }
+        return snapshot
+    }
+}
+
+/// The user-defaults implementation. Still the fallback when there is no shared container,
+/// and what the tests use, since a defaults suite is trivially disposable.
 struct UserDefaultsStateRepository: AppStateRepository {
     /// The key is versioned separately from the payload: `schemaVersion` inside the snapshot
     /// handles ordinary migration, and this only changes for a break too large to migrate.
-    private let key = "meal-shuffler-state-v1"
+    static let storageKey = "meal-shuffler-state-v1"
+    private let key = UserDefaultsStateRepository.storageKey
     private let defaults: UserDefaults
 
     /// Defaults to the App Group container so extensions can read the same state.

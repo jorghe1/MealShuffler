@@ -32,7 +32,7 @@ struct NextWeekView: View {
                             .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
                     }
                     .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.roundedRectangle(radius: 18))
+                    .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
 
                     Button(role: .destructive) { store.discardNextWeek() } label: {
                         Text("Discard next week").font(.subheadline.weight(.semibold))
@@ -79,7 +79,7 @@ struct NextWeekView: View {
                     .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
             }
             .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 18))
+            .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
             .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
@@ -119,12 +119,7 @@ private struct NextWeekRow: View {
 
     var body: some View {
         HStack(spacing: 13) {
-            Text(emoji)
-                .font(.system(size: 28))
-                .frame(width: 50, height: 50)
-                .background(AppTheme.accentSoft.opacity(0.7))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .accessibilityHidden(true)
+            MealThumbnail(emoji: emoji, size: AppTheme.emojiTileCompact)
             VStack(alignment: .leading, spacing: 3) {
                 Text(date, format: .dateTime.weekday(.wide).day().month(.abbreviated))
                     .font(.caption2.bold()).foregroundStyle(AppTheme.accent)

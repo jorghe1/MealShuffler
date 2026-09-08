@@ -50,7 +50,7 @@ private struct CommunityRecipeCard: View {
             ZStack {
                 LinearGradient(colors: [AppTheme.accentSoft, AppTheme.surface], startPoint: .topLeading, endPoint: .bottomTrailing)
                 Text(recipe.meal.emoji).font(.system(size: 72))
-            }.frame(height: 150).clipShape(RoundedRectangle(cornerRadius: 20))
+            }.frame(height: 150).clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
             VStack(alignment: .leading, spacing: 6) {
                 Text(recipe.meal.name).font(.title3.bold()).foregroundStyle(AppTheme.ink)
                 Text(L10n.string("by %@", recipe.author.displayName)).font(.caption).foregroundStyle(AppTheme.muted)

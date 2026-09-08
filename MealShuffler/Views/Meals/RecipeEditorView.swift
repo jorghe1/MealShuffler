@@ -81,7 +81,7 @@ struct RecipeEditorView: View {
                     Stepper(
                         estimatedCost == 0
                             ? L10n.string("Price not set")
-                            : L10n.string("About NOK %ld total", estimatedCost),
+                            : L10n.string("About %@ total", MealCost.formatted(estimatedCost)),
                         value: $estimatedCost,
                         in: 0...2_000,
                         step: 25
@@ -166,7 +166,7 @@ private struct TagCloud: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 10).padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
-                        .background(selected.contains(tag) ? AppTheme.accent : Color.secondary.opacity(0.1))
+                        .background(selected.contains(tag) ? AppTheme.accent : AppTheme.raised)
                         .foregroundStyle(selected.contains(tag) ? AppTheme.onAccent : AppTheme.ink)
                         .clipShape(Capsule())
                 }

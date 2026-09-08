@@ -103,16 +103,17 @@ struct PlanningRule: Identifiable, Codable, Hashable {
 }
 
 extension PlanningRule {
-    static func starterRules(meals: [Meal]) -> [PlanningRule] {
-        let pizzaID = meals.first(where: { $0.tags.contains(.pizza) })?.id
-        var rules = [
+    /// Saturday asks for *a* pizza rather than one specific one.
+    ///
+    /// This pinned `.exactMeal` to whichever pizza happened to sort first, so every Saturday
+    /// for the life of the install served the same dinner -- a shuffling app with one
+    /// permanently fixed day. A tag matcher gives the generator the whole pizza shelf.
+    static func starterRules(meals: [Meal] = SampleMeals.all) -> [PlanningRule] {
+        [
             PlanningRule(title: L10n.string("Fish on Tuesday"), constraint: .requiredOn(day: .tuesday, matcher: .tag(.fish))),
             PlanningRule(title: L10n.string("Fish on Thursday"), constraint: .requiredOn(day: .thursday, matcher: .tag(.fish))),
-            PlanningRule(title: L10n.string("Varied protein"), constraint: .maximumPerWeek(matcher: .tag(.chicken), count: 2))
+            PlanningRule(title: L10n.string("Varied protein"), constraint: .maximumPerWeek(matcher: .tag(.chicken), count: 2)),
+            PlanningRule(title: L10n.string("Saturday pizza"), constraint: .requiredOn(day: .saturday, matcher: .tag(.pizza)))
         ]
-        if let pizzaID {
-            rules.append(PlanningRule(title: L10n.string("Saturday pizza"), constraint: .requiredOn(day: .saturday, matcher: .exactMeal(pizzaID))))
-        }
-        return rules
     }
 }

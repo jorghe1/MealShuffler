@@ -583,10 +583,15 @@ struct MealPlanGenerator {
             conflicts.append(PlanConflict(message: L10n.string("No plan was found for %@.", day.name.lowercased())))
         }
 
-        /// Days a scope covers that the household is actually cooking on. A rule about
-        /// dinner cannot be broken on a day nobody is eating at home.
+        /// Days a scope covers that the household is cooking on.
+        ///
+        /// Decided by the day's plan, never by whether a meal landed on it. Those are two
+        /// different days: one the household set aside -- away, takeaway, leftovers -- where
+        /// a dinner rule does not apply, and one the generator could not fill, which is very
+        /// often the rule's own doing and has to say so. Asking "did a meal land here" made
+        /// them the same, and an unfillable day lost the name of the rule that emptied it.
         func cookingDays(in scope: DayScope) -> [Weekday] {
-            orderedDays.filter { scope.covers($0) && byDay[$0] != nil }
+            orderedDays.filter { scope.covers($0) && (contexts[$0] ?? DayPlanContext()).mode == .cook }
         }
 
         for rule in rules {
@@ -598,9 +603,7 @@ struct MealPlanGenerator {
                     conflicts.append(PlanConflict(
                         ruleID: rule.id,
                         message: L10n.string("“%@” cannot be satisfied on %@.", ruleDescription, day.name.lowercased()),
-                        suggestion: (contexts[day] ?? DayPlanContext()).mode == .cook
-                            ? L10n.string("Add a suitable meal or make the rule preferred.")
-                            : L10n.string("Change the day plan or make the rule preferred.")
+                        suggestion: L10n.string("Add a suitable meal or make the rule preferred.")
                     ))
                 }
             case .excludedOn(let scope, let matcher):

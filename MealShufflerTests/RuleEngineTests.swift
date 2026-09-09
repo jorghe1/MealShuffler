@@ -163,7 +163,19 @@ final class RuleEngineTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
         store.completeOnboarding()
 
-        store.addRule(PlanningRule(title: "Away", constraint: .dinnerMode(day: .weekend, mode: .away)))
+        // "Saturday pizza" is a starter rule, and a dinner required on a day nobody is home
+        // is a contradiction the store is right to refuse. Retire it first -- and read the
+        // answer, rather than assuming the rule went in.
+        let pizza = try XCTUnwrap(store.rules.first { rule in
+            if case .requiredOn(_, .tag(.pizza)) = rule.constraint { return true }
+            return false
+        })
+        store.setRule(pizza, enabled: false)
+
+        XCTAssertEqual(
+            store.addRule(PlanningRule(title: "Away", constraint: .dinnerMode(day: .weekend, mode: .away))),
+            .added
+        )
         XCTAssertEqual(store.plan[.saturday]?.kind, .away)
         XCTAssertEqual(store.plan[.sunday]?.kind, .away)
         XCTAssertEqual(store.plan[.monday]?.kind, .meal)

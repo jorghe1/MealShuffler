@@ -93,7 +93,6 @@
 "No plan was found for %@." = "Fant ingen plan for %@.";
 "“%@” cannot be satisfied on %@." = "«%@» kan ikke oppfylles på %@.";
 "Add a suitable meal or make the rule preferred." = "Legg til en passende rett eller gjør regelen myk.";
-"Change the day plan or make the rule preferred." = "Endre dagsplanen eller gjør regelen myk.";
 "“%@” is broken on %@." = "«%@» brytes på %@.";
 "Unlock the day or make the rule preferred." = "Lås opp dagen eller gjør regelen myk.";
 "“%@” allows %ld, but the plan needs %ld." = "«%@» tillater %ld, men planen trenger %ld.";

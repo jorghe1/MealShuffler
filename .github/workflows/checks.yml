@@ -1,10 +1,10 @@
 name: Checks
 
-# The Swift build needs a macOS runner and paid minutes. These three checks are
-# pure Python, run free on Linux in seconds, and catch the class of breakage that
-# is otherwise only found by a full Xcode build: drifted Norwegian strings,
-# unbalanced braces or stale symbols after a refactor, and views calling store
-# members that no longer exist.
+# The Swift build needs a macOS runner and paid minutes. These checks are pure
+# Python, run free on Linux in seconds, and catch the class of breakage that is
+# otherwise only found by a full Xcode build: drifted Norwegian strings,
+# unbalanced braces or stale symbols after a refactor, views calling store
+# members that no longer exist, and argument labels left behind by a rename.
 on:
   push:
     branches: ["**"]

@@ -158,7 +158,7 @@ byttet ut. Nå går begge gjennom én skrivetrakt i `AppStore`.
 
 ## Sjekker
 
-`ci/` inneholder fire rene Python-sjekker som kjører før xcodegen, og som også
+`ci/` inneholder fem rene Python-sjekker som kjører før xcodegen, og som også
 kjører gratis på Linux i GitHub Actions:
 
 ```sh
@@ -166,7 +166,13 @@ python3 ci/validate-localizations.py    # norsk lokalisering mot kildetekst
 python3 ci/check-localized-format.py    # argumenter mot formatstrenger
 python3 ci/check-swift-structure.py     # klammebalanse, døde symboler, duplikater
 python3 ci/check-store-api.py           # visningenes bruk av AppStore
+python3 ci/check-swift-call-labels.py   # argumentnavn mot funksjonen som kalles
 ```
+
+Den siste finnes fordi et endret parameternavn er en toleddet endring, og ledd
+to er lett å glemme: to kall satt igjen med `context:` etter at parameteren het
+`dayContext:`, noe ingen av de andre sjekkene kunne se, og som først falt på
+byggemaskinen.
 
 Tjenesten i `server/` har sine egne:
 

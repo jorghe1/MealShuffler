@@ -33,6 +33,9 @@ jobs:
       - name: Check store API against views
         run: python3 ci/check-store-api.py
 
+      - name: Check argument labels against the functions they call
+        run: python3 ci/check-swift-call-labels.py
+
       - name: Lint property lists
         run: |
           python3 - <<'PY'

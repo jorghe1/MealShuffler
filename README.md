@@ -8,8 +8,8 @@ En native SwiftUI-app for enkel, regelstyrt middagsplanlegging.
   varsler i det øyeblikket den første uka står ferdig på skjermen.
 - Regelbygger som dekker det familier faktisk sier: dagregler, ukentlige
   minimum og maksimum, tidsgrenser, dagsplan (spise ute, rester, ingen middag),
-  ingen gjentakelser innen N uker, hent tilbake, ikke to dager på rad og
-  ukesbudsjett — som harde eller myke regler.
+  ingen gjentakelser innen N uker, hent tilbake og ikke to dager på rad — som
+  harde eller myke regler.
 - En lokal planmotor som respekterer låste dager og forklarer regelkonflikter.
 - Ukevisning forankret i en ekte kalenderuke, med automatisk ukeskifte,
   arkivert historikk og planlegging av neste uke.
@@ -25,6 +25,7 @@ En native SwiftUI-app for enkel, regelstyrt middagsplanlegging.
   tolket, kategorier gjettet og et varsel om at det bør sjekkes.
 - Automatisk, kategorisert handleliste med porsjonsskalering og
   enhetsnormalisering, og eksport til Apple Påminnelser eller iOS-deling.
+- Middager hentet fra en lenke kan sendes rett til Bring!.
 - Basisvarer: salt, olje og mel skjules fast fra handlelisten i stedet for å
   hukes av på nytt hver uke.
 - Lokal historikk med rotasjonsvisning: hva dere har laget, og hva som er lengst
@@ -54,6 +55,8 @@ regel som allerede finnes, eller som motsier den, og forteller hvilken.
 Community-fanen er slått av bak `FeatureFlags.communityEnabled` til
 innlogging og moderering er på plass. Invitasjonskoden er slått av bak
 `FeatureFlags.householdSyncEnabled` til det finnes noe i andre enden av den.
+Hva som er utelatt med vilje, og hva som skal til for å ta det inn, står i
+[docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Varsler
 

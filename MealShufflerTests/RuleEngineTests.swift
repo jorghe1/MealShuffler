@@ -108,45 +108,6 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertTrue(result.conflicts.filter { $0.severity == .blocking }.isEmpty)
     }
 
-    // MARK: - Budget
-
-    /// A budget that any week can meet must never be exceeded.
-    func testAGenerousBudgetIsAlwaysMet() {
-        let generous = 7 * 200
-        let rules = [PlanningRule(title: "Budget", constraint: .maximumCostPerWeek(amount: generous))]
-        for seed in UInt64(0)..<15 {
-            let result = generator(seed: seed).generate(preferredMeals: meals, allMeals: meals, rules: rules)
-            let spent = cooked(result).reduce(0) { $0 + $1.planningCost }
-            XCTAssertLessThanOrEqual(spent, generous, "Seed \(seed) overspent")
-        }
-    }
-
-    /// The contract for a tight budget: either it holds, or the household is told it did not.
-    /// Silently overspending, or leaving a day empty to stay under, are both worse answers.
-    func testATightBudgetEitherHoldsOrSaysItDidNot() {
-        let tight = 700
-        let rule = PlanningRule(title: "Budget", constraint: .maximumCostPerWeek(amount: tight))
-        for seed in UInt64(0)..<15 {
-            let result = generator(seed: seed).generate(preferredMeals: meals, allMeals: meals, rules: [rule])
-            XCTAssertEqual(cooked(result).count, 7, "Seed \(seed) left a day empty to stay under budget")
-            let spent = cooked(result).reduce(0) { $0 + $1.planningCost }
-            if spent > tight {
-                XCTAssertTrue(
-                    result.conflicts.contains { $0.ruleID == rule.id },
-                    "Seed \(seed) overspent silently"
-                )
-            }
-        }
-    }
-
-    /// An impossible budget must produce a readable conflict, not an unplanned week.
-    func testAnImpossibleBudgetStillFillsTheWeekAndSaysSo() {
-        let rule = PlanningRule(title: "Budget", constraint: .maximumCostPerWeek(amount: 10))
-        let result = generator(seed: 4).generate(preferredMeals: meals, allMeals: meals, rules: [rule])
-        XCTAssertEqual(cooked(result).count, 7, "A budget must not leave days empty")
-        XCTAssertTrue(result.conflicts.contains { $0.ruleID == rule.id })
-    }
-
     // MARK: - Ingredient rules
 
     func testAnIngredientRuleKeepsThatIngredientOffThePlan() {
@@ -261,19 +222,6 @@ final class RuleEngineTests: XCTestCase {
     }
 
     // MARK: - Cost
-
-    func testTheWeeklyCostAddsUpTheDinnersActuallyBeingCooked() throws {
-        let (store, defaults, suite) = try makeStore(seed: 55)
-        defer { defaults.removePersistentDomain(forName: suite) }
-        store.completeOnboarding()
-
-        let expected = store.plan.meals.reduce(0) { total, item in
-            guard item.kind == .meal, let id = item.mealID, let meal = store.meal(id: id) else { return total }
-            return total + meal.planningCost
-        }
-        XCTAssertEqual(store.estimatedWeeklyCost, expected)
-        XCTAssertGreaterThan(store.estimatedWeeklyCost, 0)
-    }
 
     // MARK: - History feeding the rules
 

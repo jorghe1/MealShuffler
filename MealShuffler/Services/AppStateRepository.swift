@@ -134,7 +134,8 @@ struct AppStateSnapshot: Codable {
         schemaVersion = version
 
         hasCompletedOnboarding = try values.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
-        rules = try values.decodeIfPresent([PlanningRule].self, forKey: .rules)
+        rules = try values.decodeIfPresent([LenientRule].self, forKey: .rules)
+            .map { $0.compactMap(\.rule) }
             ?? PlanningRule.starterRules(meals: SampleMeals.all)
         plan = try values.decodeIfPresent(WeeklyPlan.self, forKey: .plan) ?? .empty
         checkedGroceryIDs = try values.decodeIfPresent(Set<String>.self, forKey: .checkedGroceryIDs) ?? []
@@ -304,5 +305,20 @@ struct UserDefaultsStateRepository: AppStateRepository, @unchecked Sendable {
     func save(_ snapshot: AppStateSnapshot) {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         defaults.set(data, forKey: key)
+    }
+}
+
+/// One rule, or nothing where a rule used to be.
+///
+/// The vocabulary is allowed to lose a constraint -- `maximumCostPerWeek` went when the app
+/// stopped claiming to know what a week costs. Without this, one rule written against the old
+/// vocabulary throws while decoding, and because that throw travels all the way out of
+/// `AppStateSnapshot`, the household loses its plan, its library and its history rather than
+/// one rule it can no longer be shown.
+private struct LenientRule: Decodable {
+    let rule: PlanningRule?
+
+    init(from decoder: Decoder) throws {
+        rule = try? PlanningRule(from: decoder)
     }
 }

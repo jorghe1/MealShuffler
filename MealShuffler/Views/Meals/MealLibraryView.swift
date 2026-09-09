@@ -70,6 +70,11 @@ struct MealLibraryView: View {
                             : L10n.string("Mark as family favorite")) {
                             store.toggleFavorite(meal)
                         }
+                        if let link = BringExport.deeplink(for: meal, servings: store.householdSize) {
+                            Link(destination: link) {
+                                Label("Add to Bring!", systemImage: "cart.badge.plus")
+                            }
+                        }
                         if !meal.isBuiltIn {
                             Button("Delete", role: .destructive) { store.deleteMeal(meal) }
                         }

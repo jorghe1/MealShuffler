@@ -176,6 +176,13 @@ struct GroceryListView: View {
         .mealCard()
     }
 
+    /// Bring! reads a recipe off its own page, so only dinners that came from a link can
+    /// go across. Hidden entirely rather than shown empty: a menu item that never works is
+    /// worse than one that is not there.
+    private var bringDinners: [BringExport.Dinner] {
+        BringExport.exportableDinners(plan: store.plan, meals: store.meals)
+    }
+
     private var exportMenu: some View {
         Menu {
             ShareLink(item: shareText) { Label("Share as text", systemImage: "square.and.arrow.up") }
@@ -189,6 +196,15 @@ struct GroceryListView: View {
                 Task { await exportToReminders() }
             } label: { Label("Apple Reminders", systemImage: "checklist") }
             .disabled(isExporting || store.groceryItems.isEmpty)
+            if !bringDinners.isEmpty {
+                Menu {
+                    ForEach(bringDinners) { dinner in
+                        Link(dinner.meal.name, destination: dinner.link)
+                    }
+                } label: {
+                    Label("Send a dinner to Bring!", systemImage: "cart.badge.plus")
+                }
+            }
         } label: {
             if isExporting {
                 ProgressView().frame(width: AppTheme.tapTarget, height: AppTheme.tapTarget)

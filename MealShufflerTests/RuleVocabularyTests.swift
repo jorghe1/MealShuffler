@@ -39,7 +39,7 @@ final class RuleVocabularyTests: XCTestCase {
             [.saturday, .sunday]
         )
         XCTAssertEqual(
-            RuleConstraint.maximumCostPerWeek(amount: 800).affectedDays,
+            RuleConstraint.notOnConsecutiveDays(matcher: .tag(.pasta)).affectedDays,
             Set(Weekday.allCases)
         )
     }
@@ -144,8 +144,7 @@ final class RuleVocabularyTests: XCTestCase {
             .noRepeatWithin(weeks: 1),
             .noRepeatWithin(weeks: 4),
             .requiredEvery(weeks: 3, matcher: .customTag("grandma's")),
-            .notOnConsecutiveDays(matcher: .tag(.pasta)),
-            .maximumCostPerWeek(amount: 900)
+            .notOnConsecutiveDays(matcher: .tag(.pasta))
         ]
         for constraint in constraints {
             let summary = PlanningRule(title: "x", constraint: constraint).summary(meals: meals)

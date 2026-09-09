@@ -15,7 +15,6 @@ struct RecipeEditorView: View {
     @State private var emoji: String
     @State private var prepMinutes: Int
     @State private var servings: Int
-    @State private var estimatedCost: Int
     @State private var ingredientText: String
     @State private var instructionText: String
     @State private var tags: Set<MealTag>
@@ -35,7 +34,6 @@ struct RecipeEditorView: View {
         _emoji = State(initialValue: existingMeal?.emoji ?? draft.emoji)
         _prepMinutes = State(initialValue: existingMeal?.prepMinutes ?? draft.prepMinutes)
         _servings = State(initialValue: existingMeal?.defaultServings ?? draft.servings)
-        _estimatedCost = State(initialValue: existingMeal?.estimatedCost ?? 0)
         let ingredients = existingMeal?.ingredients.map {
             "\($0.quantity.formatted(.number.precision(.fractionLength(0...2)))) \($0.unit) \($0.name)"
         } ?? draft.ingredientLines
@@ -94,14 +92,6 @@ struct RecipeEditorView: View {
                     TextField("Short description (optional)", text: $subtitle)
                     Stepper(L10n.string("About %ld minutes", prepMinutes), value: $prepMinutes, in: 5...240, step: 5)
                     Stepper(L10n.string("%ld servings", servings), value: $servings, in: 1...20)
-                    Stepper(
-                        estimatedCost == 0
-                            ? L10n.string("Price not set")
-                            : L10n.string("About %@ total", MealCost.formatted(estimatedCost)),
-                        value: $estimatedCost,
-                        in: 0...2_000,
-                        step: 25
-                    )
                 }
 
                 Section("Categories") {
@@ -268,7 +258,7 @@ struct RecipeEditorView: View {
             customTags: customTags,
             ingredients: resolvedIngredients,
             defaultServings: servings,
-            estimatedCost: estimatedCost == 0 ? nil : estimatedCost,
+            estimatedCost: existingMeal?.estimatedCost,
             instructions: instructionText.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty },
             source: isEditingBuiltIn ? .manual : originalSource,
             heroImageURL: heroImageURL

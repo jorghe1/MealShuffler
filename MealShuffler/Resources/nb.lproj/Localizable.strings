@@ -1,5 +1,5 @@
 /* Navigation and common actions */
-"Week" = "Uken";
+"Week" = "Uke";
 "Shop" = "Handle";
 "Meals" = "Retter";
 "Rules" = "Regler";
@@ -38,9 +38,9 @@
 "This week" = "Denne uken";
 "MEAL PLAN" = "MIDDAGSPLAN";
 "A good week, a great appetite" = "God uke, god appetitt";
-"Shuffle week" = "Shuffle uke";
+"Shuffle week" = "Stokk uken";
 "Tap ••• for quicker, cheaper or favorite meals, or to swap days." = "Trykk på ••• for raskere, billigere, favoritter eller bytte av dag.";
-"Shuffle the rest" = "Shuffle resten";
+"Shuffle the rest" = "Stokk resten";
 "Make rule preferred" = "Gjør regelen myk";
 "%ld rule conflict" = "%ld regelkonflikt";
 "%ld rule conflicts" = "%ld regelkonflikter";
@@ -62,7 +62,7 @@
 "%ld people" = "%ld personer";
 "What's happening on %@?" = "Hva skjer %@?";
 "Plan" = "Plan";
-"%ld people eating" = "%ld som spiser";
+"%ld people eating" = "%ld spiser";
 "Cooking" = "Matlaging";
 "No extra servings" = "Ingen ekstra porsjoner";
 "Make %ld extra" = "Lag %ld ekstra";
@@ -122,8 +122,6 @@
 "Short description (optional)" = "Kort beskrivelse (valgfritt)";
 "About %ld minutes" = "Ca. %ld minutter";
 "%ld servings" = "%ld porsjoner";
-"Price not set" = "Pris ikke satt";
-"About NOK %ld total" = "Ca. %ld kr totalt";
 "Categories" = "Kategorier";
 "Ingredients – one per line" = "Ingredienser – én per linje";
 "Example: 500 g chicken breast" = "Eksempel: 500 g kyllingfilet";
@@ -153,7 +151,7 @@
 /* History */
 "Cooked" = "Laget";
 "Paused" = "Pauset";
-"History affects shuffle locally: meals you cook become slightly more relevant, while recently cooked meals temporarily receive a repetition penalty." = "Historikken påvirker shuffle lokalt: retter dere lager får litt høyere relevans, men det som nylig er laget får en midlertidig repetisjonsstraff.";
+"History affects shuffle locally: meals you cook become slightly more relevant, while recently cooked meals temporarily receive a repetition penalty." = "Historikken påvirker stokkingen lokalt: retter dere lager, får litt høyere relevans, mens det som nylig er laget, får en midlertidig gjentakelsesstraff.";
 "Activity" = "Aktivitet";
 "No activity yet." = "Ingen aktivitet ennå.";
 "Clear history" = "Tøm historikk";
@@ -167,22 +165,22 @@
 "Required rules must be followed. Preferred rules influence the choice, but never block an otherwise good week." = "Harde regler må følges. Myke regler påvirker valget, men blokkerer aldri en ellers god uke.";
 "Your rules" = "Dine regler";
 "Required" = "Må følges";
-"Preferred" = "Prøv å følge";
+"Preferred" = "Bør følges";
 "Create a new rule" = "Lag en ny regel";
 "Settings" = "Innstillinger";
 "Family and sharing" = "Familie og deling";
 "Show onboarding again" = "Vis onboarding på nytt";
 "Start onboarding again?" = "Starte onboarding på nytt?";
 "Start over" = "Start på nytt";
-"Rules and custom meals are kept, but taste choices and the weekly plan are reset." = "Reglene og egne retter beholdes, men smakssvar og ukeplan nullstilles.";
+"Rules and custom meals are kept, but taste choices and the weekly plan are reset." = "Regler og egne retter beholdes, men smakssvar og ukeplan nullstilles.";
 "What should the rule do?" = "Hva skal regelen gjøre?";
 "Choose a template and tap the green words to change the sentence." = "Velg en mal og trykk på de grønne ordene for å endre setningen.";
 "How strict?" = "Hvor strengt?";
 "Strength" = "Styrke";
 "The plan shows a conflict if the rule cannot be followed." = "Planen viser en konflikt hvis regelen ikke kan følges.";
-"The rule gets higher priority, but can yield to required rules." = "Regelen gir høyere prioritet, men kan vike for harde regler.";
+"The rule gets higher priority, but can yield to required rules." = "Regelen får høyere prioritet, men kan vike for harde regler.";
 "%ld of %ld meals work with this choice" = "%ld av %ld retter kan brukes med dette valget";
-"Add rule" = "Legg til regelen";
+"Add rule" = "Legg til regel";
 "New rule" = "Ny regel";
 "RULE" = "REGEL";
 "On" = "På";
@@ -354,16 +352,16 @@
 "by %@" = "av %@";
 "Cooked %ld times" = "Laget %ld ganger";
 "Shared by %@" = "Delt av %@";
-"%@ from %ld ratings" = "%@ fra %ld vurderinger";
+"%@ from %ld ratings" = "%@ basert på %ld vurderinger";
 "View original source" = "Se originalkilde";
 "Added to my meals" = "Lagt til i mine retter";
 "Add to my meals" = "Legg til i mine retter";
 "Rate this meal" = "Vurder retten";
-"Would cook again" = "Ville laget igjen";
+"Would cook again" = "Ville laget den igjen";
 "Submit rating" = "Send vurdering";
 "Report recipe" = "Rapporter oppskrift";
 "Recipe" = "Oppskrift";
-"Why are you reporting this?" = "Hvorfor rapporterer du?";
+"Why are you reporting this?" = "Hvorfor rapporterer du denne?";
 "Thanks for letting us know" = "Takk for meldingen";
 "The report has been saved for moderation." = "Rapporten er lagret for moderering.";
 "Choose one of your meals" = "Velg en av dine retter";
@@ -404,7 +402,7 @@
 "Dinner today" = "Middag i dag";
 "Takeaway tonight." = "Takeaway i kveld.";
 "Leftovers tonight." = "Rester i kveld.";
-"%@ · about %ld min" = "%@ · cirka %ld min";
+"%@ · about %ld min" = "%@ · ca. %ld min";
 
 /* Phase 4: accessibility labels and empty states */
 "Lock this day" = "Lås denne dagen";
@@ -414,8 +412,8 @@
 "Export grocery list" = "Eksporter handleliste";
 "Nothing to buy yet" = "Ingenting å handle ennå";
 "Plan some dinners and the ingredients show up here, sorted by aisle." = "Planlegg noen middager, så dukker ingrediensene opp her, sortert etter avdeling.";
-"No meals match “%@”" = "Ingen retter passer med “%@”";
-"Try another word, or add it as a new meal." = "Prøv et annet ord, eller legg den til som en ny rett.";
+"No meals match “%@”" = "Ingen retter passer med «%@»";
+"Try another word, or add it as a new meal." = "Prøv et annet ord, eller legg til en ny rett.";
 
 /* Phase 6: cook mode, manual groceries, widget and Siri */
 "Start cooking" = "Start matlagingen";
@@ -443,9 +441,9 @@
 "No plan yet" = "Ingen plan ennå";
 "Open Meal Shuffler to build this week." = "Åpne Meal Shuffler for å lage denne uken.";
 "Tonight's dinner and what follows it." = "Middagen i kveld og det som kommer etter.";
-"%@, %@, about %ld minutes" = "%@, %@, cirka %ld minutter";
+"%@, %@, about %ld minutes" = "%@, %@, ca. %ld minutter";
 "There is no dinner planned for today yet." = "Det er ingen middag planlagt for i dag ennå.";
-"Tonight is %@, about %ld minutes." = "I kveld blir det %@, cirka %ld minutter.";
+"Tonight is %@, about %ld minutes." = "I kveld blir det %@, ca. %ld minutter.";
 "Tonight: %@" = "I kveld: %@";
 
 /* Phase 7: shared captures and the extraction service */
@@ -491,7 +489,7 @@
 "Add cheese, pepperoni and thinly sliced onion." = "Legg på ost, pepperoni og tynne løkringer.";
 "Add sliced carrot and celery, and simmer for 10 minutes." = "Tilsett gulrot og selleri i skiver, og la det småkoke i 10 minutter.";
 "Add the beans and chickpeas, and simmer for 20 minutes." = "Tilsett bønnene og kikertene, og la det småkoke i 20 minutter.";
-"Add the chopped onion and the curry powder." = "Tilsett den hakkede løken og karrien.";
+"Add the chopped onion and the curry powder." = "Tilsett den hakkede løken og karripulveret.";
 "Add the cubed chicken and brown it." = "Tilsett kylling i terninger og brun den.";
 "Add the lentils, tomatoes and coconut milk." = "Tilsett linsene, tomatene og kokosmelken.";
 "Add the noodles for the last 4 minutes." = "Ha i nudlene de siste 4 minuttene.";
@@ -517,7 +515,7 @@
 "Bake for 8–10 minutes." = "Stek i 8–10 minutter.";
 "Beans, not mince" = "Bønner, ikke kjøttdeig";
 "Beef burgers" = "Hamburgere";
-"Beef patties" = "Hamburgere";
+"Beef patties" = "Hamburgerkarbonader";
 "Bell pepper" = "Paprika";
 "Better the next day" = "Enda bedre dagen etter";
 "Blend smooth and stir in the cream." = "Kjør suppen glatt og rør inn fløten.";
@@ -530,9 +528,9 @@
 "Boil the potatoes until soft." = "Kok potetene til de er myke.";
 "Boil the potatoes until tender." = "Kok potetene til de er møre.";
 "Boil the rice and let it cool a little." = "Kok risen og la den kjølne litt.";
-"Boil the spaghetti in well-salted water." = "Kok spaghettien i godt saltet vann.";
-"Boil the spaghetti while the sauce reduces." = "Kok spaghettien mens sausen koker inn.";
-"Boil them in stock until soft, about 15 minutes." = "Kok dem i buljong til de er myke, cirka 15 minutter.";
+"Boil the spaghetti in well-salted water." = "Kok spagettien i godt saltet vann.";
+"Boil the spaghetti while the sauce reduces." = "Kok spagettien mens sausen koker inn.";
+"Boil them in stock until soft, about 15 minutes." = "Kok dem i buljong til de er myke, ca. 15 minutter.";
 "Bring 2 litres of stock to the boil." = "Kok opp 2 liter buljong.";
 "Brown the meatballs in a pan." = "Brun kjøttbollene i en panne.";
 "Brown the mince in a hot pan." = "Brun kjøttdeigen i en varm panne.";
@@ -559,7 +557,7 @@
 "Crumble the feta over and squeeze in the lemon." = "Smuldre fetaosten over og press i sitronen.";
 "Cube the chicken and fry it golden." = "Del kyllingen i terninger og stek den gyllen.";
 "Cube the chicken and fry it in the butter." = "Del kyllingen i terninger og stek den i smøret.";
-"Curry powder" = "Karri";
+"Curry powder" = "Karripulver";
 "Cut the cauliflower and potatoes into rough pieces." = "Del blomkålen og potetene i grove biter.";
 "Cut the chicken into cubes and fry until golden." = "Del kyllingen i terninger og stek den gyllen.";
 "Cut the chicken into strips and fry over high heat for 5 minutes." = "Del kyllingen i strimler og stek på høy varme i 5 minutter.";
@@ -596,7 +594,7 @@
 "Fry the chicken over high heat for 5 minutes." = "Stek kyllingen på høy varme i 5 minutter.";
 "Fry the chopped onion and diced pepper for 5 minutes." = "Stek hakket løk og paprika i terninger i 5 minutter.";
 "Fry the chopped onion soft in a pot." = "Stek den hakkede løken myk i en gryte.";
-"Fry the chopped onion soft, then add the curry powder." = "Stek den hakkede løken myk, og tilsett karrien.";
+"Fry the chopped onion soft, then add the curry powder." = "Stek den hakkede løken myk, og tilsett karripulveret.";
 "Fry the curry paste in a hot pot for a minute." = "Stek karripastaen i en varm gryte i ett minutt.";
 "Fry the fish cakes in butter until golden on both sides." = "Stek fiskekakene i smør til de er gyllne på begge sider.";
 "Fry the fish for 2–3 minutes on each side until golden." = "Stek fisken 2–3 minutter på hver side til den er gyllen.";
@@ -642,7 +640,7 @@
 "Pat the cod dry and season it with salt." = "Tørk torsken og krydre den med salt.";
 "Pepperoni" = "Pepperoni";
 "Pepperoni pizza" = "Pepperonipizza";
-"Peppers, onion and warm tortillas" = "Paprika, løk og varme lefser";
+"Peppers, onion and warm tortillas" = "Paprika, løk og varme tortillalefser";
 "Pizza with ham and mushroom" = "Pizza med skinke og sjampinjong";
 "Plain flour" = "Hvetemel";
 "Pork chops" = "Svinekoteletter";
@@ -660,7 +658,7 @@
 "Roast chicken thighs with potatoes" = "Kyllinglår med poteter";
 "Roast for 12–15 minutes, until the salmon flakes easily." = "Stek i 12–15 minutter, til laksen deler seg lett.";
 "Roast for 40–45 minutes until the skin is crisp." = "Stek i 40–45 minutter til skinnet er sprøtt.";
-"Roll out the dough, spread the sauce, and add cheese, ham and mushrooms." = "Kjevle ut bunnene, fordel sausen, og legg på ost, skinke og sopp.";
+"Roll out the dough, spread the sauce, and add cheese, ham and mushrooms." = "Kjevle ut bunnene, fordel sausen, og legg på ost, skinke og sjampinjong.";
 "Roll the dough out thin and spread on the sauce." = "Kjevle bunnene tynt ut og fordel sausen.";
 "Roll the dough out thin." = "Kjevle bunnene tynt ut.";
 "Salty cheese, crunchy salad" = "Salt ost, sprø salat";
@@ -685,18 +683,18 @@
 "Serve with the potatoes and slaw." = "Server med potetene og salaten.";
 "Serve with the rice." = "Server med risen.";
 "Set the meat aside and fry apple wedges and onion in the same pan." = "Sett kjøttet til side og stek eplebåter og løk i samme panne.";
-"Shepherd's pie" = "Kjøttgryte med potetmoslokk";
+"Shepherd's pie" = "Kjøttdeigform med potetmos";
 "Shred the cabbage finely and mix with lime juice and a pinch of salt." = "Finsnitt kålen og bland med limesaft og en klype salt.";
 "Simmer for 15 minutes and finish with coriander." = "La det småkoke i 15 minutter og avslutt med koriander.";
 "Simmer for 15 minutes." = "La det småkoke i 15 minutter.";
 "Simmer for 20 minutes, until the lentils are soft." = "La det småkoke i 20 minutter, til linsene er myke.";
 "Slice the chicken, peppers and onion into strips." = "Skjær kylling, paprika og løk i strimler.";
-"Slice the halloumi about a centimetre thick." = "Skjær halloumien i skiver på cirka en centimeter.";
+"Slice the halloumi about a centimetre thick." = "Skjær halloumien i skiver på ca. en centimeter.";
 "Slice the lettuce and cucumber." = "Skjær opp salaten og agurken.";
 "Slice the mushrooms thinly." = "Skjær sjampinjongene i tynne skiver.";
-"Spaghetti bolognese" = "Spaghetti bolognese";
-"Spoon the butter over the fish and serve." = "Skje smøret over fisken og server.";
-"Spoon the tray juices over before serving." = "Skje kraften fra brettet over før servering.";
+"Spaghetti bolognese" = "Spagetti bolognese";
+"Spoon the butter over the fish and serve." = "Øs smøret over fisken og server.";
+"Spoon the tray juices over before serving." = "Øs kraften fra brettet over før servering.";
 "Spread on the sauce and tear the mozzarella over." = "Fordel sausen og riv mozzarellaen over.";
 "Spread the mince in a dish and cover with the mash." = "Fordel kjøttet i en form og dekk med potetmosen.";
 "Spring onion" = "Vårløk";
@@ -736,23 +734,22 @@
 "Warm the peas and serve everything together." = "Varm ertene og server alt sammen.";
 "Warm the peas and serve." = "Varm ertene og server.";
 "Warm the pitas and fill them with everything." = "Varm pitabrødene og fyll dem med alt.";
-"Warm the tortillas and fill them." = "Varm lefsene og fyll dem.";
-"Warm the tortillas and put everything on the table." = "Varm lefsene og sett alt på bordet.";
-"Warm the tortillas and serve with sour cream." = "Varm lefsene og server med rømme.";
-"Warm the tortillas in a dry pan." = "Varm lefsene i en tørr panne.";
+"Warm the tortillas and fill them." = "Varm tortillalefsene og fyll dem.";
+"Warm the tortillas and put everything on the table." = "Varm tortillalefsene og sett alt på bordet.";
+"Warm the tortillas and serve with sour cream." = "Varm tortillalefsene og server med rømme.";
+"Warm the tortillas in a dry pan." = "Varm tortillalefsene i en tørr panne.";
 "What you want when someone is poorly" = "Det du vil ha når noen er dårlig";
 "Whisk the eggs with the grated Parmesan and plenty of pepper." = "Visp eggene med revet parmesan og rikelig med pepper.";
 "Whisk the flour, eggs, milk and a pinch of salt into a smooth batter." = "Visp mel, egg, melk og en klype salt til en glatt røre.";
 "Worth the extra half hour" = "Verdt den ekstra halvtimen";
 
 /* Undo, the day picker, the settings screen and the new reminders. */
-"%@ takes about %ld min, so dinner lands at %@." = "%@ tar cirka %ld min, så middagen er klar %@.";
+"%@ takes about %ld min, so dinner lands at %@." = "%@ tar ca. %ld min, så middagen er klar %@.";
 "%ld %@" = "%ld %@";
-"%ld days ago" = "for %ld dager siden";
+"%ld days ago" = "For %ld dager siden";
 "%ld dinners ready to take over" = "%ld middager klare til å ta over";
 "%ld of %ld still to buy" = "%ld av %ld igjen å kjøpe";
 "About" = "Om";
-"About %@ total" = "Cirka %@ totalt";
 "Already on %@" = "Allerede på %@";
 "Choose" = "Velg";
 "Choose a dinner" = "Velg en middag";
@@ -761,7 +758,7 @@
 "Dinner on %@" = "Middag på %@";
 "Due a turn" = "På tide igjen";
 "Everything is stored on this device. Nothing is sent anywhere unless you import a recipe from a link or a photo." = "Alt lagres på denne enheten. Ingenting sendes noe sted med mindre du importerer en oppskrift fra en lenke eller et bilde.";
-"Longest since you cooked it, first. Long-press to put one on a day." = "Lengst siden dere lagde den, først. Trykk og hold for å legge en på en dag.";
+"Longest since you cooked it, first. Long-press to put one on a day." = "Lengst siden dere laget den, først. Trykk og hold for å legge en på en dag.";
 "Marks it a family favorite" = "Merker den som familiefavoritt";
 "Meal Shuffler needs permission to send reminders. You can turn it on in iOS Settings." = "Meal Shuffler trenger tillatelse til å sende påminnelser. Du kan slå det på i Innstillinger i iOS.";
 "Never cooked" = "Aldri laget";
@@ -785,7 +782,7 @@
 "Swap of two days" = "Bytte av to dager";
 "Takes it off the list" = "Tar den av listen";
 "The dinner reminder tells you what tonight's meal is, and follows the plan when you reshuffle a day. When next week is empty you get one nudge to plan it." = "Middagspåminnelsen sier hva som er kveldens rett, og følger planen når du stokker om en dag. Når neste uke er tom, får du én påminnelse om å planlegge den.";
-"The plan shares as plain text, so it works in any app. Everything stays on this device." = "Planen deles som ren tekst, så den virker i alle apper. Alt blir værende på denne enheten.";
+"The plan shares as plain text, so it works in any app. Everything stays on this device." = "Planen deles som ren tekst, så den fungerer i alle apper. Alt blir værende på denne enheten.";
 "This week: %@" = "Denne uken: %@";
 "Time to start cooking" = "På tide å begynne å lage mat";
 "Today" = "I dag";
@@ -805,7 +802,6 @@
 "1 week" = "1 uke";
 "a family member" = "et familiemedlem";
 "A heading like “Ingredients” helps, but is not required. You can correct everything before it is saved." = "En overskrift som «Ingredienser» hjelper, men er ikke nødvendig. Du kan rette alt før det lagres.";
-"About %@ of food this week" = "Cirka %@ i mat denne uken";
 "Add a label" = "Legg til en merkelapp";
 "Add a staple" = "Legg til en basisvare";
 "Add labels to a meal when you edit it." = "Legg til merkelapper på en rett når du redigerer den.";
@@ -814,22 +810,18 @@
 "Always have this" = "Har alltid denne";
 "Amounts and aisles are what the shopping list is built from. Change an aisle here if something is filed in the wrong place." = "Mengder og avdelinger er det handlelisten bygges av. Endre avdeling her hvis noe havner feil sted.";
 "at least every" = "minst hver";
-"At most %@ a week" = "Maks %@ i uka";
 "Bring back" = "Hent tilbake";
 "Bring back %@" = "Hent tilbake %@";
-"Budget" = "Budsjett";
 "Choose someone" = "Velg noen";
-"Choose “Something cheaper” on a day, or raise the limit." = "Velg «Noe billigere» på en dag, eller hev grensen.";
 "Day plan" = "Dagsplan";
 "Don't repeat a dinner within" = "Ikke gjenta en middag innen";
 "every day" = "hver dag";
-"Free up a day, or make the rule preferred." = "Frigjør en dag, eller gjør regelen til en preferanse.";
+"Free up a day, or make the rule preferred." = "Frigjør en dag, eller gjør regelen myk.";
 "Have" = "Ha";
 "How that reads" = "Slik leses det";
 "Ingredient" = "Ingrediens";
 "Ingredient, for example almonds" = "Ingrediens, for eksempel mandler";
 "Keep it varied" = "Hold det variert";
-"Keep the week under" = "Hold uka under";
 "Label" = "Merkelapp";
 "Label, for example kid-friendly" = "Merkelapp, for eksempel barnevennlig";
 "Matched by name, so “olive oil” covers every recipe that calls for it, whatever the amount." = "Treffer på navn, så «olivenolje» dekker alle oppskrifter som bruker det, uansett mengde.";
@@ -839,9 +831,9 @@
 "No %@ two days running" = "Ikke %@ to dager på rad";
 "No repeats" = "Ingen gjentakelser";
 "No repeats within %ld weeks" = "Ingen gjentakelser innen %ld uker";
-"No repeats within the week" = "Ingen gjentakelser i løpet av uka";
+"No repeats within the week" = "Ingen gjentakelser i løpet av uken";
 "Not in a row" = "Ikke på rad";
-"Nothing recognised yet." = "Ingenting gjenkjent ennå.";
+"Nothing recognised yet." = "Ingenting er gjenkjent ennå.";
 "Nothing yet. Add items here, or long-press a line on the shopping list." = "Ingenting ennå. Legg til varer her, eller trykk og hold på en linje i handlelisten.";
 "Pantry staples" = "Basisvarer";
 "Paste" = "Lim inn";
@@ -862,16 +854,18 @@
 "the weekend" = "helgen";
 "This cannot hold alongside “%@”." = "Dette kan ikke gjelde sammen med «%@».";
 "two days running" = "to dager på rad";
-"Uses what that person swiped away during onboarding." = "Bruker det personen sveipet vekk under oppstarten.";
+"Uses what that person swiped away during onboarding." = "Bruker det personen sveipet vekk under onboardingen.";
 "we're" = "er vi";
 "weekdays" = "hverdager";
-"Weekly budget" = "Ukesbudsjett";
 "what %@ dislikes" = "det %@ ikke liker";
 "What is the rule about?" = "Hva handler regelen om?";
 "You already have a meal called “%@”." = "Du har allerede en rett som heter «%@».";
 "You already have this rule: %@" = "Du har allerede denne regelen: %@";
 "Your own labels" = "Dine egne merkelapper";
 "“%@” is broken: %@ and %@ are back to back." = "«%@» brytes: %@ og %@ kommer rett etter hverandre.";
-"“%@” is exceeded: this week comes to about %@." = "«%@» overskrides: denne uka kommer på cirka %@.";
 "“%@” is overdue and could not be fitted in." = "«%@» er på overtid og fikk ikke plass.";
 "“Kid-friendly”, “cheap”, “freezer”. Rules can be written about any label you add here." = "«Barnevennlig», «billig», «fryser». Du kan lage regler om alle merkelapper du legger til her.";
+
+/* Bring! */
+"Add to Bring!" = "Legg i Bring!";
+"Send a dinner to Bring!" = "Send en middag til Bring!";

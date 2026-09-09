@@ -139,10 +139,6 @@ struct WeekPlanView: View {
                 shuffleButton
             }
             WeekCompositionView(plan: store.plan, meals: store.meals)
-            if store.estimatedWeeklyCost > 0 {
-                Text(L10n.string("About %@ of food this week", MealCost.formatted(store.estimatedWeeklyCost)))
-                    .font(.caption).foregroundStyle(AppTheme.muted)
-            }
         }
         .padding(.vertical, 14)
     }

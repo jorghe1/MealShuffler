@@ -123,6 +123,35 @@ final class StateStorageTests: XCTestCase {
         XCTAssertEqual(repository.load()?.householdSize, 3, "And it recovers on the next write")
     }
 
+    /// A constraint can leave the vocabulary -- `maximumCostPerWeek` did, when the app stopped
+    /// claiming to know what a week costs. Decoding that rule throws, and the throw is not
+    /// local: it fails the whole snapshot, which reads back as a fresh install.
+    func testARuleWrittenAgainstAnOlderVocabularyDoesNotCostTheHouseholdItsPlan() throws {
+        let suite = "StateStorageTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let legacy: [String: Any] = [
+            "schemaVersion": 3,
+            "hasCompletedOnboarding": true,
+            "householdSize": 5,
+            "rules": [
+                ["title": "Budget", "constraint": ["maximumCostPerWeek": ["amount": 800]]],
+                ["title": "Fish on Tuesday",
+                 "constraint": ["requiredOn": ["day": "tuesday", "matcher": ["tag": ["_0": "fish"]]]]]
+            ],
+        ]
+        defaults.set(try JSONSerialization.data(withJSONObject: legacy),
+                     forKey: UserDefaultsStateRepository.storageKey)
+
+        let restored = try XCTUnwrap(
+            UserDefaultsStateRepository(defaults: defaults).load(),
+            "One unreadable rule must not read as a fresh install"
+        )
+        XCTAssertEqual(restored.householdSize, 5, "The rest of the household's state survives")
+        XCTAssertFalse(restored.rules.contains { $0.title == "Budget" }, "The dead rule is dropped")
+    }
+
     // MARK: - Calendar alignment
 
     /// `Weekday` is declared Monday-first; `Calendar` counts Sunday as 1. The weekly grocery

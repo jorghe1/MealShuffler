@@ -316,8 +316,7 @@ struct MealPlanGenerator {
             guard enforceWeeklyMaximums else { return true }
             if exceedsMaximum(meal: meal, selected: selected, rules: rules, context: context) { return false }
             if repeatsTooSoon(meal: meal, rules: rules, taste: taste) { return false }
-            if follows(previousDayMeal, meal: meal, rules: rules, context: context) { return false }
-            return !exceedsBudget(meal: meal, selected: selected, rules: rules)
+            return !follows(previousDayMeal, meal: meal, rules: rules, context: context)
         }
     }
 
@@ -382,19 +381,6 @@ struct MealPlanGenerator {
             if matcher.matches(meal, context: context), matcher.matches(previous, context: context) {
                 return true
             }
-        }
-        return false
-    }
-
-    /// True when this meal would push the week past a stated budget.
-    ///
-    /// Applied only in the strict pools. A budget that cannot be met should show up as a
-    /// conflict the household can read, not as an unplanned Thursday.
-    private func exceedsBudget(meal: Meal, selected: [Weekday: Meal], rules: [PlanningRule]) -> Bool {
-        for rule in rules {
-            guard case .maximumCostPerWeek(let amount) = rule.constraint else { continue }
-            let spent = selected.values.reduce(0) { $0 + $1.planningCost }
-            if spent + meal.planningCost > amount { return true }
         }
         return false
     }
@@ -505,9 +491,6 @@ struct MealPlanGenerator {
                    matcher.matches(previousDayMeal, context: context) {
                     score -= 80
                 }
-            case .maximumCostPerWeek(let amount):
-                let spent = selected.values.reduce(0) { $0 + $1.planningCost }
-                score += spent + meal.planningCost > amount ? -60 : 0
             default:
                 continue
             }
@@ -680,18 +663,6 @@ struct MealPlanGenerator {
                             ruleDescription, ordered[index - 1].0.name.lowercased(), entry.0.name.lowercased()
                         ),
                         suggestion: L10n.string("Swap one of the two days.")
-                    ))
-                }
-            case .maximumCostPerWeek(let amount):
-                let spent = byDay.values.reduce(0) { $0 + $1.planningCost }
-                if spent > amount {
-                    conflicts.append(PlanConflict(
-                        ruleID: rule.id,
-                        message: L10n.string(
-                            "“%@” is exceeded: this week comes to about %@.",
-                            ruleDescription, MealCost.formatted(spent)
-                        ),
-                        suggestion: L10n.string("Choose “Something cheaper” on a day, or raise the limit.")
                     ))
                 }
             case .dinnerMode, .noRepeatWithin:

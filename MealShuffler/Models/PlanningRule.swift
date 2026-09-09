@@ -167,8 +167,6 @@ enum RuleConstraint: Codable, Hashable {
     case requiredEvery(weeks: Int, matcher: MealMatcher)
     /// "Not pasta two days running."
     case notOnConsecutiveDays(matcher: MealMatcher)
-    /// A ceiling on the week's rough cost, in the household's own currency.
-    case maximumCostPerWeek(amount: Int)
 }
 
 extension RuleConstraint {
@@ -182,7 +180,7 @@ extension RuleConstraint {
              .maximumPrepTime(let scope, _), .dinnerMode(let scope, _):
             scope.days()
         case .maximumPerWeek, .minimumPerWeek, .noRepeatWithin,
-             .requiredEvery, .notOnConsecutiveDays, .maximumCostPerWeek:
+             .requiredEvery, .notOnConsecutiveDays:
             Set(Weekday.allCases)
         }
     }
@@ -193,7 +191,7 @@ extension RuleConstraint {
              .maximumPerWeek(let matcher, _), .minimumPerWeek(let matcher, _),
              .requiredEvery(_, let matcher), .notOnConsecutiveDays(let matcher):
             matcher
-        case .maximumPrepTime, .dinnerMode, .noRepeatWithin, .maximumCostPerWeek:
+        case .maximumPrepTime, .dinnerMode, .noRepeatWithin:
             nil
         }
     }
@@ -307,8 +305,6 @@ struct PlanningRule: Identifiable, Codable, Hashable {
             return L10n.string("%@ at least every %ld weeks", matcher.label(meals: meals, context: context), weeks)
         case .notOnConsecutiveDays(let matcher):
             return L10n.string("No %@ two days running", matcher.label(meals: meals, context: context).lowercased())
-        case .maximumCostPerWeek(let amount):
-            return L10n.string("At most %@ a week", MealCost.formatted(amount))
         }
     }
 }

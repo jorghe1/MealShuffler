@@ -77,7 +77,6 @@ struct RulesView: View {
         case .noRepeatWithin: "arrow.triangle.2.circlepath"
         case .requiredEvery: "arrow.clockwise.circle"
         case .notOnConsecutiveDays: "arrow.left.arrow.right"
-        case .maximumCostPerWeek: "banknote"
         }
     }
 }
@@ -98,7 +97,6 @@ private struct AddRuleView: View {
     @State private var count = 1
     @State private var minutes = 30
     @State private var weeks = 3
-    @State private var budget = 800
     @State private var strength: RuleStrength = .required
     @State private var rejection: String?
 
@@ -203,8 +201,6 @@ private struct AddRuleView: View {
                 case .notConsecutive:
                     HStack(spacing: 7) { Text("Never"); targetMenu }
                     Text("two days running")
-                case .budget:
-                    HStack(spacing: 7) { Text("Keep the week under"); budgetMenu }
                 }
             }
             .font(.title3.weight(.semibold))
@@ -335,14 +331,6 @@ private struct AddRuleView: View {
         }
     }
 
-    private var budgetMenu: some View {
-        Menu {
-            ForEach(Array(stride(from: 200, through: 3_000, by: 100)), id: \.self) { value in
-                Button(MealCost.formatted(value)) { budget = value }
-            }
-        } label: { SentenceToken(text: MealCost.formatted(budget)) }
-    }
-
     // MARK: - Assembly
 
     private var selectableMembers: [HouseholdMember] {
@@ -371,7 +359,6 @@ private struct AddRuleView: View {
         case .noRepeat: constraint = .noRepeatWithin(weeks: weeks)
         case .bringBack: constraint = .requiredEvery(weeks: weeks, matcher: matcher)
         case .notConsecutive: constraint = .notOnConsecutiveDays(matcher: matcher)
-        case .budget: constraint = .maximumCostPerWeek(amount: budget)
         }
         return PlanningRule(
             title: mode.generatedTitle(matcher: matcher, meals: store.meals, context: store.matchContext),
@@ -419,7 +406,7 @@ private struct SentenceToken: View {
 
 private enum RuleMode: String, CaseIterable, Identifiable {
     case requiredDay, excludedDay, maximumPerWeek, minimumPerWeek, maximumPrepTime
-    case dinnerPlan, noRepeat, bringBack, notConsecutive, budget
+    case dinnerPlan, noRepeat, bringBack, notConsecutive
 
     var id: String { rawValue }
 
@@ -434,7 +421,6 @@ private enum RuleMode: String, CaseIterable, Identifiable {
         case .noRepeat: L10n.string("No repeats")
         case .bringBack: L10n.string("Bring back")
         case .notConsecutive: L10n.string("Not in a row")
-        case .budget: L10n.string("Budget")
         }
     }
 
@@ -449,13 +435,12 @@ private enum RuleMode: String, CaseIterable, Identifiable {
         case .noRepeat: "arrow.triangle.2.circlepath"
         case .bringBack: "arrow.clockwise.circle"
         case .notConsecutive: "arrow.left.arrow.right"
-        case .budget: "banknote"
         }
     }
 
     var usesMatcher: Bool {
         switch self {
-        case .maximumPrepTime, .dinnerPlan, .noRepeat, .budget: false
+        case .maximumPrepTime, .dinnerPlan, .noRepeat: false
         default: true
         }
     }
@@ -472,7 +457,6 @@ private enum RuleMode: String, CaseIterable, Identifiable {
         case .noRepeat: L10n.string("Keep it varied")
         case .bringBack: L10n.string("Bring back %@", target)
         case .notConsecutive: L10n.string("Spread out %@", target)
-        case .budget: L10n.string("Weekly budget")
         }
     }
 }

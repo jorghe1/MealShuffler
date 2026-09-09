@@ -376,17 +376,6 @@ final class AppStore: ObservableObject {
     /// Staples in the order they read, for a screen that lists them.
     var pantryStapleNames: [String] { pantryStaples.sorted() }
 
-    /// What this week's dinners come to, using each meal's own figure where it has one.
-    ///
-    /// `estimatedCost` and `planningCost` have existed since the beginning and nothing ever
-    /// showed them, which also left `maximumCostPerWeek` with no way to be understood.
-    var estimatedWeeklyCost: Int {
-        plan.meals.reduce(0) { total, item in
-            guard item.kind == .meal, let id = item.mealID, let meal = meal(id: id) else { return total }
-            return total + meal.planningCost
-        }
-    }
-
     /// Items set aside as already owned. Surfaced so they can be put back.
     var stockedItems: [GroceryItem] {
         GroceryListBuilder.build(plan: plan, meals: meals, manualItems: manualGroceryItems)

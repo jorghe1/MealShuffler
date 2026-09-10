@@ -305,3 +305,4 @@
 "meals %@ dislikes" = "meals %@ dislikes";
 "We do not cook the same dinner twice in one week." = "We do not cook the same dinner twice in one week.";
 "We do not cook the same dinner again within %ld weeks." = "We do not cook the same dinner again within %ld weeks.";
+"iCloud sharing is unavailable in this unsigned build. Your local household data is still available." = "iCloud sharing is unavailable in this unsigned build. Your local household data is still available.";

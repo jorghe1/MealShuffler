@@ -1156,3 +1156,4 @@
 "meals %@ dislikes" = "retter %@ ikke liker";
 "We do not cook the same dinner twice in one week." = "Vi lager ikke samme middag to ganger i løpet av en uke.";
 "We do not cook the same dinner again within %ld weeks." = "Vi lar det gå minst %ld uker før vi lager samme middag igjen.";
+"iCloud sharing is unavailable in this unsigned build. Your local household data is still available." = "iCloud-deling er ikke tilgjengelig i denne usignerte versjonen. Du har fortsatt tilgang til lokale husholdningsdata.";

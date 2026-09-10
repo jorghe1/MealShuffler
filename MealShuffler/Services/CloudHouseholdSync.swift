@@ -8,16 +8,40 @@ import SwiftUI
 @MainActor final class CloudHouseholdSync: ObservableObject {
     static let shared = CloudHouseholdSync()
     static let containerIdentifier = "iCloud.no.mealshuffler"
-    private let container = CKContainer(identifier: CloudHouseholdSync.containerIdentifier)
+    // CKContainer can trap before XCTest attaches when this host is unsigned. Observing
+    // the service must stay local; only an allowed CloudKit operation creates a container.
+    private lazy var container = CKContainer(identifier: CloudHouseholdSync.containerIdentifier)
+    let isCloudKitAvailable: Bool
     @Published private(set) var busy = false
     @Published var message: String?
     @Published private(set) var pendingRemote: AppStateSnapshot?
     @Published var share: CKShare?
-    @Published private(set) var enabled = UserDefaults.standard.bool(forKey: "cloud-household-enabled")
+    @Published private(set) var enabled: Bool
     @Published private(set) var lastSync: Date?
     private var pendingRecord: CKRecord?
     private var incomingShare: CKShare.Metadata?
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard, isCloudKitAvailable: Bool? = nil) {
+        let available = isCloudKitAvailable
+            ?? ((Bundle.main.object(forInfoDictionaryKey: "CloudKitSigningAllowed") as? String) == "YES")
+        self.defaults = defaults
+        self.isCloudKitAvailable = available
+        enabled = available && defaults.bool(forKey: "cloud-household-enabled")
+    }
+
+    var sharingContainer: CKContainer? {
+        guard isCloudKitAvailable else { return nil }
+        return container
+    }
+
+    private func requireCloudKit() -> Bool {
+        guard isCloudKitAvailable else {
+            message = L10n.string("iCloud sharing is unavailable in this unsigned build. Your local household data is still available.")
+            return false
+        }
+        return true
+    }
     private var isParticipant: Bool { defaults.bool(forKey: "cloud-household-participant") }
     private var zoneID: CKRecordZone.ID {
         CKRecordZone.ID(zoneName: defaults.string(forKey: "cloud-household-zone") ?? "MealShufflerHousehold",
@@ -38,10 +62,15 @@ import SwiftUI
         lastSync = .now
     }
 
-    func received(_ metadata: CKShare.Metadata) { incomingShare = metadata; message = L10n.string("An iCloud invitation is ready. Open iCloud sharing to review it.") }
+    func received(_ metadata: CKShare.Metadata) {
+        guard requireCloudKit() else { return }
+        incomingShare = metadata
+        message = L10n.string("An iCloud invitation is ready. Open iCloud sharing to review it.")
+    }
     var hasInvitation: Bool { incomingShare != nil }
 
     func acceptInvitation(store: AppStore) async {
+        guard requireCloudKit() else { return }
         guard let metadata = incomingShare, !busy else { return }
         busy = true
         defer { busy = false }
@@ -62,6 +91,7 @@ import SwiftUI
     }
 
     func start(store: AppStore) async {
+        guard requireCloudKit() else { return }
         guard !busy else { return }
         busy = true
         defer { busy = false }
@@ -82,7 +112,7 @@ import SwiftUI
     }
 
     func sync(store: AppStore) async {
-        guard enabled, !busy, pendingRemote == nil else { return }
+        guard isCloudKitAvailable, enabled, !busy, pendingRemote == nil else { return }
         busy = true
         defer { busy = false }
         do {
@@ -118,6 +148,7 @@ import SwiftUI
     }
 
     func resolve(useRemote: Bool, store: AppStore) async {
+        guard requireCloudKit() else { return }
         guard let remote = pendingRemote, let record = pendingRecord, !busy else { return }
         busy = true
         defer { busy = false }
@@ -142,6 +173,7 @@ import SwiftUI
     }
 
     func prepareShare(store: AppStore) async {
+        guard requireCloudKit() else { return }
         guard enabled, pendingRemote == nil, !busy else { return }
         await sync(store: store)
         guard pendingRemote == nil, message == nil else { return }
@@ -235,6 +267,9 @@ struct CloudSharingView: View {
         List {
             Section {
                 Text("Share recipes, plans, shopping progress and household preferences with invited iCloud users. Everyone can edit. Cooking steps and notification settings stay personal.")
+                if !sync.isCloudKitAvailable {
+                    Text("iCloud sharing is unavailable in this unsigned build. Your local household data is still available.")
+                }
                 if sync.hasInvitation { Button("Accept iCloud invitation") { Task { await sync.acceptInvitation(store: store) } } }
                 if sync.enabled {
                     Button("Sync now") { Task { await sync.sync(store: store) } }
@@ -242,7 +277,7 @@ struct CloudSharingView: View {
                     Button("Pause on this device") { sync.pause() }
                 } else { Button("Enable iCloud sharing") { Task { await sync.start(store: store) } } }
                 if let date = sync.lastSync { LabeledContent("Last synced", value: date.formatted(date: .abbreviated, time: .shortened)) }
-            }.disabled(sync.busy)
+            }.disabled(sync.busy || !sync.isCloudKitAvailable)
             if let remote = sync.pendingRemote {
                 Section("Review iCloud changes") {
                     Text(L10n.string("Shared household: %@", remote.household.name))
@@ -264,16 +299,19 @@ struct CloudSharingView: View {
             if let message = sync.message { Text(message).textSelection(.enabled) }
         }.navigationTitle("iCloud sharing")
         .sheet(isPresented: Binding(get: { sync.share != nil }, set: { if !$0 { sync.share = nil } })) {
-            if let share = sync.share { CloudShareController(share: share) }
+            if let share = sync.share, let container = sync.sharingContainer {
+                CloudShareController(share: share, container: container)
+            }
         }
     }
 }
 
 private struct CloudShareController: UIViewControllerRepresentable {
     let share: CKShare
+    let container: CKContainer
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeUIViewController(context: Context) -> UICloudSharingController {
-        let controller = UICloudSharingController(share: share, container: CKContainer(identifier: CloudHouseholdSync.containerIdentifier))
+        let controller = UICloudSharingController(share: share, container: container)
         controller.availablePermissions = [.allowPrivate, .allowReadWrite]
         controller.delegate = context.coordinator
         return controller

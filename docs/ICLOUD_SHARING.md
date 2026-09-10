@@ -2,6 +2,20 @@
 
 The implementation uses the user's iCloud account and private CloudKit invitations. It does not introduce a separate sign-in service. It is implemented in source but has not been provisioned or tested with two Apple accounts in this environment.
 
+## Unsigned simulator builds
+
+The smoke workflow runs with `CODE_SIGNING_ALLOWED=NO`. That value is expanded into the
+app's `CloudKitSigningAllowed` Info.plist entry. An unsigned build keeps household data local
+and blocks CloudKit operations, even if its saved preferences previously enabled sharing.
+The sync service creates its `CKContainer` lazily: observing the service during app launch
+does not contact CloudKit or require CloudKit entitlements. Missing or unexpanded signing
+configuration also leaves CloudKit unavailable.
+
+Signed device builds use the normal `YES` signing setting and still require the iCloud
+entitlements described below. This runtime setting does not replace Apple's provisioning.
+The share sheet reuses the sync service's container. XCTest regressions cover unsigned
+entry points and startup with sharing both enabled and disabled.
+
 ## Apple setup
 
 1. In the Apple Developer account, associate the `no.mealshuffler.app` app ID with CloudKit container `iCloud.no.mealshuffler`. Keep the existing `group.no.mealshuffler.shared` App Group on the app and both extensions.

@@ -36,5 +36,5 @@ fi
 
 # Keep compiler diagnostics visible at the end, after Xcode's long copy/link output.
 echo "Build/test failure details (full log: $BUILD_LOG_PATH):"
-grep -n -B 2 -A 6 -E 'error:|Testing failed:|Test Case .* failed|failed -' "$BUILD_LOG_PATH" || true
+grep -n -B 2 -A 6 -E 'error:|Testing failed:|Test Case .* failed|failed -|Significant issue|Test crashed' "$BUILD_LOG_PATH" || true
 exit "$build_status"

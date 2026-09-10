@@ -22,6 +22,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>RecipeServiceBaseURL</key>
 	<string>$(RECIPE_SERVICE_BASE_URL)</string>
+	<key>CloudKitSigningAllowed</key>
+	<string>$(CODE_SIGNING_ALLOWED)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

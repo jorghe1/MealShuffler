@@ -9,11 +9,26 @@ import UIKit
 /// service was not set up.
 struct PasteRecipeView: View {
     @Environment(\.dismiss) private var dismiss
+    private let sourceDraft: ImportedRecipeDraft
+    @State private var handedOff = false
     let imported: (ImportedRecipeDraft) -> Void
 
     @State private var text = ""
     @State private var isReading = false
+    @State private var readingTask: Task<Void, Never>?
     @State private var errorMessage: String?
+
+    init(draft: ImportedRecipeDraft = ImportedRecipeDraft(), imported: @escaping (ImportedRecipeDraft) -> Void) {
+        sourceDraft = draft
+        _text = State(initialValue: draft.sourceText ?? "")
+        self.imported = imported
+    }
+
+    private var pendingDraft: ImportedRecipeDraft {
+        var draft = sourceDraft
+        draft.sourceText = text
+        return draft
+    }
 
     private var canRead: Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).count >= 20 && !isReading
@@ -54,7 +69,7 @@ struct PasteRecipeView: View {
                         .disabled(!UIPasteboard.general.hasStrings)
 
                         Button {
-                            Task { await read() }
+                            readingTask = Task { await read() }
                         } label: {
                             HStack {
                                 Text("Read recipe").font(.headline)
@@ -70,6 +85,17 @@ struct PasteRecipeView: View {
                 .padding(20)
             }
             .appBackground()
+            .task(id: text) {
+                do {
+                    try await Task.sleep(for: .milliseconds(500))
+                    if !handedOff && !text.isEmpty { try RecipeLibraryStorage.saveDraft(pendingDraft) }
+                } catch is CancellationError { }
+                catch { errorMessage = error.localizedDescription }
+            }
+            .onDisappear {
+                readingTask?.cancel()
+                if !handedOff && !text.isEmpty { do { try RecipeLibraryStorage.saveDraft(pendingDraft) } catch { errorMessage = error.localizedDescription } }
+            }
             .navigationTitle("Paste a recipe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
@@ -81,8 +107,15 @@ struct PasteRecipeView: View {
         errorMessage = nil
         defer { isReading = false }
         do {
-            imported(try await RecipeCapture.extractText(text))
-        } catch {
+            try RecipeLibraryStorage.saveDraft(pendingDraft)
+            var draft = try await RecipeCapture.extractText(text)
+            try Task.checkCancellation()
+            draft.id = sourceDraft.id
+            try RecipeLibraryStorage.saveDraft(draft)
+            handedOff = true
+            imported(draft)
+        } catch is CancellationError { }
+        catch {
             errorMessage = error.localizedDescription
         }
     }

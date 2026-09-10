@@ -54,12 +54,43 @@ enum GroceryAisle: String, CaseIterable, Codable, Identifiable, Hashable {
 }
 
 struct Ingredient: Identifiable, Codable, Hashable {
+    var lineID: String? = UUID().uuidString
     let name: String
     let quantity: Double
     let unit: String
-    let aisle: GroceryAisle
+    var aisle: GroceryAisle
+    var originalText: String?
+    var upperQuantity: Double?
+    var amountNote: String?
+    var requiresReview: Bool?
+    var section: String?
+    var packageQuantity: Double?
+    var packageUnit: String?
 
-    var id: String { "\(name.lowercased())|\(unit.lowercased())" }
+    var id: String { lineID ?? "\(name.lowercased())|\(unit.lowercased())" }
+    var hasKnownQuantity: Bool { quantity > 0 && quantity.isFinite }
+    var needsAmountReview: Bool { requiresReview == true || (!hasKnownQuantity && amountNote == nil) }
+
+    func amountText(scale: Double = 1) -> String {
+        guard hasKnownQuantity else { return amountNote ?? L10n.string("Amount not specified") }
+        let low = IngredientUnits.display(quantity: quantity * scale, unit: upperQuantity == nil ? unit : "")
+        let amount = upperQuantity.map {
+            low + "–" + IngredientUnits.display(quantity: $0 * scale, unit: unit)
+        } ?? low
+        if let packageQuantity, let packageUnit {
+            return amount + " × " + IngredientUnits.display(quantity: packageQuantity, unit: packageUnit)
+        }
+        return amount
+    }
+
+    var editableLine: String {
+        if let originalText { return originalText }
+        guard hasKnownQuantity else { return name }
+        func exact(_ value: Double) -> String { String(value).replacingOccurrences(of: #"\.0$"#, with: "", options: .regularExpression) }
+        var amount = exact(quantity) + (upperQuantity.map { "–" + exact($0) } ?? "")
+        if let packageQuantity, let packageUnit { amount += " × " + exact(packageQuantity) + " " + packageUnit }
+        return [amount, unit, name].filter { !$0.isEmpty }.joined(separator: " ")
+    }
 }
 
 enum MealSource: Codable, Hashable {
@@ -100,6 +131,11 @@ struct Meal: Identifiable, Codable, Hashable {
     /// Soft delete. A hard delete is indistinguishable from "never existed here" once two
     /// devices compare libraries, which is how deleted meals come back.
     var deletedAt: Date?
+    var sourceText: String?
+    var sourceImageNames: [String]?
+    var servingsConfirmed: Bool?
+    var activeMinutes: Int?
+    var parentRecipeID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -140,7 +176,7 @@ struct Meal: Identifiable, Codable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case id, name, subtitle, emoji, prepMinutes, tags, customTags, ingredients
         case defaultServings, estimatedCost, instructions, source, heroImageURL
-        case updatedAt, updatedBy, deletedAt
+        case updatedAt, updatedBy, deletedAt, sourceText, sourceImageNames, servingsConfirmed, activeMinutes, parentRecipeID
         /// Pre-rename key, decoded only.
         case estimatedCostNOK
     }
@@ -164,6 +200,11 @@ struct Meal: Identifiable, Codable, Hashable {
         updatedAt = try values.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .now
         updatedBy = try values.decodeIfPresent(UUID.self, forKey: .updatedBy) ?? DeviceIdentity.current
         deletedAt = try values.decodeIfPresent(Date.self, forKey: .deletedAt)
+        sourceText = try values.decodeIfPresent(String.self, forKey: .sourceText)
+        sourceImageNames = try values.decodeIfPresent([String].self, forKey: .sourceImageNames)
+        servingsConfirmed = try values.decodeIfPresent(Bool.self, forKey: .servingsConfirmed)
+        activeMinutes = try values.decodeIfPresent(Int.self, forKey: .activeMinutes)
+        parentRecipeID = try values.decodeIfPresent(UUID.self, forKey: .parentRecipeID)
     }
 
     // Written explicitly because the legacy cost key has no matching property, which would
@@ -186,6 +227,11 @@ struct Meal: Identifiable, Codable, Hashable {
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encode(updatedBy, forKey: .updatedBy)
         try container.encodeIfPresent(deletedAt, forKey: .deletedAt)
+        try container.encodeIfPresent(sourceText, forKey: .sourceText)
+        try container.encodeIfPresent(sourceImageNames, forKey: .sourceImageNames)
+        try container.encodeIfPresent(servingsConfirmed, forKey: .servingsConfirmed)
+        try container.encodeIfPresent(activeMinutes, forKey: .activeMinutes)
+        try container.encodeIfPresent(parentRecipeID, forKey: .parentRecipeID)
     }
 
     var isDeleted: Bool { deletedAt != nil }
@@ -206,6 +252,8 @@ struct Meal: Identifiable, Codable, Hashable {
         return 95
     }
 
+    var costPerServing: Double { Double(planningCost) / Double(max(defaultServings, 1)) }
+
     var isBuiltIn: Bool {
         if case .builtIn = source { return true }
         return false
@@ -215,4 +263,3 @@ struct Meal: Identifiable, Codable, Hashable {
 enum MealPreference: String, Codable {
     case liked, neutral, disliked
 }
-

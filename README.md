@@ -2,6 +2,10 @@
 
 En native SwiftUI-app for enkel, regelstyrt middagsplanlegging.
 
+Implementeringsstatus etter gjennomgangen 10. september 2026 finnes i
+[docs/IMPLEMENTATION_STATUS_2026-09-10.md](docs/IMPLEMENTATION_STATUS_2026-09-10.md).
+Den skiller mellom implementerte endringer, verifisering og gjenstående arbeid.
+
 ## Dette er med
 
 - Swipe-onboarding som lærer hvilke hverdagsretter familien liker, og som spør om
@@ -9,18 +13,18 @@ En native SwiftUI-app for enkel, regelstyrt middagsplanlegging.
 - Regelbygger som dekker det familier faktisk sier: dagregler, ukentlige
   minimum og maksimum, tidsgrenser, dagsplan (spise ute, rester, ingen middag),
   ingen gjentakelser innen N uker, hent tilbake og ikke to dager på rad — som
-  harde eller myke regler.
+  regler som må følges, eller ønsker. Dagsplaner er faste avtaler med unntak per uke.
 - En lokal planmotor som respekterer låste dager og forklarer regelkonflikter.
 - Ukevisning forankret i en ekte kalenderuke, med automatisk ukeskifte,
   arkivert historikk og planlegging av neste uke.
-- **Velg middagen selv**: en rettvelger per dag, og «legg på en dag» fra
+- **Velg middagen selv**: en rettvelger per dag, og «velg dag» fra
   rettbiblioteket og fra historikken. Dagen låses, så valget overlever neste stokking.
 - **Angre**: stokking, bytte av dager, dagsplan og pauser kan tas tilbake i ett trykk.
 - Dagskontekst for antall personer, tidsgrense, ekstra porsjoner, rester,
   takeaway og dager borte.
 - Intensjonsbasert bytte: raskere, billigere, favoritt eller overraskelse.
 - Fire veier inn i biblioteket: manuell registrering, lenke (JSON-LD med
-  microdata som reserve), skanning av kokebokside eller skjermbilde, og innliming
+  avgrenset microdata som reserve), skanning av kokebokside eller skjermbilde, og innliming
   av fritekst. Alt som leses av seg selv havner i redigeringen med ingrediensene
   tolket, kategorier gjettet og et varsel om at det bør sjekkes.
 - Automatisk, kategorisert handleliste med porsjonsskalering og
@@ -46,17 +50,25 @@ Appen leveres med startregler som er ment å bli endret:
 3. Pizza på lørdag — som kategori, ikke én bestemt pizza.
 4. Ingen gjentakelser innen tre uker, som en myk regel.
 
-En regel kan handle om en kategori, én bestemt rett, en ingrediens (der allergier
-hører hjemme), en egen merkelapp familien har funnet på, eller om hva ett
+En regel kan handle om en kategori, én bestemt rett, et ingrediensnavn (uten verifisering av allergener), en egen merkelapp familien har funnet på, eller om hva ett
 familiemedlem ikke liker. Dager kan navngis enkeltvis eller som «hverdager»,
 «helgen» og «hver dag». Appen nekter å lagre en regel som sier det samme som en
 regel som allerede finnes, eller som motsier den, og forteller hvilken.
 
 Community-fanen er slått av bak `FeatureFlags.communityEnabled` til
-innlogging og moderering er på plass. Invitasjonskoden er slått av bak
-`FeatureFlags.householdSyncEnabled` til det finnes noe i andre enden av den.
+innlogging og moderering er på plass. Husholdningsdeling bruker nå private iCloud-invitasjoner;
+den gamle invitasjonskoden er fortsatt deaktivert. Apple-oppsett og testing på to enheter
+gjenstår: se [docs/ICLOUD_SHARING.md](docs/ICLOUD_SHARING.md).
 Hva som er utelatt med vilje, og hva som skal til for å ta det inn, står i
 [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Nye arbeidsflyter
+
+- Handleperioder på tvers av inneværende uke, neste uke og arkivet, med egen handlefremdrift.
+- Porsjonsstørrelser, fryseporsjoner på tvers av uker, oppskriftssamlinger og kjøkkentimer.
+- Full sikkerhetskopi med gjenopprettingskopi, utkast, bilder og tidligere oppskriftsversjoner.
+- Redigering av regler, konflikthjelp og samme middagskort i begge ukevisninger.
+- Valgfri iCloud-deling. Synkronisering skjer mens appen er åpen, og samtidige endringer krever et synlig valg.
 
 ## Varsler
 
@@ -72,8 +84,8 @@ Alt dette settes opp under Innstillinger.
 Et bibliotek som må skrives inn for hånd blir aldri bygget, så det finnes fire veier inn,
 og alle ender samme sted: i redigeringen, med det som ble lest fylt ut på forhånd.
 
-- **Lenke.** Leser `Recipe`-blokker i JSON-LD — alle blokkene på siden, og velger den
-  rikeste, slik at en side med «relaterte oppskrifter» ikke importerer teaseren.
+- **Lenke.** Leser `Recipe`-blokker i JSON-LD — alle blokkene på siden, med oppskriftens nettadresse som første valg
+  før mengden innhold vurderes. Relaterte oppskrifter skal ikke fortrenge hovedoppskriften.
   Ingredienser leses i alle formene sider faktisk bruker, og fremgangsmåten følges gjennom
   `HowToSection` ned til hvert steg. Sider uten JSON-LD leses som microdata.
 - **Skann.** Flersidig dokumentskanning av en kokebokside. Linjene sorteres i leserekkefølge,

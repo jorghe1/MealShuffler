@@ -19,6 +19,18 @@ enum Weekday: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var shortName: String { Weekday.shortSymbol(for: self) }
 
+    var recurringPhrase: String {
+        switch self {
+        case .monday: L10n.string("on Mondays")
+        case .tuesday: L10n.string("on Tuesdays")
+        case .wednesday: L10n.string("on Wednesdays")
+        case .thursday: L10n.string("on Thursdays")
+        case .friday: L10n.string("on Fridays")
+        case .saturday: L10n.string("on Saturdays")
+        case .sunday: L10n.string("on Sundays")
+        }
+    }
+
     /// The next day in the locale's week, or nil on the last day.
     var next: Weekday? {
         let ordered = Weekday.ordered()

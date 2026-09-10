@@ -13,14 +13,17 @@ struct SettingsView: View {
     @State private var showingPermissionHelp = false
 
     private var appVersion: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
-        return "\(version) (\(build))"
+        let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "Unknown"
+        let buildNumber = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "Unknown"
+        return "\(version) (\(buildNumber))"
     }
 
     var body: some View {
         List {
             Section("Household") {
+                NavigationLink { CloudSharingView() } label: { Label("iCloud sharing", systemImage: "icloud") }
+                NavigationLink { FreezerView() } label: { Label("Freezer", systemImage: "snowflake") }
+                NavigationLink { RecipeCollectionsView() } label: { Label("Collections", systemImage: "folder") }
                 NavigationLink { HouseholdView() } label: {
                     Label("Family", systemImage: "person.2")
                 }
@@ -40,6 +43,13 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Data") {
+                NavigationLink { DeviceBackupView() } label: { Label("Full backups", systemImage: "externaldrive.fill") }
+                NavigationLink { LibraryTransferView() } label: { Label("Recipe backups", systemImage: "externaldrive") }
+            }
+            Section("Recipe imports") {
+                OnlineExtractionSettingsView()
+            }
             reminderSection
 
             Section {
@@ -49,7 +59,7 @@ struct SettingsView: View {
             } header: {
                 Text("About")
             } footer: {
-                Text("Everything is stored on this device. Nothing is sent anywhere unless you import a recipe from a link or a photo.")
+                Text("Recipes are stored on this device. When online extraction is enabled, imported text and photos are sent to the recipe service. Website imports and saved website images contact their publishers.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -96,6 +106,9 @@ struct SettingsView: View {
                     Label("Reminder time", systemImage: "clock")
                 }
 
+                Picker("Dinner time", selection: $store.householdTools.dinnerHour) {
+                    ForEach(HourOption.all, id: \.self) { Text(HourOption.label($0)).tag($0) }
+                }
                 Toggle(isOn: $store.prepLeadReminderEnabled) {
                     Label("Time to start cooking", systemImage: "timer")
                 }

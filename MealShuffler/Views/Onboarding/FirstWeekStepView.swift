@@ -18,6 +18,7 @@ struct FirstWeekStepView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     header
+                    Stepper(L10n.string("%ld people at dinner", store.householdSize), value: Binding(get: { store.householdSize }, set: { store.setHouseholdSize($0) }), in: 1...20)
 
                     ForEach(Weekday.ordered()) { day in
                         if let item = store.plan[day] {

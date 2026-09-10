@@ -39,15 +39,13 @@ final class ShareViewController: UIViewController {
         for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
             if let url = try? await provider.loadItem(forTypeIdentifier: UTType.url.identifier) as? URL,
                url.scheme?.lowercased() == "https" {
-                RecipeInbox.add(CapturedRecipe(url: url))
-                return true
+                return RecipeInbox.add(CapturedRecipe(url: url))
             }
         }
 
         for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
             if let data = await imageData(from: provider), let filename = RecipeInbox.storeImage(data) {
-                RecipeInbox.add(CapturedRecipe(imageFilename: filename))
-                return true
+                return RecipeInbox.add(CapturedRecipe(imageFilename: filename))
             }
         }
 
@@ -57,11 +55,10 @@ final class ShareViewController: UIViewController {
                 // A bare link arriving as text is still a link.
                 if let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
                    url.scheme?.lowercased() == "https" {
-                    RecipeInbox.add(CapturedRecipe(url: url))
+                    return RecipeInbox.add(CapturedRecipe(url: url))
                 } else {
-                    RecipeInbox.add(CapturedRecipe(text: text))
+                    return RecipeInbox.add(CapturedRecipe(text: text))
                 }
-                return true
             }
         }
 

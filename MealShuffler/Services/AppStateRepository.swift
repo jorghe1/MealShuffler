@@ -8,7 +8,7 @@ import Foundation
 /// silently resets everybody.
 struct AppStateSnapshot: Codable {
     /// 1: original release. 2: dated weeks, per-member preferences, sync stamps.
-    static let currentVersion = 2
+    static let currentVersion = 4
 
     let schemaVersion: Int
     let hasCompletedOnboarding: Bool
@@ -29,13 +29,15 @@ struct AppStateSnapshot: Codable {
     let household: Household
     let archivedWeeks: [ArchivedWeek]
     let nextWeekPlan: WeeklyPlan?
-    let dinnerReminderEnabled: Bool
-    let dinnerReminderHour: Int
+    var dinnerReminderEnabled: Bool
+    var dinnerReminderHour: Int
     /// A second, earlier reminder timed off the recipe's own prep time.
-    let prepLeadReminderEnabled: Bool
-    let groceryReminderEnabled: Bool
-    let groceryReminderWeekday: Weekday
-    let groceryReminderHour: Int
+    var prepLeadReminderEnabled: Bool
+    var groceryReminderEnabled: Bool
+    var groceryReminderWeekday: Weekday
+    var groceryReminderHour: Int
+    var nextWeekContexts: [Weekday: DayPlanContext] = [:]
+    var tools = HouseholdTools()
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, hasCompletedOnboarding, memberPreferences, rules, plan, checkedGroceryIDs
@@ -43,6 +45,7 @@ struct AppStateSnapshot: Codable {
         case customMeals, favoriteMealIDs, dayContexts, feedbackEvents, householdSize, household
         case archivedWeeks, nextWeekPlan, dinnerReminderEnabled, dinnerReminderHour
         case prepLeadReminderEnabled, groceryReminderEnabled, groceryReminderWeekday, groceryReminderHour
+        case nextWeekContexts, tools
         /// v1 key: one flat map for the whole household. Decoded only.
         case preferences
     }
@@ -98,6 +101,23 @@ struct AppStateSnapshot: Codable {
         self.groceryReminderHour = groceryReminderHour
     }
 
+    func validateStructure() throws {
+        let weeks = [plan] + (nextWeekPlan.map { [$0] } ?? []) + archivedWeeks.map(\.plan)
+        guard (1...20).contains(householdSize), customMeals.count <= 2000,
+              tools.freezer.allSatisfy({ $0.portions.isFinite && $0.portions > 0 && $0.portions <= 1000 }),
+              Set(customMeals.map(\.id)).count == customMeals.count,
+              Set(household.members.map(\.id)).count == household.members.count,
+              weeks.allSatisfy({ week in
+                  week.meals.count <= 7 && Set(week.meals.map(\.day)).count == week.meals.count && week.meals.allSatisfy {
+                      (0...1000).contains($0.servings) && ($0.portionScale.map { $0.isFinite && (0.25...2).contains($0) } ?? true)
+                  }
+              }),
+              (Array(dayContexts.values) + Array(nextWeekContexts.values)).allSatisfy({
+                  (1...20).contains($0.diners) && (0...12).contains($0.extraServings)
+                      && ($0.portionScale.map { $0.isFinite && (0.25...2).contains($0) } ?? true)
+              }) else { throw CocoaError(.fileReadCorruptFile) }
+    }
+
     // Written explicitly because `preferences` is a decode-only legacy key with no matching
     // property, which would otherwise defeat synthesis of Encodable.
     func encode(to encoder: Encoder) throws {
@@ -126,12 +146,17 @@ struct AppStateSnapshot: Codable {
         try container.encode(groceryReminderEnabled, forKey: .groceryReminderEnabled)
         try container.encode(groceryReminderWeekday, forKey: .groceryReminderWeekday)
         try container.encode(groceryReminderHour, forKey: .groceryReminderHour)
+        try container.encode(nextWeekContexts, forKey: .nextWeekContexts)
+        try container.encode(tools, forKey: .tools)
     }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         let version = try values.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         schemaVersion = version
+        guard version <= Self.currentVersion else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "This backup needs a newer app version."))
+        }
 
         hasCompletedOnboarding = try values.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
         rules = try values.decodeIfPresent([LenientRule].self, forKey: .rules)
@@ -163,6 +188,8 @@ struct AppStateSnapshot: Codable {
         groceryReminderWeekday = try values
             .decodeIfPresent(Weekday.self, forKey: .groceryReminderWeekday) ?? .saturday
         groceryReminderHour = try values.decodeIfPresent(Int.self, forKey: .groceryReminderHour) ?? 10
+        nextWeekContexts = try values.decodeIfPresent([Weekday: DayPlanContext].self, forKey: .nextWeekContexts) ?? [:]
+        tools = try values.decodeIfPresent(HouseholdTools.self, forKey: .tools) ?? HouseholdTools()
 
         if let stored = try values.decodeIfPresent([UUID: [UUID: MealPreference]].self, forKey: .memberPreferences) {
             memberPreferences = stored
@@ -175,6 +202,7 @@ struct AppStateSnapshot: Codable {
                 ?? restoredHousehold.id
             memberPreferences = flat.isEmpty ? [:] : [owner: flat]
         }
+        try validateStructure()
     }
 }
 
@@ -186,6 +214,13 @@ struct AppStateSnapshot: Codable {
 protocol AppStateRepository: Sendable {
     func load() -> AppStateSnapshot?
     func save(_ snapshot: AppStateSnapshot)
+    func saveOrThrow(_ snapshot: AppStateSnapshot) throws
+    var recoveryNotice: String? { get }
+}
+
+extension AppStateRepository {
+    func saveOrThrow(_ snapshot: AppStateSnapshot) throws { save(snapshot) }
+    var recoveryNotice: String? { nil }
 }
 
 /// Where state lives in a shipping build.
@@ -231,12 +266,41 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
            let snapshot = try? JSONDecoder().decode(AppStateSnapshot.self, from: data) {
             return snapshot
         }
+        if let data = try? Data(contentsOf: backupURL),
+           let snapshot = try? JSONDecoder().decode(AppStateSnapshot.self, from: data) { return snapshot }
         return adoptStateWrittenBeforeTheFileExisted()
     }
 
+    private var backupURL: URL { fileURL.appendingPathExtension("backup") }
+
+    var recoveryNotice: String? {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
+        if let data = try? Data(contentsOf: fileURL), (try? JSONDecoder().decode(AppStateSnapshot.self, from: data)) != nil {
+            return nil
+        }
+        return L10n.string("The saved data could not be read. A backup was used if available. The original file will be preserved.")
+    }
+
     func save(_ snapshot: AppStateSnapshot) {
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        write(data)
+        try? saveOrThrow(snapshot)
+    }
+
+    func saveOrThrow(_ snapshot: AppStateSnapshot) throws {
+        let data = try JSONEncoder().encode(snapshot)
+        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            let existing = try Data(contentsOf: fileURL)
+            if let object = try? JSONSerialization.jsonObject(with: existing) as? [String: Any],
+               let version = object["schemaVersion"] as? Int, version > AppStateSnapshot.currentVersion {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            if (try? JSONDecoder().decode(AppStateSnapshot.self, from: existing)) != nil {
+                try existing.write(to: backupURL, options: .atomic)
+            } else {
+                try existing.write(to: fileURL.appendingPathExtension("unreadable-\(UUID().uuidString)"), options: .atomic)
+            }
+        }
+        try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     @discardableResult
@@ -259,7 +323,7 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
     /// The old copy is removed only after the file is written and reads back, so a failed
     /// migration leaves the household's plan where it was rather than nowhere.
     private func adoptStateWrittenBeforeTheFileExisted() -> AppStateSnapshot? {
-        guard let legacyDefaults,
+        guard !FileManager.default.fileExists(atPath: fileURL.path), let legacyDefaults,
               let data = legacyDefaults.data(forKey: UserDefaultsStateRepository.storageKey),
               let snapshot = try? JSONDecoder().decode(AppStateSnapshot.self, from: data)
         else { return nil }
@@ -303,7 +367,11 @@ struct UserDefaultsStateRepository: AppStateRepository, @unchecked Sendable {
     }
 
     func save(_ snapshot: AppStateSnapshot) {
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        try? saveOrThrow(snapshot)
+    }
+
+    func saveOrThrow(_ snapshot: AppStateSnapshot) throws {
+        let data = try JSONEncoder().encode(snapshot)
         defaults.set(data, forKey: key)
     }
 }

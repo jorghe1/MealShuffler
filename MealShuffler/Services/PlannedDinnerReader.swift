@@ -62,7 +62,7 @@ struct PlannedDinnerReader {
         date: Date,
         meals: [Meal]
     ) -> Dinner {
-        let meal = item.mealID.flatMap { id in meals.first(where: { $0.id == id }) }
+        let meal = item.freezerBatch?.recipe ?? item.mealID.flatMap { id in meals.first(where: { $0.id == id }) }
         switch item.kind {
         case .away:
             return Dinner(day: day, date: date, title: L10n.string("No dinner at home"),
@@ -71,7 +71,7 @@ struct PlannedDinnerReader {
             return Dinner(day: day, date: date, title: L10n.string("Takeaway"),
                           emoji: "🥡", prepMinutes: nil, isCooking: false)
         case .leftovers:
-            let title = meal.map { L10n.string("Leftovers: %@", $0.name) } ?? L10n.string("Leftovers")
+            let title = meal.map { L10n.string(item.freezerBatch == nil ? "Leftovers: %@" : "From the freezer: %@", $0.name) } ?? L10n.string("Leftovers")
             return Dinner(day: day, date: date, title: title,
                           emoji: "♻️", prepMinutes: nil, isCooking: false)
         case .meal:

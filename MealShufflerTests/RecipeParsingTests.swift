@@ -80,12 +80,12 @@ final class RecipeParsingTests: XCTestCase {
     /// no structured recipe was found.
     func testMicrodataIsReadWhenThereIsNoJSONLD() throws {
         let html = """
-        <html><body>
+        <html><body><h2 itemprop="name">Publisher name</h2><article itemscope itemtype="https://schema.org/Recipe">
           <h1 itemprop="name">Fiskegrateng</h1>
           <li itemprop="recipeIngredient">600 g torskefilet</li>
           <li itemprop="recipeIngredient">4 dl melk</li>
           <div itemprop="recipeInstructions">Sett ovnen på 200 grader.</div>
-        </body></html>
+        </article></body></html>
         """
         let url = try XCTUnwrap(URL(string: "https://example.com/oppskrift"))
         let draft = try RecipeImportService.microdataDraft(html: html, url: url, heroImage: nil)

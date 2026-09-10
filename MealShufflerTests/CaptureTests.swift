@@ -96,7 +96,9 @@ final class CaptureTests: XCTestCase {
         XCTAssertEqual(draft.servings, 4)
         XCTAssertEqual(draft.instructions.count, 2)
         XCTAssertEqual(draft.heroImageURL?.absoluteString, "https://example.com/hero.jpg")
-        XCTAssertFalse(draft.needsReview, "High confidence should not demand review")
+        XCTAssertTrue(draft.needsReview, "Every extraction must be reviewable, even at high confidence")
+        XCTAssertEqual(draft.parsedIngredients?.last?.quantity, 0, "An unstated amount must not become one")
+        XCTAssertEqual(draft.parsedIngredients?.first?.aisle, .meatAndFish)
 
         // Tags come through, so an imported recipe is immediately visible to rules like
         // "fish on Tuesday" -- which local imports could never satisfy.

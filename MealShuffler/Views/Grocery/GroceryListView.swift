@@ -7,9 +7,15 @@ struct GroceryListView: View {
     @State private var showingAddItem = false
     @State private var showingAisleOrder = false
     @State private var showingStaples = false
+    @State private var showingPeriod = false
+    @State private var editingItem: ManualGroceryItem?
+    @State private var visibility = 0
+
+    private var remainingItems: [GroceryItem] { store.groceryItems.filter { !store.checkedGroceryIDs.contains($0.id) } }
+    private var visibleItems: [GroceryItem] { visibility == 1 ? store.groceryItems : visibility == 2 ? store.groceryItems.filter { store.checkedGroceryIDs.contains($0.id) } : remainingItems }
 
     private var shareText: String {
-        PlanTextExporter.groceryList(store.groceryItems, aisleOrder: store.aisleOrder)
+        PlanTextExporter.groceryList(remainingItems, aisleOrder: store.aisleOrder)
     }
 
     var body: some View {
@@ -33,10 +39,20 @@ struct GroceryListView: View {
                     exportMenu
                 }.padding(.top, 14)
 
-                if store.groceryItems.isEmpty { emptyState }
+                Button { showingPeriod = true } label: {
+                    Label("\(store.shoppingStart.formatted(date: .abbreviated, time: .omitted)) – \(store.shoppingEnd.formatted(date: .abbreviated, time: .omitted))", systemImage: "calendar")
+                }
+                Picker("Items to show", selection: $visibility) { Text("Remaining").tag(0); Text("All").tag(1); Text("Completed").tag(2) }.pickerStyle(.menu)
+                Text(L10n.string("Ingredients for %ld planned dinners", store.shoppingPlan.meals.filter { $0.kind == .meal && $0.mealID != nil }.count)).font(.caption)
+                if store.shoppingPlan.meals.contains(where: { item in item.kind == .meal && (item.mealID.flatMap { store.meal(id: $0) }?.ingredients.isEmpty ?? true) }) {
+                    Label("Some dinners have no ingredients saved. Check their recipes before shopping.", systemImage: "exclamationmark.triangle").foregroundStyle(AppTheme.warning)
+                }
+                if store.groceryItems.isEmpty && !store.stockedItems.isEmpty { Label("Everything is already at home", systemImage: "house.fill") }
+                else if store.groceryItems.isEmpty { emptyState }
+                else if remainingItems.isEmpty { Label("Shopping complete", systemImage: "checkmark.seal.fill").foregroundStyle(AppTheme.accent) }
 
                 ForEach(store.aisleOrder) { aisle in
-                    let items = store.groceryItems.filter { $0.aisle == aisle }
+                    let items = visibleItems.filter { $0.aisle == aisle }
                     if !items.isEmpty {
                         VStack(alignment: .leading, spacing: 0) {
                             Text(aisle.name.uppercased())
@@ -57,6 +73,12 @@ struct GroceryListView: View {
         .appBackground()
         .navigationTitle("Shop")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingPeriod) { ShoppingPeriodView().environmentObject(store) }
+        .sheet(item: $editingItem) { item in
+            AddGroceryItemView(existing: item) { name, quantity, unit, aisle in
+                store.updateGroceryItem(ManualGroceryItem(id: item.id, name: name, quantity: quantity, unit: unit, aisle: aisle))
+            }
+        }
         .sheet(isPresented: $showingAisleOrder) {
             AisleOrderView().environmentObject(store)
         }
@@ -67,7 +89,7 @@ struct GroceryListView: View {
             AddGroceryItemView { name, quantity, unit, aisle in
                 store.addGroceryItem(name: name, quantity: quantity, unit: unit, aisle: aisle)
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.medium, .large])
         }
         .alert("Export", isPresented: Binding(get: { exportMessage != nil }, set: { if !$0 { exportMessage = nil } })) {
             Button("OK", role: .cancel) {}
@@ -108,6 +130,12 @@ struct GroceryListView: View {
             .accessibilityLabel("\(item.name), \(item.quantityText)")
             .accessibilityAddTraits(isChecked ? [.isButton, .isSelected] : [.isButton])
 
+            if let manual = store.manualItem(matching: item) {
+                Menu {
+                    Button("Edit item") { editingItem = manual }
+                    Button("Remove", role: .destructive) { store.removeManualGroceryItems([manual.id]) }
+                } label: { Image(systemName: "ellipsis.circle").iconButtonFrame() }.accessibilityLabel(L10n.string("Edit item: %@", item.name))
+            }
             Button {
                 Haptics.check()
                 store.setStocked(item, stocked: true)
@@ -132,6 +160,7 @@ struct GroceryListView: View {
                 Label("Always have this", systemImage: "cabinet")
             }
             if let manual = store.manualItem(matching: item) {
+                Button { editingItem = manual } label: { Label("Edit item", systemImage: "pencil") }
                 Button(role: .destructive) {
                     store.removeManualGroceryItems([manual.id])
                 } label: { Label("Remove", systemImage: "trash") }
@@ -142,7 +171,7 @@ struct GroceryListView: View {
     /// Items set aside as already owned, kept visible so they can be put back.
     private var stockedSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Already at home".uppercased())
+            Text(L10n.string("Already at home").uppercased())
                 .font(.caption.weight(.bold)).tracking(0.8).foregroundStyle(AppTheme.muted)
                 .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 8)
             ForEach(store.stockedItems) { item in
@@ -185,7 +214,8 @@ struct GroceryListView: View {
 
     private var exportMenu: some View {
         Menu {
-            ShareLink(item: shareText) { Label("Share as text", systemImage: "square.and.arrow.up") }
+            ShareLink(item: shareText) { Label("Share remaining items", systemImage: "square.and.arrow.up") }
+            ShareLink(item: PlanTextExporter.groceryList(store.groceryItems, aisleOrder: store.aisleOrder)) { Label("Share all items", systemImage: "list.bullet") }
             Button { showingAisleOrder = true } label: {
                 Label("Reorder aisles", systemImage: "arrow.up.arrow.down")
             }
@@ -195,7 +225,7 @@ struct GroceryListView: View {
             Button {
                 Task { await exportToReminders() }
             } label: { Label("Apple Reminders", systemImage: "checklist") }
-            .disabled(isExporting || store.groceryItems.isEmpty)
+            .disabled(isExporting)
             if !bringDinners.isEmpty {
                 Menu {
                     ForEach(bringDinners) { dinner in
@@ -226,8 +256,8 @@ struct GroceryListView: View {
         isExporting = true
         defer { isExporting = false }
         do {
-            let count = try await RemindersExportService().export(store.groceryItems)
-            exportMessage = L10n.string("Added %ld items to the “Meal Shuffler” list in Reminders.", count)
+            let count = try await RemindersExportService().export(remainingItems, periodID: store.shoppingPeriodID)
+            exportMessage = L10n.string("Updated %ld items in the “Meal Shuffler” list in Reminders.", count)
         } catch { exportMessage = error.localizedDescription }
     }
 }
@@ -236,6 +266,15 @@ struct GroceryListView: View {
 private struct AddGroceryItemView: View {
     @Environment(\.dismiss) private var dismiss
     let add: (String, Double?, String, GroceryAisle) -> Void
+    let existing: ManualGroceryItem?
+
+    init(existing: ManualGroceryItem? = nil, add: @escaping (String, Double?, String, GroceryAisle) -> Void) {
+        self.existing = existing; self.add = add
+        _name = State(initialValue: existing?.name ?? "")
+        _amount = State(initialValue: existing?.quantity.map { String($0) } ?? "")
+        _unit = State(initialValue: existing?.unit ?? "")
+        _aisle = State(initialValue: existing?.aisle ?? .pantry)
+    }
 
     @State private var name = ""
     @State private var amount = ""
@@ -263,19 +302,43 @@ private struct AddGroceryItemView: View {
                     }
                 }
             }
-            .navigationTitle("Add an item")
+            .navigationTitle(existing == nil ? L10n.string("Add an item") : L10n.string("Edit item"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
+                    Button("Save") {
                         add(name, Double(amount.replacingOccurrences(of: ",", with: ".")), unit, aisle)
                         dismiss()
                     }
                     .fontWeight(.semibold)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || (!amount.isEmpty && !(Double(amount.replacingOccurrences(of: ",", with: ".")).map { $0.isFinite && $0 > 0 } ?? false)))
                 }
             }
         }
     }
+}
+
+private struct ShoppingPeriodView: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var start = Date.now
+    @State private var end = Date.now
+    var body: some View {
+        NavigationStack {
+            Form {
+                DatePicker("From", selection: $start, in: store.plan.startDate...lastDate, displayedComponents: .date)
+                DatePicker("Through", selection: $end, in: start...max(start, lastDate), displayedComponents: .date)
+                Text("Choose any dates across this week and next week. Each shopping period keeps its own progress.")
+            }
+            .navigationTitle("Shopping period")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Save") { store.setShoppingPeriod(from: start, through: max(start, end)); dismiss() } }
+            }
+            .onAppear { start = min(max(store.shoppingStart, store.plan.startDate), lastDate); end = min(max(store.shoppingEnd, start), lastDate) }
+            .onChange(of: start) { _, value in end = max(value, end) }
+        }
+    }
+    private var lastDate: Date { Calendar.current.date(byAdding: .day, value: 13, to: store.plan.startDate) ?? store.plan.startDate }
 }

@@ -2,19 +2,44 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var cloud = CloudHouseholdSync.shared
+    @State private var showingCloud = false
+    @State private var showingBackup = false
 
     var body: some View {
         Group {
             if store.hasCompletedOnboarding {
                 MainTabView()
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 OnboardingFlowView()
                     .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.35), value: store.hasCompletedOnboarding)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.35), value: store.hasCompletedOnboarding)
+        .disabled(store.isGenerating)
+        .overlay { if store.isGenerating { ProgressView("Planning dinners…").padding(24).background(.regularMaterial).clipShape(RoundedRectangle(cornerRadius: 16)) } }
+        .safeAreaInset(edge: .top) {
+            if cloud.hasInvitation || cloud.pendingRemote != nil {
+                Button("Review iCloud changes") { showingCloud = true }.frame(maxWidth: .infinity, minHeight: 44).background(AppTheme.accentSoft)
+            }
+        }
+        .sheet(isPresented: $showingCloud) {
+            NavigationStack { CloudSharingView().environmentObject(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingCloud = false } } } }
+        }
+        .sheet(isPresented: $showingBackup) { NavigationStack { DeviceBackupView().environmentObject(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingBackup = false } } } } }
         .onOpenURL(perform: store.handleIncomingURL)
+        .alert("Meal plan", isPresented: Binding(get: { store.actionNotice != nil }, set: { if !$0 { store.actionNotice = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(store.actionNotice ?? "") }
+        .alert("Storage needs attention", isPresented: Binding(
+            get: { store.persistenceError != nil }, set: { if !$0 { store.persistenceError = nil } }
+        )) {
+            Button("Try again") { store.flushPendingWrites() }
+            Button("Full backups") { showingBackup = true }
+            Button("OK", role: .cancel) {}
+        } message: { Text(store.persistenceError ?? "") }
         .alert("Family invitation", isPresented: Binding(
             get: { store.inviteNotice != nil },
             set: { if !$0 { store.inviteNotice = nil } }

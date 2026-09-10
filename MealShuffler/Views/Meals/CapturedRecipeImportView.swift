@@ -14,6 +14,7 @@ struct CapturedRecipeImportView: View {
 
     @State private var errorMessage: String?
     @State private var isWorking = true
+    @State private var attempt = 0
 
     var body: some View {
         NavigationStack {
@@ -35,7 +36,7 @@ struct CapturedRecipeImportView: View {
                     Text(errorMessage)
                         .font(.subheadline).foregroundStyle(AppTheme.muted)
                         .multilineTextAlignment(.center)
-                    Button("Try again") { Task { await run() } }
+                    Button("Try again") { attempt += 1 }
                         .buttonStyle(.borderedProminent)
                         .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
                         .padding(.top, 4)
@@ -53,7 +54,7 @@ struct CapturedRecipeImportView: View {
                 }
             }
         }
-        .task { await run() }
+        .task(id: attempt) { await run() }
     }
 
     private func run() async {
@@ -61,9 +62,11 @@ struct CapturedRecipeImportView: View {
         errorMessage = nil
         do {
             let draft = try await RecipeCapture.extract(capture)
+            try Task.checkCancellation()
             isWorking = false
             finished(draft)
-        } catch {
+        } catch is CancellationError { }
+        catch {
             isWorking = false
             errorMessage = error.localizedDescription
         }

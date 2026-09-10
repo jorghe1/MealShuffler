@@ -11,6 +11,7 @@ struct ReminderSchedule: Sendable, Equatable {
     var meals: [Meal]
     var dinnerEnabled: Bool
     var dinnerHour: Int
+    var targetDinnerHour: Int = 18
     /// A second, earlier nudge timed off the recipe's own prep time.
     var prepLeadEnabled: Bool
     var groceryEnabled: Bool
@@ -32,8 +33,8 @@ struct ReminderSchedule: Sendable, Equatable {
 
 /// Something the household tapped on a dinner reminder.
 enum DinnerReminderAction: Equatable, Sendable {
-    case cooked(mealID: UUID, day: Weekday)
-    case somethingElse(mealID: UUID, day: Weekday)
+    case cooked(mealID: UUID, day: Weekday, date: Date? = nil)
+    case somethingElse(mealID: UUID, day: Weekday, date: Date? = nil)
 }
 
 /// What the store asks of the notification layer.
@@ -212,7 +213,7 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
                 content.body = body
                 content.sound = .default
                 content.categoryIdentifier = Self.categoryIdentifier
-                content.userInfo = Self.userInfo(for: item)
+                content.userInfo = Self.userInfo(for: item, date: dayDate)
                 await add(
                     identifier: Self.dinnerPrefix + stamp,
                     content: content,
@@ -221,12 +222,13 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
                 )
             }
 
-            guard schedule.prepLeadEnabled,
+            guard let targetDate = calendar.date(bySettingHour: schedule.targetDinnerHour, minute: 0, second: 0, of: dayDate),
+                  schedule.prepLeadEnabled,
                   let meal = meal(for: item, meals: schedule.meals),
                   item.kind == .meal,
                   meal.prepMinutes > 0,
                   let startDate = calendar.date(
-                      byAdding: .minute, value: -meal.prepMinutes, to: dinnerDate
+                      byAdding: .minute, value: -meal.prepMinutes, to: targetDate
                   ),
                   startDate > now
             else { continue }
@@ -237,11 +239,11 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
                 "%@ takes about %ld min, so dinner lands at %@.",
                 meal.name,
                 meal.prepMinutes,
-                dinnerDate.formatted(date: .omitted, time: .shortened)
+                targetDate.formatted(date: .omitted, time: .shortened)
             )
             content.sound = .default
             content.categoryIdentifier = Self.categoryIdentifier
-            content.userInfo = Self.userInfo(for: item)
+            content.userInfo = Self.userInfo(for: item, date: dayDate)
             await add(
                 identifier: Self.prepPrefix + stamp,
                 content: content,
@@ -355,8 +357,8 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
         }
     }
 
-    private static func userInfo(for item: PlannedMeal) -> [String: Any] {
-        var info: [String: Any] = [dayKey: item.day.rawValue]
+    private static func userInfo(for item: PlannedMeal, date: Date) -> [String: Any] {
+        var info: [String: Any] = [dayKey: item.day.rawValue, "plannedDate": date.timeIntervalSince1970]
         if let mealID = item.mealID { info[mealKey] = mealID.uuidString }
         return info
     }
@@ -373,9 +375,10 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
               let mealID = UUID(uuidString: rawMeal)
         else { return nil }
 
+        let date = (userInfo["plannedDate"] as? TimeInterval).map(Date.init(timeIntervalSince1970:))
         switch identifier {
-        case cookedActionIdentifier: return .cooked(mealID: mealID, day: day)
-        case somethingElseActionIdentifier: return .somethingElse(mealID: mealID, day: day)
+        case cookedActionIdentifier: return .cooked(mealID: mealID, day: day, date: date)
+        case somethingElseActionIdentifier: return .somethingElse(mealID: mealID, day: day, date: date)
         default: return nil
         }
     }

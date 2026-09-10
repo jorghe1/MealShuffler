@@ -1,3 +1,8 @@
+> Status 2026-09-09: The follow-up implementation now includes multi-page import, source drafts,
+> recipe versions/variants, library backup/restore, attendance, recurring weeks and safer rule
+> enforcement. See [the implementation status](IMPLEMENTATION_STATUS_2026-09-09.md) for precise
+> coverage, validation and remaining work. The service is still unconfigured in the app.
+
 # Left out on purpose
 
 Six things the app has been built up to and stopped short of. None of them is unfinished work
@@ -147,42 +152,21 @@ clearest way to make the rest of the app look like a prototype.
 
 ## 5. Household sync
 
-**What it does.** Two phones, one plan. One parent reshuffles Thursday, the other's shopping
-list updates. This is the feature that turns the app from a personal tool into a household one,
-and it is the most-requested thing in every app of this kind.
+The September 10 implementation uses **Apple iCloud sharing**, selected by the user.
+`CloudHouseholdSync` shares household snapshots and source-photo assets through a private
+CloudKit zone and standard `CKShare` invitations. Local persistence remains available offline.
+The old local invitation-code feature remains disabled.
 
-**Why it is not half-built.** It is a backend product, not a screen. Building a fake version
-teaches you nothing and has to be thrown away. What has been done instead is to make the data
-model survivable, which genuinely cannot be retrofitted:
+Concurrent changes use a saved baseline and CloudKit server change tags. Both-sided edits
+require an explicit version choice, with recovery packages preserving the losing data. This
+is a whole-household conflict policy; automatic per-field merging remains a possible later
+improvement. Sync currently runs while the app is active, not through background pushes.
 
-- Every entity carries `updatedAt` and `updatedBy` (`DeviceIdentity.current`).
-- Deleted custom meals are kept as tombstones rather than removed, because a hard delete is
-  indistinguishable from "never existed here" once two devices compare libraries — which is how
-  deleted meals come back from the dead.
-- `AppStateSnapshot` has a `schemaVersion` and decodes every field leniently.
-- `Household` and the invite code exist locally, behind `FeatureFlags.householdSyncEnabled`.
-- State lives in one file in the App Group container, written through one funnel in `AppStore`.
+Source implementation is present. Apple container provisioning, a signed build, two-account
+acceptance and production schema validation remain release requirements. See
+[ICLOUD_SHARING.md](ICLOUD_SHARING.md) and the current
+[implementation status](IMPLEMENTATION_STATUS_2026-09-10.md).
 
-**Steps.**
-
-1. **Decide the conflict model before writing any code.** Last-write-wins per field is enough
-   for everything here except the plan itself, where two people shuffling at once should not
-   silently discard one of them. `updatedAt`/`updatedBy` are already stamped for this.
-2. **Sign in with Apple** — the same prerequisite as community, and the reason to do these
-   together.
-3. **A sync endpoint**, most cheaply as another Worker over Durable Objects or D1, keyed by
-   household. Push the snapshot, pull changes, reconcile per entity rather than per blob.
-4. **Wire it behind `AppStateRepository`.** The protocol is the seam; a syncing repository
-   wraps the file one rather than replacing it, so offline stays the normal case.
-5. **The invitation actually invites.** The code and the share sheet exist; today following one
-   opens an alert.
-6. **Then** flip `householdSyncEnabled`.
-
-**How you know it worked.** Two simulators, one household. Shuffle on one, background it, and
-the other's week and shopping list agree — including after one of them has been offline for a
-day.
-
----
 
 ## 6. Before real users
 

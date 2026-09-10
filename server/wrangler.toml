@@ -24,3 +24,14 @@ simple = { limit = 40, period = 60 }
 
 # Set with: wrangler secret put ANTHROPIC_API_KEY
 # Never commit the key; the whole point of the proxy is keeping it out of the IPA.
+
+[vars]
+DAILY_MODEL_CALL_LIMIT = "200"
+
+[[durable_objects.bindings]]
+name = "MODEL_BUDGET"
+class_name = "ModelBudget"
+
+[[migrations]]
+tag = "v1-model-budget"
+new_sqlite_classes = ["ModelBudget"]

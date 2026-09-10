@@ -3,6 +3,8 @@ import SwiftUI
 struct WeekPlanView: View {
     @EnvironmentObject private var store: AppStore
     @State private var selectedMeal: Meal?
+    @State private var selectedServings: Double = 4
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var editingDay: Weekday?
     @State private var pickingDay: Weekday?
     @State private var cooking: CookingSession?
@@ -12,7 +14,8 @@ struct WeekPlanView: View {
     private struct CookingSession: Identifiable {
         let meal: Meal
         let day: Weekday
-        let servings: Int
+        let servings: Double
+        let date: Date
         var id: String { "\(day.rawValue)-\(meal.id.uuidString)" }
     }
 
@@ -22,7 +25,8 @@ struct WeekPlanView: View {
             LazyVStack(spacing: 14) {
                 plannerHeader
                 weekStrip(scroll: scroll)
-                if !store.blockingConflicts.isEmpty { conflictBanner }
+                todayCard
+                if !store.blockingConflicts.isEmpty { PlanConflictView(conflicts: store.blockingConflicts) }
                 if !store.planNotes.isEmpty { notesRow }
 
                 ForEach(Weekday.ordered()) { day in
@@ -31,16 +35,18 @@ struct WeekPlanView: View {
                             day: day,
                             date: store.plan.date(for: day),
                             item: item,
-                            meal: item.mealID.flatMap { store.meal(id: $0) },
+                            meal: item.freezerBatch?.recipe ?? item.mealID.flatMap { store.meal(id: $0) },
                             explanation: store.explanation(for: day),
+                            isCompleted: store.isCompleted(on: day),
+                            clearCompletion: { store.clearCompletion(on: day) },
                             isFavorite: item.mealID.map { store.favoriteMealIDs.contains($0) } ?? false,
-                            open: { if let id = item.mealID { selectedMeal = store.meal(id: id) } },
+                            open: { if let id = item.mealID { selectedServings = item.effectiveServings; selectedMeal = store.meal(id: id) } },
                             chooseMeal: { pickingDay = day },
                             editContext: { editingDay = day },
                             toggleLock: { store.toggleLock(day: day) },
                             shuffle: { intent in
                                 Haptics.shuffle()
-                                withAnimation(.snappy) { store.shuffle(day: day, intent: intent) }
+                                withAnimation(reduceMotion ? nil : .snappy) { store.shuffle(day: day, intent: intent) }
                             },
                             snooze: {
                                 if let id = item.mealID, let meal = store.meal(id: id) { store.snooze(meal, on: day) }
@@ -56,7 +62,7 @@ struct WeekPlanView: View {
                             },
                             cook: {
                                 if let id = item.mealID, let meal = store.meal(id: id) {
-                                    cooking = CookingSession(meal: meal, day: day, servings: item.servings)
+                                    cooking = CookingSession(meal: meal, day: day, servings: item.effectiveServings, date: store.plan.date(for: day))
                                 }
                             },
                             swapWith: { otherDay in store.swapMeals(between: day, and: otherDay) }
@@ -65,17 +71,24 @@ struct WeekPlanView: View {
                         // Each card arrives on its own rather than the list redrawing as a
                         // block, so the signature interaction reads as a change.
                         .transition(.asymmetric(
-                            insertion: .scale(scale: 0.96).combined(with: .opacity),
+                            insertion: reduceMotion ? .opacity : .scale(scale: 0.96).combined(with: .opacity),
                             removal: .opacity
                         ))
+                    } else {
+                        VStack(alignment: .leading) {
+                            Text(day.name).font(.headline)
+                            Text("Not planned")
+                            Button("Choose a meal") { pickingDay = day }
+                            Button("Plan this day") { editingDay = day }
+                        }.padding().frame(maxWidth: .infinity, alignment: .leading).mealCard().id(day)
                     }
                 }
 
                 Button {
                     Haptics.shuffle()
-                    withAnimation(.snappy) { store.shuffleAll() }
+                    Task { await store.generateInBackground() }
                 } label: {
-                    Label("Shuffle the rest", systemImage: "shuffle")
+                    Label(L10n.string("Shuffle %ld remaining dinners", store.remainingDinnerCount), systemImage: "shuffle")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                 }
                 .buttonStyle(.borderedProminent)
@@ -101,10 +114,10 @@ struct WeekPlanView: View {
             }
         }
         .sheet(item: $selectedMeal) { meal in
-            MealDetailView(meal: meal).presentationDetents([.medium, .large])
+            MealDetailView(meal: meal, initialServings: selectedServings).presentationDetents([.medium, .large])
         }
         .fullScreenCover(item: $cooking) { session in
-            CookModeView(meal: session.meal, day: session.day, servings: session.servings)
+            CookModeView(meal: session.meal, day: session.day, servings: session.servings, plannedDate: session.date)
                 .environmentObject(store)
         }
         .sheet(item: $pickingDay) { day in
@@ -117,6 +130,26 @@ struct WeekPlanView: View {
                 governingRule: store.dinnerModeRule(for: day)?.summary(meals: store.meals, context: store.matchContext)
             ) { store.updateContext($0, for: day) }
             .presentationDetents([.medium, .large])
+        }
+    }
+
+    @ViewBuilder private var todayCard: some View {
+        if let day = Weekday.ordered().first(where: { Calendar.current.isDateInToday(store.plan.date(for: $0)) }),
+           let item = store.plan[day], item.kind == .meal,
+           let meal = item.mealID.flatMap({ store.meal(id: $0) }) {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Tonight", systemImage: "sun.horizon").font(.headline)
+                Text(meal.name).font(.title2.bold())
+                Text(L10n.portions(item.effectiveServings)).foregroundStyle(AppTheme.muted)
+                Button("Open recipe") { selectedServings = item.effectiveServings; selectedMeal = meal }
+                if store.isCompleted(on: day) {
+                    Label("Cooked", systemImage: "checkmark.seal.fill").foregroundStyle(AppTheme.accent)
+                } else {
+                    Button { cooking = CookingSession(meal: meal, day: day, servings: item.effectiveServings, date: store.plan.date(for: day)) } label: {
+                        Label("Start cooking", systemImage: "flame").frame(maxWidth: .infinity).padding(.vertical, 8)
+                    }.buttonStyle(.borderedProminent)
+                }
+            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).mealCard()
         }
     }
 
@@ -146,14 +179,15 @@ struct WeekPlanView: View {
     private var shuffleButton: some View {
         Button {
             Haptics.shuffle()
-            withAnimation(.snappy) { store.shuffleAll() }
+            Task { await store.generateInBackground() }
         } label: {
             Image(systemName: "shuffle").font(.title2.bold())
                 .frame(width: AppTheme.primaryAction, height: AppTheme.primaryAction)
                 .background(AppTheme.accent).foregroundStyle(AppTheme.onAccent).clipShape(Circle())
                 .shadow(color: AppTheme.accent.opacity(0.25), radius: 10, y: 5)
         }
-        .accessibilityLabel("Shuffle week")
+        .disabled(store.remainingDinnerCount == 0)
+        .accessibilityLabel(L10n.string("Shuffle %ld remaining dinners", store.remainingDinnerCount))
     }
 
     /// Sits next to shuffle because that is what usually creates the need for it. Shuffle
@@ -161,7 +195,7 @@ struct WeekPlanView: View {
     private var undoButton: some View {
         Button {
             Haptics.check()
-            withAnimation(.snappy) { store.undoLastChange() }
+            withAnimation(reduceMotion ? nil : .snappy) { store.undoLastChange() }
         } label: {
             Image(systemName: "arrow.uturn.backward").font(.body.bold())
                 .frame(width: AppTheme.tapTarget, height: AppTheme.tapTarget)
@@ -235,7 +269,7 @@ struct WeekPlanView: View {
                 ForEach(Weekday.ordered()) { day in
                     let item = store.plan[day]
                     Button {
-                        withAnimation(.snappy) { scroll.scrollTo(day, anchor: .top) }
+                        withAnimation(reduceMotion ? nil : .snappy) { scroll.scrollTo(day, anchor: .top) }
                     } label: {
                         VStack(spacing: 3) {
                             Text(day.shortName.uppercased())
@@ -290,35 +324,14 @@ struct WeekPlanView: View {
 
     private func glanceLabel(day: Weekday, item: PlannedMeal?) -> String {
         let meal = item?.mealID.flatMap { store.meal(id: $0) }
-        return "\(day.name), \(meal?.name ?? L10n.string("Not planned"))"
-    }
-
-    private var conflictBanner: some View {
-        DisclosureGroup {
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(store.blockingConflicts) { conflict in
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(conflict.message).font(.caption)
-                        if let suggestion = conflict.suggestion { Text(suggestion).font(.caption2).foregroundStyle(AppTheme.muted) }
-                        if let ruleID = conflict.ruleID {
-                            Button("Make rule preferred") { store.setRuleStrength(.preferred, ruleID: ruleID) }
-                                .font(.caption.weight(.semibold))
-                        }
-                    }
-                }
-            }.padding(.top, 8)
-        } label: {
-            Label(
-                store.blockingConflicts.count == 1
-                    ? L10n.string("%ld rule conflict", store.blockingConflicts.count)
-                    : L10n.string("%ld rule conflicts", store.blockingConflicts.count),
-                systemImage: "exclamationmark.triangle.fill"
-            )
-                .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.warning)
+        let label: String
+        switch item?.kind {
+        case .away: label = L10n.string("No dinner at home")
+        case .takeaway: label = L10n.string("Takeaway")
+        case .leftovers: label = L10n.string("Leftovers")
+        default: label = meal?.name ?? L10n.string("Not planned")
         }
-        .padding(14)
-        .background(AppTheme.warning.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
+        return "\(day.name), \(label)"
     }
 
     /// Nothing is broken here, so this deliberately avoids the warning styling the
@@ -344,12 +357,14 @@ struct WeekPlanView: View {
     }
 }
 
-private struct DayPlanCard: View {
+struct DayPlanCard: View {
     let day: Weekday
     let date: Date
     let item: PlannedMeal
     let meal: Meal?
     let explanation: String?
+    let isCompleted: Bool
+    let clearCompletion: () -> Void
     let isFavorite: Bool
     let open: () -> Void
     let chooseMeal: () -> Void
@@ -362,6 +377,7 @@ private struct DayPlanCard: View {
     let markSkipped: () -> Void
     let cook: () -> Void
     let swapWith: (Weekday) -> Void
+    var allowsCooking = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -369,7 +385,8 @@ private struct DayPlanCard: View {
                 MealThumbnail(meal: isCooking ? meal : nil, fallbackEmoji: cardEmoji)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dayLabel).font(.caption2.bold()).tracking(0.8).foregroundStyle(AppTheme.accent)
-                    Text(cardTitle).font(.headline).foregroundStyle(AppTheme.ink).lineLimit(1)
+                    Text(cardTitle).font(.headline).foregroundStyle(AppTheme.ink).fixedSize(horizontal: false, vertical: true)
+                    if isCompleted { Label("Cooked", systemImage: "checkmark.seal.fill").font(.caption).foregroundStyle(AppTheme.accent) }
                     Text(cardMetadata).font(.caption).foregroundStyle(AppTheme.muted)
                 }
                 Spacer(minLength: 4)
@@ -377,10 +394,11 @@ private struct DayPlanCard: View {
             .padding(.horizontal, 12)
             .padding(.top, 12)
             .contentShape(Rectangle())
-            .onTapGesture(perform: open)
+            .onTapGesture { if meal != nil { open() } else { editContext() } }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(dayLabel), \(cardTitle), \(cardMetadata)")
-            .accessibilityHint(L10n.string("Opens the recipe"))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint(meal == nil ? L10n.string("Plan this day") : L10n.string("Opens the recipe"))
 
             if let explanation {
                 HStack(alignment: .top, spacing: 7) {
@@ -398,6 +416,7 @@ private struct DayPlanCard: View {
                     Label("Choose", systemImage: "hand.tap")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 10).padding(.vertical, 7)
+                        .frame(minHeight: 44)
                         .background(AppTheme.accentSoft)
                         .foregroundStyle(AppTheme.accent)
                         .clipShape(Capsule())
@@ -438,16 +457,19 @@ private struct DayPlanCard: View {
             }
             if meal != nil {
                 Section {
-                    Button(action: cook) { Label("Start cooking", systemImage: "flame") }
-                    Button(action: markCooked) { Label("We cooked this", systemImage: "checkmark.seal") }
+                  if allowsCooking {
+                    if item.kind == .meal { Button(action: cook) { Label("Start cooking", systemImage: "flame") } }
+                    if isCompleted { Button("Undo cooking completion", action: clearCompletion) }
+                    else { Button(action: markCooked) { Label(item.kind == .meal ? L10n.string("We cooked this") : L10n.string("We ate this"), systemImage: "checkmark.seal") } }
                     Button(action: markSkipped) { Label("Not for today", systemImage: "forward") }
+                  }
                     Button(action: toggleFavorite) {
                         Label(
                             isFavorite ? L10n.string("Remove family favorite") : L10n.string("Family favorite"),
                             systemImage: isFavorite ? "heart.slash" : "heart"
                         )
                     }
-                    Button(role: .destructive, action: snooze) { Label("Not again for a while", systemImage: "calendar.badge.minus") }
+                    if allowsCooking { Button(role: .destructive, action: snooze) { Label("Not again for a while", systemImage: "calendar.badge.minus") } }
                 }
             }
             Button(action: editContext) { Label("Plan this day", systemImage: "person.2") }
@@ -478,6 +500,7 @@ private struct DayPlanCard: View {
     }
 
     private var cardTitle: String {
+        if let batch = item.freezerBatch { return L10n.string("From the freezer: %@", batch.recipe.name) }
         if case .leftovers = item.kind {
             return meal.map { L10n.string("Leftovers: %@", $0.name) } ?? L10n.string("Leftovers")
         }
@@ -490,14 +513,15 @@ private struct DayPlanCard: View {
     }
 
     private var cardMetadata: String {
-        if let meal, isCooking { return L10n.string("%ld min · %ld servings", meal.prepMinutes, item.servings) }
+        if let meal, isCooking { return [meal.prepMinutes > 0 ? L10n.string("%ld min", meal.prepMinutes) : L10n.string("Time not specified"), L10n.portions(item.effectiveServings)].joined(separator: " · ") }
         return item.kind == .away
             ? L10n.string("Day off")
             : L10n.string("%ld people", item.servings)
     }
 }
 
-private struct DayContextEditor: View {
+struct DayContextEditor: View {
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     let day: Weekday
     /// Set when a rule already decides this day's plan, so the picker can say why it will
@@ -525,14 +549,46 @@ private struct DayContextEditor: View {
                     Picker("Plan", selection: $context.mode) {
                         ForEach(DayDinnerMode.allCases) { Label($0.name, systemImage: symbol($0)).tag($0) }
                     }
-                    .disabled(governingRule != nil)
+                    .disabled(governingRule != nil && context.overridesDinnerMode != true)
+                    if governingRule != nil {
+                        Toggle("Make an exception this week", isOn: Binding(
+                            get: { context.overridesDinnerMode == true }, set: { context.overridesDinnerMode = $0 }
+                        ))
+                    }
+                    if context.mode != .away {
                     Stepper(L10n.string("%ld people eating", context.diners), value: $context.diners, in: 1...20)
+                    Picker("Portion size", selection: Binding(get: { context.portionScale ?? 1 }, set: { context.portionScale = $0 })) {
+                        Text("Half portions").tag(0.5)
+                        Text("Three-quarter portions").tag(0.75)
+                        Text("Standard portions").tag(1.0)
+                        Text("Large portions").tag(1.5)
+                    }
+                    if context.mode == .cook {
+                        LabeledContent("Total to cook", value: L10n.portions(Double(context.cookedServings) * (context.portionScale ?? 1)))
+                    } else { LabeledContent("Portions needed", value: L10n.portions(context.effectiveDiners)) }
+                    }
                 } header: {
                     Text(L10n.string("What's happening on %@?", day.name.lowercased()))
                 } footer: {
                     if let governingRule {
                         Text(L10n.string("The rule “%@” already decides this. Change it under Rules.", governingRule))
                     }
+                }
+                if context.mode != .away {
+                Section("Who is eating?") {
+                    ForEach(store.household.members) { member in
+                        Toggle(member.displayName, isOn: Binding(
+                            get: { context.attendingMemberIDs?.contains(member.id) ?? true },
+                            set: { attending in
+                                var ids = context.attendingMemberIDs ?? Set(store.household.members.map(\.id))
+                                if attending { ids.insert(member.id) } else { ids.remove(member.id) }
+                                context.attendingMemberIDs = ids
+                                context.diners = max(1, ids.count)
+                            }
+                        ))
+                    }
+                    Text("Attendance updates the number eating and personal dislikes. Adjust it for guests and choose a portion size for appetites.").font(.caption)
+                }
                 }
                 if context.mode == .cook {
                     Section("Cooking") {
@@ -553,9 +609,15 @@ private struct DayContextEditor: View {
                 }
                 if context.mode == .leftovers {
                     Section("Leftovers from") {
+                        Picker("Freezer batch", selection: $context.freezerBatchID) {
+                            Text("Use an earlier dinner").tag(nil as UUID?)
+                            ForEach(store.householdTools.freezer) { batch in Text(batch.recipe.name + " · " + L10n.portions(batch.portions)).tag(batch.id as UUID?) }
+                        }
+                        if context.freezerBatchID == nil {
                         Picker("Earlier day", selection: $context.leftoverSourceDay) {
                             Text("Choose automatically").tag(nil as Weekday?)
                             ForEach(daysBefore) { Text($0.name).tag($0 as Weekday?) }
+                        }
                         }
                     }
                 }
@@ -566,7 +628,8 @@ private struct DayContextEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        if !hasTimeLimit { context.maximumPrepMinutes = nil }
+                        if context.mode != .leftovers { context.freezerBatchID = nil }
+                        context.maximumPrepMinutes = hasTimeLimit ? (context.maximumPrepMinutes ?? 30) : nil
                         save(context); dismiss()
                     }.fontWeight(.semibold)
                 }
@@ -587,6 +650,12 @@ private struct DayContextEditor: View {
 struct MealDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let meal: Meal
+    @State private var servings: Double
+
+    init(meal: Meal, initialServings: Double? = nil) {
+        self.meal = meal
+        _servings = State(initialValue: initialServings ?? Double(meal.defaultServings))
+    }
 
     var body: some View {
         NavigationStack {
@@ -604,11 +673,12 @@ struct MealDetailView: View {
                     }
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Ingredients").font(.title3.bold())
+                        Stepper(L10n.portions(servings), value: $servings, in: 0.5...40, step: 0.5)
                         ForEach(meal.ingredients) { ingredient in
                             HStack {
                                 Text(ingredient.name)
                                 Spacer()
-                                Text(IngredientUnits.display(quantity: ingredient.quantity, unit: ingredient.unit))
+                                Text(ingredient.amountText(scale: Double(servings) / Double(max(meal.defaultServings, 1))))
                                     .foregroundStyle(AppTheme.muted)
                             }
                             Divider()

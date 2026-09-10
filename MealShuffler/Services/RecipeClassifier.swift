@@ -37,12 +37,10 @@ enum RecipeClassifier {
             found.insert(entry.tag)
         }
 
-        // Vegetarian is the absence of something rather than the presence of a word, so it is
-        // only claimed when nothing animal was recognised at all.
-        if found.isDisjoint(with: animalWords), !found.isEmpty || !ingredients.isEmpty {
-            if !haystack.contains(fold("egg")) || found.isEmpty {
-                found.insert(.vegetarian)
-            }
+        // Require an explicit label. Missing animal keywords alone cannot establish that
+        // an incomplete recipe is vegetarian.
+        if found.isDisjoint(with: animalWords), ["vegetarian", "vegetar", "vegan"].contains(where: haystack.contains) {
+            found.insert(.vegetarian)
         }
 
         if let prepMinutes, prepMinutes <= 25 { found.insert(.quick) }

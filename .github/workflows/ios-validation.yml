@@ -1,0 +1,41 @@
+name: iOS validation
+
+# Explicitly dispatched: the default checks remain inexpensive Linux jobs.
+on:
+  workflow_dispatch:
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Select an available iPhone simulator
+        run: |
+          xcrun simctl list devices available --json > /tmp/meal-shuffler-devices.json
+          python3 - <<'PY'
+          import json, os
+          with open('/tmp/meal-shuffler-devices.json') as handle:
+              runtimes = json.load(handle)['devices']
+          devices = [device for runtime, entries in runtimes.items() if 'iOS' in runtime
+                     for device in entries if device['isAvailable'] and 'iPhone' in device['name']]
+          if not devices:
+              raise SystemExit('No available iPhone simulator')
+          with open(os.environ['GITHUB_ENV'], 'a') as handle:
+              handle.write('IOS_SIMULATOR_ID=' + devices[0]['udid'] + '\n')
+          PY
+      - name: Build app and embedded extensions, then run XCTest
+        run: >-
+          xcodebuild test -project MealShuffler.xcodeproj -scheme MealShuffler
+          -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID"
+          -resultBundlePath iOS-validation.xcresult CODE_SIGNING_ALLOWED=NO
+      - name: Preserve the build and test result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-validation
+          path: iOS-validation.xcresult

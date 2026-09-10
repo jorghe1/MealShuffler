@@ -28,7 +28,7 @@ enum SampleMeals {
                 .init(name: L10n.string("Potatoes"), quantity: 800, unit: "g", aisle: .produce),
                 .init(name: L10n.string("Broccoli"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Lemon"), quantity: 1, unit: "pcs", aisle: .produce),
-                .init(name: L10n.string("Olive oil"), quantity: 1, unit: "bottle", aisle: .pantry)
+                .init(name: L10n.string("Olive oil"), quantity: 30, unit: "ml", aisle: .pantry)
             ],
             instructions: [
                 L10n.string("Heat the oven to 200°C."),
@@ -49,7 +49,7 @@ enum SampleMeals {
                 .init(name: L10n.string("Cod fillet"), quantity: 600, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Tortilla wraps"), quantity: 8, unit: "pcs", aisle: .bread),
                 .init(name: L10n.string("Red cabbage"), quantity: 0.5, unit: "pcs", aisle: .produce),
-                .init(name: L10n.string("Sour cream"), quantity: 1, unit: "tub", aisle: .dairy),
+                .init(name: L10n.string("Sour cream"), quantity: 200, unit: "g", aisle: .dairy),
                 .init(name: L10n.string("Lime"), quantity: 2, unit: "pcs", aisle: .produce)
             ],
             instructions: [
@@ -70,8 +70,8 @@ enum SampleMeals {
             ingredients: [
                 .init(name: L10n.string("Chicken breast"), quantity: 600, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Egg noodles"), quantity: 300, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Stir-fry vegetables"), quantity: 1, unit: "bag", aisle: .frozen),
-                .init(name: L10n.string("Soy sauce"), quantity: 1, unit: "bottle", aisle: .pantry),
+                .init(name: L10n.string("Stir-fry vegetables"), quantity: 500, unit: "g", aisle: .frozen),
+                .init(name: L10n.string("Soy sauce"), quantity: 45, unit: "ml", aisle: .pantry),
                 .init(name: L10n.string("Ginger"), quantity: 1, unit: "pcs", aisle: .produce)
             ],
             instructions: [
@@ -112,9 +112,9 @@ enum SampleMeals {
             tags: [.pizza, .vegetarian, .weekend],
             ingredients: [
                 .init(name: L10n.string("Pizza dough"), quantity: 2, unit: "pcs", aisle: .bread),
-                .init(name: L10n.string("Pizza sauce"), quantity: 1, unit: "jar", aisle: .pantry),
+                .init(name: L10n.string("Pizza sauce"), quantity: 200, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Mozzarella"), quantity: 300, unit: "g", aisle: .dairy),
-                .init(name: L10n.string("Basil"), quantity: 1, unit: "pot", aisle: .produce)
+                .init(name: L10n.string("Basil"), quantity: 20, unit: "g", aisle: .produce)
             ],
             instructions: [
                 L10n.string("Heat the oven as hot as it goes, with a tray inside."),
@@ -134,8 +134,8 @@ enum SampleMeals {
             ingredients: [
                 .init(name: L10n.string("Minced beef"), quantity: 500, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Tortilla wraps"), quantity: 8, unit: "pcs", aisle: .bread),
-                .init(name: L10n.string("Taco seasoning"), quantity: 1, unit: "bag", aisle: .pantry),
-                .init(name: L10n.string("Corn"), quantity: 1, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Taco seasoning"), quantity: 28, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Corn"), quantity: 165, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Tomatoes"), quantity: 4, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Grated cheese"), quantity: 200, unit: "g", aisle: .dairy)
             ],
@@ -155,11 +155,11 @@ enum SampleMeals {
             tags: [.vegetarian],
             ingredients: [
                 .init(name: L10n.string("Red lentils"), quantity: 300, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Coconut milk"), quantity: 2, unit: "can", aisle: .pantry),
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Coconut milk"), quantity: 800, unit: "ml", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Curry powder"), quantity: 1, unit: "bag", aisle: .pantry)
+                .init(name: L10n.string("Curry powder"), quantity: 2, unit: "tsp", aisle: .pantry)
             ],
             instructions: [
                 L10n.string("Put the rice on to boil."),
@@ -177,7 +177,7 @@ enum SampleMeals {
             prepMinutes: 20,
             tags: [.vegetarian, .soup, .quick],
             ingredients: [
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 3, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 1200, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Eggs"), quantity: 4, unit: "pcs", aisle: .dairy),
                 .init(name: L10n.string("Cooking cream"), quantity: 2, unit: "dl", aisle: .dairy),
                 .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce),
@@ -201,7 +201,7 @@ enum SampleMeals {
             ingredients: [
                 .init(name: L10n.string("Minced beef"), quantity: 500, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Spaghetti"), quantity: 400, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Carrots"), quantity: 2, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Garlic"), quantity: 1, unit: "pcs", aisle: .produce)
@@ -247,7 +247,7 @@ enum SampleMeals {
                 .init(name: L10n.string("Pita bread"), quantity: 6, unit: "pcs", aisle: .bread),
                 .init(name: L10n.string("Romaine lettuce"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Cucumber"), quantity: 1, unit: "pcs", aisle: .produce),
-                .init(name: L10n.string("Plain yogurt"), quantity: 1, unit: "tub", aisle: .dairy)
+                .init(name: L10n.string("Plain yogurt"), quantity: 200, unit: "g", aisle: .dairy)
             ],
             instructions: [
                 L10n.string("Cut the chicken into strips and season."),
@@ -309,8 +309,8 @@ enum SampleMeals {
             ingredients: [
                 .init(name: L10n.string("Meatballs"), quantity: 600, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Potatoes"), quantity: 900, unit: "g", aisle: .produce),
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
-                .init(name: L10n.string("Green peas"), quantity: 1, unit: "bag", aisle: .frozen),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Green peas"), quantity: 300, unit: "g", aisle: .frozen),
                 .init(name: L10n.string("Milk"), quantity: 3, unit: "dl", aisle: .dairy)
             ],
             instructions: [
@@ -352,8 +352,8 @@ enum SampleMeals {
             tags: [.meat, .pasta, .weekend],
             ingredients: [
                 .init(name: L10n.string("Minced beef"), quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: L10n.string("Lasagne sheets"), quantity: 1, unit: "bag", aisle: .pantry),
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Lasagne sheets"), quantity: 200, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Milk"), quantity: 5, unit: "dl", aisle: .dairy),
                 .init(name: L10n.string("Grated cheese"), quantity: 200, unit: "g", aisle: .dairy),
                 .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce),
@@ -377,10 +377,10 @@ enum SampleMeals {
             tags: [.vegetarian, .pasta, .quick],
             ingredients: [
                 .init(name: L10n.string("Pasta"), quantity: 400, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Garlic"), quantity: 1, unit: "pcs", aisle: .produce),
-                .init(name: L10n.string("Basil"), quantity: 1, unit: "pot", aisle: .produce),
-                .init(name: L10n.string("Olive oil"), quantity: 1, unit: "bottle", aisle: .pantry)
+                .init(name: L10n.string("Basil"), quantity: 20, unit: "g", aisle: .produce),
+                .init(name: L10n.string("Olive oil"), quantity: 30, unit: "ml", aisle: .pantry)
             ],
             instructions: [
                 L10n.string("Boil the pasta in well-salted water."),
@@ -401,8 +401,8 @@ enum SampleMeals {
                 .init(name: L10n.string("Bell pepper"), quantity: 3, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Red onion"), quantity: 2, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Tortilla wraps"), quantity: 8, unit: "pcs", aisle: .bread),
-                .init(name: L10n.string("Taco seasoning"), quantity: 1, unit: "bag", aisle: .pantry),
-                .init(name: L10n.string("Sour cream"), quantity: 1, unit: "tub", aisle: .dairy)
+                .init(name: L10n.string("Taco seasoning"), quantity: 28, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Sour cream"), quantity: 200, unit: "g", aisle: .dairy)
             ],
             instructions: [
                 L10n.string("Slice the chicken, peppers and onion into strips."),
@@ -420,11 +420,11 @@ enum SampleMeals {
             tags: [.meat],
             ingredients: [
                 .init(name: L10n.string("Minced beef"), quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: L10n.string("Kidney beans"), quantity: 2, unit: "can", aisle: .pantry),
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Kidney beans"), quantity: 480, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Yellow onion"), quantity: 2, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Chili powder"), quantity: 1, unit: "bag", aisle: .pantry)
+                .init(name: L10n.string("Chili powder"), quantity: 1, unit: "tsp", aisle: .pantry)
             ],
             instructions: [
                 L10n.string("Put the rice on to boil."),
@@ -443,11 +443,11 @@ enum SampleMeals {
             tags: [.chicken],
             ingredients: [
                 .init(name: L10n.string("Chicken breast"), quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 1, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 400, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Cooking cream"), quantity: 3, unit: "dl", aisle: .dairy),
                 .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Butter"), quantity: 50, unit: "g", aisle: .dairy),
-                .init(name: L10n.string("Curry powder"), quantity: 1, unit: "bag", aisle: .pantry),
+                .init(name: L10n.string("Curry powder"), quantity: 2, unit: "tsp", aisle: .pantry),
                 .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce)
             ],
             instructions: [
@@ -467,11 +467,11 @@ enum SampleMeals {
             tags: [.chicken],
             ingredients: [
                 .init(name: L10n.string("Chicken breast"), quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: L10n.string("Coconut milk"), quantity: 2, unit: "can", aisle: .pantry),
-                .init(name: L10n.string("Red curry paste"), quantity: 1, unit: "jar", aisle: .pantry),
+                .init(name: L10n.string("Coconut milk"), quantity: 800, unit: "ml", aisle: .pantry),
+                .init(name: L10n.string("Red curry paste"), quantity: 30, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Bell pepper"), quantity: 2, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Fresh coriander"), quantity: 1, unit: "pot", aisle: .produce)
+                .init(name: L10n.string("Fresh coriander"), quantity: 15, unit: "g", aisle: .produce)
             ],
             instructions: [
                 L10n.string("Put the rice on to boil."),
@@ -491,8 +491,8 @@ enum SampleMeals {
             ingredients: [
                 .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Eggs"), quantity: 4, unit: "pcs", aisle: .dairy),
-                .init(name: L10n.string("Stir-fry vegetables"), quantity: 1, unit: "bag", aisle: .frozen),
-                .init(name: L10n.string("Soy sauce"), quantity: 1, unit: "bottle", aisle: .pantry),
+                .init(name: L10n.string("Stir-fry vegetables"), quantity: 500, unit: "g", aisle: .frozen),
+                .init(name: L10n.string("Soy sauce"), quantity: 45, unit: "ml", aisle: .pantry),
                 .init(name: L10n.string("Spring onion"), quantity: 1, unit: "pcs", aisle: .produce)
             ],
             instructions: [
@@ -512,7 +512,7 @@ enum SampleMeals {
             tags: [.fish, .quick],
             ingredients: [
                 .init(name: L10n.string("Salmon fillet"), quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: L10n.string("Teriyaki sauce"), quantity: 1, unit: "bottle", aisle: .pantry),
+                .init(name: L10n.string("Teriyaki sauce"), quantity: 90, unit: "ml", aisle: .pantry),
                 .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Broccoli"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Spring onion"), quantity: 1, unit: "pcs", aisle: .produce)
@@ -557,7 +557,7 @@ enum SampleMeals {
             tags: [.pizza, .meat, .weekend],
             ingredients: [
                 .init(name: L10n.string("Pizza dough"), quantity: 2, unit: "pcs", aisle: .bread),
-                .init(name: L10n.string("Pizza sauce"), quantity: 1, unit: "jar", aisle: .pantry),
+                .init(name: L10n.string("Pizza sauce"), quantity: 200, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Grated cheese"), quantity: 300, unit: "g", aisle: .dairy),
                 .init(name: L10n.string("Pepperoni"), quantity: 150, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Red onion"), quantity: 1, unit: "pcs", aisle: .produce)
@@ -581,7 +581,7 @@ enum SampleMeals {
                 .init(name: L10n.string("Potatoes"), quantity: 900, unit: "g", aisle: .produce),
                 .init(name: L10n.string("Carrots"), quantity: 4, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Garlic"), quantity: 1, unit: "pcs", aisle: .produce),
-                .init(name: L10n.string("Olive oil"), quantity: 1, unit: "bottle", aisle: .pantry)
+                .init(name: L10n.string("Olive oil"), quantity: 30, unit: "ml", aisle: .pantry)
             ],
             instructions: [
                 L10n.string("Heat the oven to 200°C."),
@@ -645,7 +645,7 @@ enum SampleMeals {
                 .init(name: L10n.string("Potatoes"), quantity: 900, unit: "g", aisle: .produce),
                 .init(name: L10n.string("Milk"), quantity: 2, unit: "dl", aisle: .dairy),
                 .init(name: L10n.string("Butter"), quantity: 50, unit: "g", aisle: .dairy),
-                .init(name: L10n.string("Green peas"), quantity: 1, unit: "bag", aisle: .frozen)
+                .init(name: L10n.string("Green peas"), quantity: 300, unit: "g", aisle: .frozen)
             ],
             instructions: [
                 L10n.string("Boil the potatoes until soft."),
@@ -706,8 +706,8 @@ enum SampleMeals {
             prepMinutes: 30,
             tags: [.vegetarian, .soup],
             ingredients: [
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
-                .init(name: L10n.string("Kidney beans"), quantity: 1, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Kidney beans"), quantity: 240, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Carrots"), quantity: 3, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Celery"), quantity: 2, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Pasta"), quantity: 150, unit: "g", aisle: .pantry),
@@ -734,7 +734,7 @@ enum SampleMeals {
                 .init(name: L10n.string("Tortilla wraps"), quantity: 8, unit: "pcs", aisle: .bread),
                 .init(name: L10n.string("Cucumber"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Tomatoes"), quantity: 3, unit: "pcs", aisle: .produce),
-                .init(name: L10n.string("Plain yogurt"), quantity: 1, unit: "tub", aisle: .dairy),
+                .init(name: L10n.string("Plain yogurt"), quantity: 200, unit: "g", aisle: .dairy),
                 .init(name: L10n.string("Romaine lettuce"), quantity: 1, unit: "pcs", aisle: .produce)
             ],
             instructions: [
@@ -776,7 +776,7 @@ enum SampleMeals {
             tags: [.pizza, .meat, .weekend],
             ingredients: [
                 .init(name: L10n.string("Pizza dough"), quantity: 2, unit: "pcs", aisle: .bread),
-                .init(name: L10n.string("Pizza sauce"), quantity: 1, unit: "jar", aisle: .pantry),
+                .init(name: L10n.string("Pizza sauce"), quantity: 200, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Grated cheese"), quantity: 300, unit: "g", aisle: .dairy),
                 .init(name: L10n.string("Cooked ham"), quantity: 150, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Mushrooms"), quantity: 250, unit: "g", aisle: .produce)
@@ -799,7 +799,7 @@ enum SampleMeals {
                 .init(name: L10n.string("Minced lamb"), quantity: 600, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Potatoes"), quantity: 1, unit: "kg", aisle: .produce),
                 .init(name: L10n.string("Carrots"), quantity: 3, unit: "pcs", aisle: .produce),
-                .init(name: L10n.string("Green peas"), quantity: 1, unit: "bag", aisle: .frozen),
+                .init(name: L10n.string("Green peas"), quantity: 300, unit: "g", aisle: .frozen),
                 .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Milk"), quantity: 2, unit: "dl", aisle: .dairy),
                 .init(name: L10n.string("Butter"), quantity: 50, unit: "g", aisle: .dairy)
@@ -821,7 +821,7 @@ enum SampleMeals {
             tags: [.chicken],
             ingredients: [
                 .init(name: L10n.string("Chicken breast"), quantity: 600, unit: "g", aisle: .meatAndFish),
-                .init(name: L10n.string("Sweet and sour sauce"), quantity: 1, unit: "jar", aisle: .pantry),
+                .init(name: L10n.string("Sweet and sour sauce"), quantity: 200, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Bell pepper"), quantity: 2, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Yellow onion"), quantity: 1, unit: "pcs", aisle: .produce)
@@ -843,11 +843,11 @@ enum SampleMeals {
             tags: [.fish, .pasta, .quick],
             ingredients: [
                 .init(name: L10n.string("Pasta"), quantity: 400, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Tuna"), quantity: 2, unit: "can", aisle: .pantry),
-                .init(name: L10n.string("Corn"), quantity: 1, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Tuna"), quantity: 300, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Corn"), quantity: 165, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Cucumber"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Red onion"), quantity: 1, unit: "pcs", aisle: .produce),
-                .init(name: L10n.string("Olive oil"), quantity: 1, unit: "bottle", aisle: .pantry)
+                .init(name: L10n.string("Olive oil"), quantity: 30, unit: "ml", aisle: .pantry)
             ],
             instructions: [
                 L10n.string("Boil the pasta and rinse it under cold water."),
@@ -864,13 +864,13 @@ enum SampleMeals {
             prepMinutes: 35,
             tags: [.vegetarian],
             ingredients: [
-                .init(name: L10n.string("Kidney beans"), quantity: 2, unit: "can", aisle: .pantry),
-                .init(name: L10n.string("Chickpeas"), quantity: 1, unit: "can", aisle: .pantry),
-                .init(name: L10n.string("Chopped tomatoes"), quantity: 2, unit: "can", aisle: .pantry),
+                .init(name: L10n.string("Kidney beans"), quantity: 480, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Chickpeas"), quantity: 240, unit: "g", aisle: .pantry),
+                .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Bell pepper"), quantity: 2, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Yellow onion"), quantity: 2, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Rice"), quantity: 300, unit: "g", aisle: .pantry),
-                .init(name: L10n.string("Chili powder"), quantity: 1, unit: "bag", aisle: .pantry)
+                .init(name: L10n.string("Chili powder"), quantity: 1, unit: "tsp", aisle: .pantry)
             ],
             instructions: [
                 L10n.string("Put the rice on to boil."),

@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Something shared into the app from elsewhere, waiting to be turned into a meal.
 struct CapturedRecipe: Codable, Identifiable, Hashable {
@@ -43,35 +44,40 @@ enum RecipeInbox {
     private static let key = "meal-shuffler-recipe-inbox-v1"
     private static let imagesDirectory = "SharedRecipeImages"
 
-    static func add(_ capture: CapturedRecipe) {
-        var pending = all()
-        pending.append(capture)
-        write(pending)
+    private static var directory: URL {
+        let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppGroup.identifier)
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return root.appendingPathComponent("RecipeInbox", isDirectory: true)
+    }
+
+    @discardableResult
+    static func add(_ capture: CapturedRecipe) -> Bool {
+        do {
+            try migrate()
+            try JSONEncoder().encode(capture).write(to: directory.appendingPathComponent("capture-\(capture.id).json"), options: .atomic)
+            return true
+        } catch { return false }
     }
 
     static func all() -> [CapturedRecipe] {
-        guard let data = AppGroup.defaults.data(forKey: key),
-              let items = try? JSONDecoder().decode([CapturedRecipe].self, from: data) else {
-            return []
-        }
-        return items.sorted { $0.capturedAt < $1.capturedAt }
+        do { try migrate() } catch { return [] }
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { $0.lastPathComponent.hasPrefix("capture-") }.compactMap { url -> CapturedRecipe? in
+            guard let data = try? Data(contentsOf: url) else { return nil }
+            return try? JSONDecoder().decode(CapturedRecipe.self, from: data)
+        }.sorted { $0.capturedAt < $1.capturedAt }
     }
 
     static func remove(_ id: UUID) {
-        let remaining = all().filter { item in
-            guard item.id == id else { return true }
-            // Take the image with it, or the container grows forever.
-            if let filename = item.imageFilename { deleteImage(named: filename) }
-            return false
-        }
-        write(remaining)
+        let item = all().first { $0.id == id }
+        do {
+            try FileManager.default.removeItem(at: directory.appendingPathComponent("capture-\(id).json"))
+            if let filename = item?.imageFilename { deleteImage(named: filename) }
+        } catch { /* Retain the source if removal could not finish. */ }
     }
 
     static func removeAll() {
-        for item in all() {
-            if let filename = item.imageFilename { deleteImage(named: filename) }
-        }
-        write([])
+        for item in all() { remove(item.id) }
     }
 
     // MARK: - Images
@@ -89,22 +95,43 @@ enum RecipeInbox {
     }
 
     static func imageData(named filename: String) -> Data? {
-        imagesURL().flatMap { try? Data(contentsOf: $0.appendingPathComponent(filename)) }
+        guard validImageName(filename) else { return nil }
+        return imagesURL().flatMap { try? Data(contentsOf: $0.appendingPathComponent(filename)) }
     }
 
     private static func deleteImage(named filename: String) {
+        guard validImageName(filename) else { return }
         guard let directory = imagesURL() else { return }
         try? FileManager.default.removeItem(at: directory.appendingPathComponent(filename))
     }
 
+    private static func validImageName(_ name: String) -> Bool {
+        name == URL(fileURLWithPath: name).lastPathComponent && !name.contains("\\")
+            && UUID(uuidString: URL(fileURLWithPath: name).deletingPathExtension().lastPathComponent) != nil
+            && ["img", "jpg"].contains(URL(fileURLWithPath: name).pathExtension)
+    }
+
     private static func imagesURL() -> URL? {
-        FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: AppGroup.identifier)?
+        (FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppGroup.identifier)
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0])
             .appendingPathComponent(imagesDirectory, isDirectory: true)
     }
 
-    private static func write(_ items: [CapturedRecipe]) {
-        guard let data = try? JSONEncoder().encode(items) else { return }
-        AppGroup.defaults.set(data, forKey: key)
+    private static func migrate() throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let descriptor = open(directory.appendingPathComponent("migration.lock").path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
+        guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        defer { flock(descriptor, LOCK_UN); close(descriptor) }
+        guard flock(descriptor, LOCK_EX) == 0 else { throw CocoaError(.fileWriteUnknown) }
+        let marker = directory.appendingPathComponent("migrated")
+        guard !FileManager.default.fileExists(atPath: marker.path) else { return }
+        if let data = AppGroup.defaults.data(forKey: key) {
+            let items = try JSONDecoder().decode([CapturedRecipe].self, from: data)
+            for item in items {
+                try JSONEncoder().encode(item).write(to: directory.appendingPathComponent("capture-\(item.id).json"), options: .atomic)
+            }
+        }
+        try Data().write(to: marker, options: .atomic)
+        AppGroup.defaults.removeObject(forKey: key)
     }
 }

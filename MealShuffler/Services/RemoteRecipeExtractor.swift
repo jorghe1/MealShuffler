@@ -39,16 +39,26 @@ struct RemoteRecipeExtractor: RecipeExtractor {
     }
 
     func extract(fromImage data: Data) async throws -> ImportedRecipeDraft {
-        try await send(
-            Payload(imageBase64: data.base64EncodedString(), imageMediaType: Self.mediaType(of: data)),
-            source: .photo
-        )
+        try await extract(fromImages: [data])
+    }
+
+    func extract(fromImages data: [Data], note: String = "") async throws -> ImportedRecipeDraft {
+        let images = try data.map(RecipeImagePreparation.prepare)
+        guard !images.isEmpty, images.count <= 5 else { throw RecipeImportError.unreadableImage }
+        var draft = try await send(Payload(text: note.isEmpty ? nil : note, images: images.map {
+            Payload.Image(data: $0.base64EncodedString(), mediaType: "image/jpeg")
+        }), source: .photo)
+        draft.sourceImages = images
+        draft.sourceText = note.isEmpty ? nil : note
+        return draft
     }
 
     func extract(fromText text: String) async throws -> ImportedRecipeDraft {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw RecipeImportError.recipeNotFound }
-        return try await send(Payload(text: trimmed), source: .manual)
+        var draft = try await send(Payload(text: trimmed), source: .manual)
+        draft.sourceText = trimmed
+        return draft
     }
 
     // MARK: - Transport
@@ -68,7 +78,14 @@ struct RemoteRecipeExtractor: RecipeExtractor {
         guard (200...299).contains(http.statusCode) else {
             // The service explains itself in plain language; prefer that to a status code.
             if let failure = try? JSONDecoder().decode(ServiceError.self, from: data) {
-                throw RecipeImportError.service(failure.error)
+                let key: String
+                switch failure.code {
+                case "rate_limited": key = "Online imports are busy or have reached the service limit. Try again later."
+                case "too_large": key = "This source is too large. Try fewer photos or a shorter text."
+                case "unreadable_recipe", "invalid_recipe": key = "The recipe could not be read reliably. Check the source or use on-device recognition."
+                default: key = "Online extraction is unavailable. Try again or use on-device recognition."
+                }
+                throw RecipeImportError.service(L10n.string(key))
             }
             throw RecipeImportError.recipeNotFound
         }
@@ -77,26 +94,20 @@ struct RemoteRecipeExtractor: RecipeExtractor {
         return extracted.draft(source: source)
     }
 
-    /// Sniffs the container from its magic bytes. The picker hands over raw data with no
-    /// type attached, and sending the wrong one is rejected by the service.
-    private static func mediaType(of data: Data) -> String {
-        let bytes = [UInt8](data.prefix(12))
-        if bytes.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return "image/png" }
-        if bytes.starts(with: [0x47, 0x49, 0x46]) { return "image/gif" }
-        if bytes.count >= 12, bytes[8...11] == [0x57, 0x45, 0x42, 0x50] { return "image/webp" }
-        return "image/jpeg"
-    }
-
     // MARK: - Wire types
 
     private struct Payload: Encodable {
+        struct Image: Encodable {
+            let data: String
+            let mediaType: String
+        }
         var url: String?
         var text: String?
-        var imageBase64: String?
-        var imageMediaType: String?
+        var images: [Image]?
     }
 
     private struct ServiceError: Decodable {
+        var code: String?
         let error: String
     }
 
@@ -106,29 +117,28 @@ struct RemoteRecipeExtractor: RecipeExtractor {
             let quantity: Double?
             let unit: String
             let aisle: String
+            let originalText: String?
+            let upperQuantity: Double?
+            let section: String?
+            let packageQuantity: Double?
+            let packageUnit: String?
 
-            /// Rendered back into a line so it flows through the same parser and editor as
-            /// every other import, rather than becoming a second, privileged path into the
-            /// library.
-            var line: String {
-                let amount = quantity.map { value -> String in
-                    value == value.rounded()
-                        ? String(Int(value))
-                        : String(format: "%.2f", value)
-                            .replacingOccurrences(of: "0$", with: "", options: .regularExpression)
-                }
-                return [amount, unit.isEmpty ? nil : unit, name]
-                    .compactMap { $0 }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: " ")
+            var ingredient: Ingredient {
+                Ingredient(name: name, quantity: quantity ?? 0, unit: unit,
+                           aisle: GroceryAisle(rawValue: aisle) ?? .pantry,
+                           originalText: originalText, upperQuantity: upperQuantity, section: section,
+                           packageQuantity: packageQuantity, packageUnit: packageUnit)
             }
+
+
         }
 
         let name: String
         let subtitle: String
         let emoji: String
-        let prepMinutes: Int
-        let servings: Int
+        let prepMinutes: Int?
+        let activeMinutes: Int?
+        let servings: Int?
         let ingredients: [RemoteIngredient]
         let instructions: [String]
         let tags: [String]
@@ -140,16 +150,20 @@ struct RemoteRecipeExtractor: RecipeExtractor {
                 name: name,
                 subtitle: subtitle,
                 emoji: emoji.isEmpty ? "🍽️" : emoji,
-                prepMinutes: max(prepMinutes, 5),
-                servings: max(servings, 1),
+                prepMinutes: max(prepMinutes ?? 30, 5),
+                servings: max(servings ?? 4, 1),
                 // The editor takes ingredients as text so the user can correct them before
                 // saving, which is what makes an occasionally-wrong extraction acceptable.
-                ingredientLines: ingredients.map(\.line),
+                ingredientLines: ingredients.map { $0.ingredient.editableLine },
                 instructions: instructions,
                 tags: Set(tags.compactMap(MealTag.init(rawValue:))),
+                parsedIngredients: ingredients.map(\.ingredient),
                 heroImageURL: heroImageURL.flatMap(URL.init(string:)),
-                needsReview: confidence != "high",
-                source: source
+                needsReview: true,
+                source: source,
+                servingsConfirmed: servings.map { $0 > 0 } ?? false,
+                activeMinutes: activeMinutes,
+                timingNeedsReview: prepMinutes == nil
             )
         }
     }

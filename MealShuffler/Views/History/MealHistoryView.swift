@@ -3,6 +3,7 @@ import SwiftUI
 struct MealHistoryView: View {
     @EnvironmentObject private var store: AppStore
     @State private var showingClear = false
+    @State private var selectedMeal: Meal?
 
     private var events: [MealFeedbackEvent] {
         store.feedbackEvents.sorted { $0.timestamp > $1.timestamp }
@@ -85,13 +86,17 @@ struct MealHistoryView: View {
             }
 
             Section {
-                ForEach(rotation.prefix(12)) { entry in
+                ForEach(rotation) { entry in
                     Button {
-                        store.toggleFavorite(entry.meal)
+                        selectedMeal = entry.meal
                     } label: {
                         rotationRow(entry)
                     }
                     .buttonStyle(.plain)
+                    HStack {
+                        Button { store.toggleFavorite(entry.meal) } label: { Image(systemName: store.favoriteMealIDs.contains(entry.meal.id) ? "heart.fill" : "heart").iconButtonFrame() }.accessibilityLabel("Family favorite")
+                        Menu("Plan for a day") { ForEach(Weekday.ordered()) { day in Button(day.name) { store.setMeal(entry.meal, on: day) } } }
+                    }
                     .contextMenu {
                         Menu {
                             ForEach(Weekday.ordered()) { day in
@@ -108,10 +113,25 @@ struct MealHistoryView: View {
                 Text("Longest since you cooked it, first. Long-press to put one on a day.")
             }
 
+            Section("Archived weeks") {
+                ForEach(store.archivedWeeks) { archive in
+                    NavigationLink(WeekAnchor.label(forWeekStarting: archive.startDate)) {
+                        List {
+                            ForEach(archive.plan.meals) { item in
+                                if let meal = item.mealID.flatMap({ id in item.freezerBatch?.recipe ?? archive.recipeSnapshots?.first(where: { $0.id == id }) ?? store.meal(id: id) }) {
+                                    Button { selectedMeal = meal } label: {
+                                        VStack(alignment: .leading) { Text(archive.plan.date(for: item.day), format: .dateTime.weekday(.wide).day().month()); Text(meal.name) }
+                                    }
+                                } else { Text(item.kind == .away ? L10n.string("No dinner at home") : item.kind == .takeaway ? L10n.string("Takeaway") : L10n.string("Not planned")) }
+                            }
+                        }.navigationTitle(WeekAnchor.label(forWeekStarting: archive.startDate))
+                    }
+                }
+            }
             Section("Activity") {
                 if events.isEmpty { Text("No activity yet.").foregroundStyle(.secondary) }
-                ForEach(events.prefix(60)) { event in
-                    if let meal = store.meal(id: event.mealID) {
+                ForEach(events) { event in
+                    if let meal = event.recipeSnapshot ?? store.meal(id: event.mealID) {
                         HStack(spacing: 12) {
                             MealThumbnail(meal: meal, size: AppTheme.emojiTileCompact)
                             VStack(alignment: .leading, spacing: 3) {
@@ -119,7 +139,7 @@ struct MealHistoryView: View {
                                 Text(eventLabel(event)).font(.caption).foregroundStyle(AppTheme.muted)
                             }
                             Spacer()
-                            Text(event.timestamp, format: .dateTime.day().month(.abbreviated))
+                            Text(event.plannedDate ?? event.timestamp, format: .dateTime.day().month(.abbreviated))
                                 .font(.caption).foregroundStyle(AppTheme.muted)
                         }
                     }
@@ -135,6 +155,7 @@ struct MealHistoryView: View {
                 Section { Button("Clear history", role: .destructive) { showingClear = true } }
             }
         }
+        .sheet(item: $selectedMeal) { MealDetailView(meal: $0) }
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Clear history?", isPresented: $showingClear) {
@@ -170,7 +191,7 @@ struct MealHistoryView: View {
         .padding(.vertical, 3)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(entry.meal.name), \(entry.label)")
-        .accessibilityHint(L10n.string("Marks it a family favorite"))
+        .accessibilityHint(L10n.string("Opens the recipe"))
     }
 
     private func stat(title: String, value: Int, symbol: String) -> some View {

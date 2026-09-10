@@ -8,7 +8,8 @@ import Foundation
 /// pages without schema.org markup, and photographs.
 enum RecipeCapture {
     static var remoteConfiguration: RemoteRecipeExtractor.Configuration? {
-        RemoteRecipeExtractor.Configuration.fromBundle()
+        guard UserDefaults.standard.bool(forKey: "online-extraction-enabled") else { return nil }
+        return RemoteRecipeExtractor.Configuration.fromBundle()
     }
 
     static var isRemoteAvailable: Bool { remoteConfiguration != nil }
@@ -38,28 +39,43 @@ enum RecipeCapture {
     /// longer required. This was the one path with no local equivalent, which meant that with
     /// no service deployed, pasting a recipe answered with an error.
     static func extractText(_ text: String) async throws -> ImportedRecipeDraft {
-        if let configuration = remoteConfiguration,
-           let draft = try? await RemoteRecipeExtractor(configuration: configuration).extract(fromText: text) {
-            return draft
+        if let configuration = remoteConfiguration {
+            do { return try await RemoteRecipeExtractor(configuration: configuration).extract(fromText: text) }
+            catch is CancellationError { throw CancellationError() }
+            catch { /* Preserve an offline path. */ }
         }
-        return try RecipeTextStructurer.draft(fromPastedText: text)
+        try Task.checkCancellation()
+        var draft = try RecipeTextStructurer.draft(fromPastedText: text)
+        draft.extractionNote = L10n.string("Read on this device. Check the extracted amounts and steps against the original source.")
+        return draft
     }
 
     /// A scan of one or more pages.
     ///
-    /// The service reads a single image best, so one page still goes to it first. A recipe
-    /// spread across two pages has no single image to send, so those are read on device and
-    /// stitched in page order.
-    static func extract(fromImages images: [Data]) async throws -> ImportedRecipeDraft {
-        guard let first = images.first else { throw RecipeImportError.unreadableImage }
-        guard images.count > 1 else { return try await imageExtractor.extract(fromImage: first) }
-        return try await RecipeOCRService().recognizeRecipe(fromPages: images)
+    /// The service receives all pages together; local OCR remains available offline.
+    static func extract(fromImages images: [Data], note: String = "") async throws -> ImportedRecipeDraft {
+        guard !images.isEmpty, images.count <= 5 else { throw RecipeImportError.unreadableImage }
+        let prepared = try images.map(RecipeImagePreparation.prepare)
+        if let configuration = remoteConfiguration {
+            do { return try await RemoteRecipeExtractor(configuration: configuration).extract(fromImages: prepared, note: note) }
+            catch is CancellationError { throw CancellationError() }
+            catch { /* Keep the source available when the service cannot answer. */ }
+        }
+        try Task.checkCancellation()
+        var draft = try await RecipeOCRService().recognizeRecipe(fromPages: prepared)
+        draft.sourceImages = prepared
+        if !note.isEmpty { draft.sourceText = (draft.sourceText ?? "") + "\n\n" + note }
+        draft.extractionNote = L10n.string("Read on this device. Check the extracted amounts and steps against the original source.")
+        return draft
     }
 
     static func extract(_ capture: CapturedRecipe) async throws -> ImportedRecipeDraft {
-        if let url = capture.url { return try await urlExtractor.extract(from: url) }
-        if let data = capture.imageData { return try await imageExtractor.extract(fromImage: data) }
-        if let text = capture.text { return try await extractText(text) }
-        throw RecipeImportError.recipeNotFound
+        var draft: ImportedRecipeDraft
+        if let url = capture.url { draft = try await urlExtractor.extract(from: url) }
+        else if let data = capture.imageData { draft = try await extract(fromImages: [data]) }
+        else if let text = capture.text { draft = try await extractText(text) }
+        else { throw RecipeImportError.recipeNotFound }
+        draft.captureID = capture.id
+        return draft
     }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingFlowView: View {
     @EnvironmentObject private var store: AppStore
     @State private var step = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let stepCount = 3
 
@@ -23,20 +24,20 @@ struct OnboardingFlowView: View {
             Group {
                 switch step {
                 case 0:
-                    WelcomeStepView { withAnimation { step = 1 } }
+                    WelcomeStepView { withAnimation(reduceMotion ? nil : .default) { step = 1 } }
                 case 1:
                     TasteSwipeView {
                         // Generate before showing, so the last step is a real week rather
                         // than a form standing between the user and the payoff.
                         store.shuffleAll()
-                        withAnimation { step = 2 }
+                        withAnimation(reduceMotion ? nil : .default) { step = 2 }
                     }
                 default:
                     FirstWeekStepView { store.completeOnboarding() }
                 }
             }
             .id(step)
-            .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))
+            .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .move(edge: .leading).combined(with: .opacity)))
         }
         .appBackground()
     }
@@ -46,6 +47,7 @@ private struct WelcomeStepView: View {
     let next: () -> Void
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 24) {
             Spacer()
 
@@ -80,6 +82,7 @@ private struct WelcomeStepView: View {
             .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
         }
         .padding(24)
+        }
     }
 }
 
@@ -89,17 +92,22 @@ private struct TasteSwipeView: View {
     @State private var offset: CGSize = .zero
     /// Fixed once, so the deck does not reshuffle underneath the person swiping it.
     @State private var deck: [Meal] = []
+    @State private var isAdvancing = false
+    @State private var transitionTask: Task<Void, Never>?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let finished: () -> Void
 
     private static let deckSize = 8
 
     var body: some View {
+        ScrollView {
         VStack(spacing: 18) {
             VStack(spacing: 6) {
                 Text("What do you like?")
                     .font(.system(.title, design: .rounded, weight: .bold))
                     .foregroundStyle(AppTheme.ink)
+                Text(L10n.string("Preferences for %@", store.household.members.first(where: { $0.role == .owner })?.displayName ?? L10n.string("Me")))
                 Text("Swipe right or left")
                     .foregroundStyle(AppTheme.muted)
             }
@@ -115,7 +123,7 @@ private struct TasteSwipeView: View {
                 let meal = deck[index]
                 TasteCard(meal: meal, offset: offset)
                     .offset(offset)
-                    .rotationEffect(.degrees(Double(offset.width / 18)))
+                    .rotationEffect(.degrees(reduceMotion ? 0 : Double(offset.width / 18)))
                     .gesture(
                         DragGesture()
                             .onChanged { offset = $0.translation }
@@ -123,7 +131,7 @@ private struct TasteSwipeView: View {
                                 if abs(value.translation.width) > 90 {
                                     choose(value.translation.width > 0 ? .liked : .disliked)
                                 } else {
-                                    withAnimation(.spring(response: 0.3)) { offset = .zero }
+                                    withAnimation(reduceMotion ? nil : .spring(response: 0.3)) { offset = .zero }
                                 }
                             }
                     )
@@ -141,6 +149,13 @@ private struct TasteSwipeView: View {
                 }
             }
 
+            .disabled(isAdvancing)
+            HStack {
+                Button("Neutral") { choose(.neutral) }.disabled(isAdvancing)
+                Spacer()
+                Button("Skip remaining") { guard !isAdvancing else { return }; isAdvancing = true; finished() }
+            }.padding(.horizontal, 24)
+
             // One mis-swipe used to be permanent, on a screen whose entire purpose is
             // recording opinions correctly.
             Button {
@@ -149,13 +164,15 @@ private struct TasteSwipeView: View {
                 Label("Back", systemImage: "arrow.uturn.backward")
                     .font(.subheadline.weight(.semibold))
             }
-            .disabled(index == 0)
+            .disabled(index == 0 || isAdvancing)
             .opacity(index == 0 ? 0 : 1)
             .padding(.bottom, 20)
+        }
         }
         .onAppear {
             if deck.isEmpty { deck = Self.buildDeck(from: store.meals) }
         }
+        .onDisappear { transitionTask?.cancel() }
     }
 
     /// A spread across the library rather than the first seven rows of it.
@@ -177,23 +194,27 @@ private struct TasteSwipeView: View {
     }
 
     private func choose(_ preference: MealPreference) {
-        guard index < deck.count else { return }
+        guard !isAdvancing, index < deck.count else { return }
+        isAdvancing = true
         let direction: CGFloat = preference == .liked ? 1 : -1
         store.setPreference(preference, for: deck[index])
-        withAnimation(.easeIn(duration: 0.16)) { offset.width = direction * 520 }
+        withAnimation(reduceMotion ? nil : .easeIn(duration: 0.16)) { offset.width = direction * 520 }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+        transitionTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 180))
+            guard !Task.isCancelled else { return }
             offset = .zero
             if index + 1 >= deck.count {
                 finished()
             } else {
                 index += 1
+                isAdvancing = false
             }
         }
     }
 
     private func goBack() {
-        guard index > 0 else { return }
+        guard !isAdvancing, index > 0 else { return }
         index -= 1
         offset = .zero
         // Clears the opinion rather than leaving the old one standing behind the card.

@@ -69,7 +69,8 @@ anything but lines of text.
 npm run check    # tsc --noEmit, then the unit tests
 ```
 
-The tests cover the address rules, the redirect and size caps, the JSON-LD preference and the
+The 18 tests cover malformed and ambiguous requests, multi-page forwarding, null amounts,
+invalid output, rate limits, actual body limits, the address rules, the redirect and size caps, the JSON-LD preference and the
 source fence — the parts that can be got wrong quietly. They run on Node's built-in test
 runner with runtime type stripping, so there is no build step and no test framework to
 install. `tsconfig.json` covers `src/` only; the tests are checked by running them.
@@ -83,8 +84,17 @@ X-Install-Id: <the app's DeviceIdentity UUID>
 // exactly one of:
 { "url": "https://..." }
 { "text": "pasted recipe text" }
-{ "imageBase64": "...", "imageMediaType": "image/jpeg" }
+{ "images": [{ "data": "...", "mediaType": "image/jpeg" }], "text": "Optional context" }
+// The legacy imageBase64/imageMediaType pair is also accepted.
 ```
+
+A request accepts one source and optional text context with images or a URL. Up to five images
+are read together in page order. The app redraws photos in display orientation, resizes them to
+1800 pixels on the longest edge and encodes JPEGs capped at 2 MB each. The server independently
+validates the JSON and caps the actual streamed body at 15 MB. Missing ingredient amounts,
+yields and times are null. Ingredient records also preserve originalText, section, upperQuantity,
+packageQuantity and packageUnit. prepMinutes means total elapsed time; activeMinutes is separate.
+The client always opens the result for review. Invalid output is rejected with HTTP 502.
 
 `X-Install-Id` is not authentication. It is an abuse key, and a weak one — see above.
 
@@ -153,3 +163,21 @@ predate both, so the committed source could not have compiled. Nothing in CI was
   privacy policy.
 - The per-IP limiter is a floor, not an identity. App Attest or DeviceCheck is the real
   answer if this ever gets popular enough to be worth abusing.
+
+
+## September 10 operational controls
+
+`MODEL_BUDGET` is a Durable Object binding with one transactional counter for the entire
+deployment. `DAILY_MODEL_CALL_LIMIT` defaults to 200 attempted calls per UTC day; failed model
+calls still consume a reservation. Invalid configuration or an unavailable budget service
+fails closed. This limits calls, not a precise currency amount: token usage still affects cost.
+The included migration creates `ModelBudget`; provision it along with the Worker before use.
+
+Each production request logs only `event`, HTTP `status` and `durationMs`. Unexpected errors
+log their type/status, never recipe text, images, source URLs, IPs or request headers. Aggregate
+those outcome and latency fields in Cloudflare logs for monitoring. Error responses include
+stable `code` values for app localization.
+
+The app's online-reading setting requires both a configured service URL and explicit opt-in.
+No deployment or live model-quality/cost benchmark was performed in this implementation pass.
+`npm run check` passes TypeScript and 21 unit tests using a substituted model.

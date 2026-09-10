@@ -12,6 +12,7 @@ enum DayScope: Hashable, Codable, Identifiable {
     case weekdays
     case weekend
     case everyDay
+    case selected(Set<Weekday>)
 
     var id: String { storedValue }
 
@@ -29,6 +30,7 @@ enum DayScope: Hashable, Codable, Identifiable {
         case .weekdays: Set(Weekday.allCases).subtracting(Self.weekendDays)
         case .weekend: Self.weekendDays
         case .everyDay: Set(Weekday.allCases)
+        case .selected(let days): days
         }
     }
 
@@ -40,6 +42,18 @@ enum DayScope: Hashable, Codable, Identifiable {
         case .weekdays: L10n.string("weekdays")
         case .weekend: L10n.string("the weekend")
         case .everyDay: L10n.string("every day")
+        case .selected(let days): Weekday.ordered().filter(days.contains).map(\.name).joined(separator: ", ")
+        }
+    }
+
+    var sentencePhrase: String {
+        switch self {
+        case .day(let day): return day.recurringPhrase
+        case .weekdays: return L10n.string("on weekdays")
+        case .weekend: return L10n.string("at weekends")
+        case .everyDay: return L10n.string("every day")
+        case .selected(let days):
+            return ListFormatter.localizedString(byJoining: Weekday.ordered().filter(days.contains).map(\.recurringPhrase))
         }
     }
 
@@ -51,6 +65,7 @@ enum DayScope: Hashable, Codable, Identifiable {
         case .weekdays: "scope.weekdays"
         case .weekend: "scope.weekend"
         case .everyDay: "scope.everyDay"
+        case .selected(let days): "scope.selected:" + days.map(\.rawValue).sorted().joined(separator: ",")
         }
     }
 
@@ -59,6 +74,10 @@ enum DayScope: Hashable, Codable, Identifiable {
         if let day = Weekday(rawValue: raw) {
             self = .day(day)
             return
+        }
+        if raw.hasPrefix("scope.selected:") {
+            let values = raw.dropFirst("scope.selected:".count).split(separator: ",").compactMap { Weekday(rawValue: String($0)) }
+            if !values.isEmpty { self = .selected(Set(values)); return }
         }
         switch raw {
         case "scope.weekdays": self = .weekdays
@@ -118,6 +137,14 @@ enum MealMatcher: Codable, Hashable {
     struct MatchContext: Hashable {
         var dislikes: [UUID: Set<UUID>] = [:]
         var memberNames: [UUID: String] = [:]
+        var attendance: [Weekday: Set<UUID>] = [:]
+
+        func forDay(_ day: Weekday) -> MatchContext {
+            guard let present = attendance[day] else { return self }
+            var copy = self
+            copy.dislikes = dislikes.filter { present.contains($0.key) }
+            return copy
+        }
 
         static let empty = MatchContext()
     }
@@ -135,6 +162,23 @@ enum MealMatcher: Codable, Hashable {
             folded = folded.replacingOccurrences(of: letter, with: ascii, options: .caseInsensitive)
         }
         return folded.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func sentenceLabel(meals: [Meal], context: MatchContext = .empty) -> String {
+        if case .tag(let tag) = self {
+            switch tag {
+            case .vegetarian: return L10n.string("vegetarian meals")
+            case .quick: return L10n.string("quick meals")
+            case .weekend: return L10n.string("weekend meals")
+            default: return tag.name.lowercased()
+            }
+        }
+        switch self {
+        case .ingredient(let name): return L10n.string("meals containing %@", name)
+        case .customTag(let name): return L10n.string("meals labelled “%@”", name)
+        case .dislikedBy(let id): return L10n.string("meals %@ dislikes", context.memberNames[id] ?? L10n.string("a family member"))
+        default: return label(meals: meals, context: context)
+        }
     }
 
     func label(meals: [Meal], context: MatchContext = .empty) -> String {
@@ -252,9 +296,47 @@ struct PlanningRule: Identifiable, Codable, Hashable {
     var isEnabled = true
     var strength: RuleStrength = .required
     var constraint: RuleConstraint
+    var repeatEveryWeeks: Int?
+    var firstWeek: Date?
+
+    var supportsPreference: Bool {
+        if case .dinnerMode = constraint { return false }
+        return true
+    }
+
+    func isActive(inWeek date: Date, calendar: Calendar = .current) -> Bool {
+        guard isEnabled else { return false }
+        guard let firstWeek else { return true }
+        let start = WeekAnchor.startOfWeek(containing: firstWeek, calendar: calendar)
+        let target = WeekAnchor.startOfWeek(containing: date, calendar: calendar)
+        let weeks = calendar.dateComponents([.weekOfYear], from: start, to: target).weekOfYear ?? 0
+        return weeks >= 0 && weeks % max(repeatEveryWeeks ?? 1, 1) == 0
+    }
+
+    func hasSameSchedule(as other: PlanningRule) -> Bool {
+        let interval = max(repeatEveryWeeks ?? 1, 1)
+        guard interval == max(other.repeatEveryWeeks ?? 1, 1) else { return false }
+        if firstWeek == nil && other.firstWeek == nil { return true }
+        let left = WeekAnchor.startOfWeek(containing: firstWeek ?? .distantPast)
+        let right = WeekAnchor.startOfWeek(containing: other.firstWeek ?? .distantPast)
+        if left == right { return true }
+        let now = WeekAnchor.startOfWeek(containing: .now)
+        if interval == 1, left <= now, right <= now { return true }
+        return false
+    }
+
+    func nextActiveWeek(from date: Date) -> Date? {
+        guard isEnabled else { return nil }
+        var week = max(WeekAnchor.startOfWeek(containing: date), firstWeek.map { WeekAnchor.startOfWeek(containing: $0) } ?? .distantPast)
+        for _ in 0..<max(repeatEveryWeeks ?? 1, 1) {
+            if isActive(inWeek: week) { return week }
+            week = WeekAnchor.startOfNextWeek(after: week)
+        }
+        return nil
+    }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, isEnabled, strength, constraint
+        case id, title, isEnabled, strength, constraint, repeatEveryWeeks, firstWeek
     }
 
     init(
@@ -269,6 +351,7 @@ struct PlanningRule: Identifiable, Codable, Hashable {
         self.isEnabled = isEnabled
         self.strength = strength
         self.constraint = constraint
+        if !supportsPreference { self.strength = .required }
     }
 
     init(from decoder: Decoder) throws {
@@ -278,33 +361,41 @@ struct PlanningRule: Identifiable, Codable, Hashable {
         isEnabled = try values.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         strength = try values.decodeIfPresent(RuleStrength.self, forKey: .strength) ?? .required
         constraint = try values.decode(RuleConstraint.self, forKey: .constraint)
+        repeatEveryWeeks = try values.decodeIfPresent(Int.self, forKey: .repeatEveryWeeks)
+        firstWeek = try values.decodeIfPresent(Date.self, forKey: .firstWeek)
+        if !supportsPreference { strength = .required }
     }
 
     func summary(meals: [Meal], context: MealMatcher.MatchContext = .empty) -> String {
         switch constraint {
         case .requiredOn(let scope, let matcher):
-            return L10n.string("%@ on %@", matcher.label(meals: meals, context: context), scope.name.lowercased())
+            return L10n.string("We cook %@ %@.", matcher.sentenceLabel(meals: meals, context: context), scope.sentencePhrase)
         case .excludedOn(let scope, let matcher):
-            return L10n.string("No %@ on %@", matcher.label(meals: meals, context: context).lowercased(), scope.name.lowercased())
+            return L10n.string("We avoid %@ %@.", matcher.sentenceLabel(meals: meals, context: context), scope.sentencePhrase)
         case .maximumPerWeek(let matcher, let count):
             if count == 0 {
-                return L10n.string("Never %@", matcher.label(meals: meals, context: context).lowercased())
+                return L10n.string("We never cook %@.", matcher.sentenceLabel(meals: meals, context: context))
             }
-            return L10n.string("Maximum %ld × %@ per week", count, matcher.label(meals: meals, context: context).lowercased())
+            return L10n.string("We cook %@ at most %ld times per week.", matcher.sentenceLabel(meals: meals, context: context), count)
         case .minimumPerWeek(let matcher, let count):
-            return L10n.string("At least %ld × %@ per week", count, matcher.label(meals: meals, context: context).lowercased())
+            return L10n.string("We cook %@ at least %ld times per week.", matcher.sentenceLabel(meals: meals, context: context), count)
         case .maximumPrepTime(let scope, let minutes):
-            return L10n.string("Maximum %ld min on %@", minutes, scope.name.lowercased())
+            return L10n.string("Dinner takes at most %ld minutes %@.", minutes, scope.sentencePhrase)
         case .dinnerMode(let scope, let mode):
-            return L10n.string("%@ on %@", mode.name, scope.name.lowercased())
+            switch mode {
+            case .cook: return L10n.string("We cook dinner %@.", scope.sentencePhrase)
+            case .leftovers: return L10n.string("We eat leftovers %@.", scope.sentencePhrase)
+            case .takeaway: return L10n.string("We order takeaway %@.", scope.sentencePhrase)
+            case .away: return L10n.string("We do not eat dinner at home %@.", scope.sentencePhrase)
+            }
         case .noRepeatWithin(let weeks):
             return weeks == 1
-                ? L10n.string("No repeats within the week")
-                : L10n.string("No repeats within %ld weeks", weeks)
+                ? L10n.string("We do not cook the same dinner twice in one week.")
+                : L10n.string("We do not cook the same dinner again within %ld weeks.", weeks)
         case .requiredEvery(let weeks, let matcher):
-            return L10n.string("%@ at least every %ld weeks", matcher.label(meals: meals, context: context), weeks)
+            return L10n.string("We cook %@ at least once every %ld weeks.", matcher.sentenceLabel(meals: meals, context: context), weeks)
         case .notOnConsecutiveDays(let matcher):
-            return L10n.string("No %@ two days running", matcher.label(meals: meals, context: context).lowercased())
+            return L10n.string("We do not cook %@ on consecutive days.", matcher.sentenceLabel(meals: meals, context: context))
         }
     }
 }

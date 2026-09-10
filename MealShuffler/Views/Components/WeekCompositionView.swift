@@ -84,7 +84,7 @@ struct WeekCompositionView: View {
 
                 // A colour-only chart is unreadable for a good share of people; the legend
                 // carries the same information as text.
-                HStack(spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 95), alignment: .leading)], alignment: .leading, spacing: 8) {
                     ForEach(counts, id: \.category) { entry in
                         HStack(spacing: 5) {
                             Circle().fill(entry.category.color).frame(width: 8, height: 8)
@@ -94,7 +94,6 @@ struct WeekCompositionView: View {
                                 .font(.caption).foregroundStyle(AppTheme.muted)
                         }
                     }
-                    Spacer(minLength: 0)
                 }
             }
             .accessibilityElement(children: .ignore)

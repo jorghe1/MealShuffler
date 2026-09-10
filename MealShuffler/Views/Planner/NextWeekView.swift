@@ -7,6 +7,9 @@ import SwiftUI
 struct NextWeekView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @State private var editingDay: Weekday?
+    @State private var selectedMeal: Meal?
+    @State private var pickingDay: Weekday?
 
     private var nextWeekStart: Date { WeekAnchor.startOfNextWeek(after: store.plan.startDate) }
 
@@ -14,20 +17,29 @@ struct NextWeekView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 header
+                if !store.nextWeekConflicts.isEmpty { PlanConflictView(conflicts: store.nextWeekConflicts, nextWeek: true) }
 
                 if let plan = store.nextWeekPlan {
                     ForEach(Weekday.ordered()) { day in
                         if let item = plan[day] {
-                            NextWeekRow(
-                                day: day,
-                                date: plan.date(for: day),
-                                title: title(for: item),
-                                emoji: emoji(for: item)
-                            )
+                            DayPlanCard(day: day, date: plan.date(for: day), item: item,
+                                meal: item.mealID.flatMap { store.meal(id: $0) }, explanation: nil,
+                                isCompleted: false, clearCompletion: {}, isFavorite: item.mealID.map { store.favoriteMealIDs.contains($0) } ?? false,
+                                open: { selectedMeal = item.mealID.flatMap { store.meal(id: $0) } },
+                                chooseMeal: { pickingDay = day }, editContext: { editingDay = day },
+                                toggleLock: { store.toggleNextWeekLock(day: day) },
+                                shuffle: { store.shuffleNextWeek(day: day, intent: $0) }, snooze: {},
+                                toggleFavorite: { if let meal = item.mealID.flatMap({ store.meal(id: $0) }) { store.toggleFavorite(meal) } },
+                                markCooked: {}, markSkipped: {}, cook: {},
+                                swapWith: { store.swapNextWeek(between: day, and: $0) }, allowsCooking: false)
+                        } else {
+                            Text(day.name).font(.headline)
+                            Button("Plan this day") { editingDay = day }
+                            Button("Choose a meal") { pickingDay = day }
                         }
                     }
 
-                    Button { withAnimation(.snappy) { store.planNextWeek() } } label: {
+                    Button { Task { await store.generateInBackground(nextWeek: true) } } label: {
                         Label("Shuffle next week", systemImage: "shuffle")
                             .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
                     }
@@ -50,6 +62,22 @@ struct NextWeekView: View {
         .appBackground()
         .navigationTitle("Next week")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $pickingDay) { MealPickerView(day: $0, nextWeek: true).environmentObject(store) }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if store.canUndo { Button("Undo") { store.undoLastChange() } }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let plan = store.nextWeekPlan { ShareLink(item: PlanTextExporter.weeklyPlan(plan, meals: store.meals)) { Image(systemName: "square.and.arrow.up") }.accessibilityLabel("Share next week") }
+            }
+        }
+        .sheet(item: $selectedMeal) { MealDetailView(meal: $0) }
+        .sheet(item: $editingDay) { day in
+            DayContextEditor(day: day, initialContext: store.context(for: day, nextWeek: true),
+                governingRule: store.dinnerModeRule(for: day, nextWeek: true)?.summary(meals: store.meals, context: store.matchContext)) {
+                    store.updateNextWeekContext($0, for: day)
+                }.environmentObject(store)
+        }
     }
 
     private var header: some View {
@@ -74,7 +102,7 @@ struct NextWeekView: View {
             Text("Build it now and it will be waiting when the week turns.")
                 .font(.subheadline).foregroundStyle(AppTheme.muted)
                 .multilineTextAlignment(.center)
-            Button { withAnimation(.snappy) { store.planNextWeek() } } label: {
+            Button { Task { await store.generateInBackground(nextWeek: true) } } label: {
                 Label("Plan next week", systemImage: "sparkles")
                     .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
             }
@@ -108,26 +136,5 @@ struct NextWeekView: View {
         case .leftovers: return "♻️"
         case .meal: return "🍽️"
         }
-    }
-}
-
-private struct NextWeekRow: View {
-    let day: Weekday
-    let date: Date
-    let title: String
-    let emoji: String
-
-    var body: some View {
-        HStack(spacing: 13) {
-            MealThumbnail(emoji: emoji, size: AppTheme.emojiTileCompact)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(date, format: .dateTime.weekday(.wide).day().month(.abbreviated))
-                    .font(.caption2.bold()).foregroundStyle(AppTheme.accent)
-                Text(title).font(.headline).foregroundStyle(AppTheme.ink)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(12)
-        .mealCard()
     }
 }

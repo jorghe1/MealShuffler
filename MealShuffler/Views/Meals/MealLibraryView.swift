@@ -11,13 +11,19 @@ struct MealLibraryView: View {
     private enum LibrarySheet: Identifiable {
         case editor(existing: Meal?, draft: ImportedRecipeDraft)
         case linkImport
-        case paste
+        case paste(ImportedRecipeDraft)
+        case detail(Meal)
+        case photos(ImportedRecipeDraft)
+        case capture(CapturedRecipe)
 
         var id: String {
             switch self {
-            case .editor(let existing, _): "editor-\(existing?.id.uuidString ?? "new")"
+            case .editor(_, let draft): "editor-\(draft.id)"
             case .linkImport: "link"
             case .paste: "paste"
+            case .detail(let meal): "detail-\(meal.id)"
+            case .photos: "photos"
+            case .capture(let capture): "capture-\(capture.id)"
             }
         }
     }
@@ -26,25 +32,62 @@ struct MealLibraryView: View {
 
     @State private var searchText = ""
     @State private var filter: MealFilter = .all
+    @State private var category: MealTag?
+    @State private var collection: String?
+    @State private var reviewOnly = false
+    @State private var sortOrder = 0
+    @State private var customLabel: String?
+    @State private var quickOnly = false
     @State private var sheet: LibrarySheet?
-    @State private var importing: CapturedRecipe?
-    @State private var photoItem: PhotosPickerItem?
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var drafts: [ImportedRecipeDraft] = []
     @State private var importError: String?
     @State private var isImportingPhoto = false
     @State private var isScanning = false
+    @State private var isPickingPhotos = false
 
     private var filteredMeals: [Meal] {
         store.meals
             .filter { filter.matches($0, favorites: store.favoriteMealIDs) }
             .filter { $0.matches(searchText: searchText) }
+            .filter { category == nil || $0.tags.contains(category!) }
+            .filter { collection == nil || store.householdTools.collections[collection!]?.contains($0.id) == true }
+            .filter { !reviewOnly || $0.servingsConfirmed == false || $0.prepMinutes <= 0 || $0.ingredients.contains(where: { $0.needsAmountReview }) }
+            .filter { customLabel == nil || $0.customTags.contains(customLabel!) }
+            .filter { !quickOnly || ($0.prepMinutes > 0 && $0.prepMinutes <= 30) }
+            .sorted { left, right in
+                if sortOrder == 2 { return left.updatedAt > right.updatedAt }
+                if sortOrder == 3 { return (store.lastCookedByMeal[left.id] ?? .distantPast) < (store.lastCookedByMeal[right.id] ?? .distantPast) }
+                return sortOrder == 1 ? (left.prepMinutes > 0 ? left.prepMinutes : Int.max) < (right.prepMinutes > 0 ? right.prepMinutes : Int.max) : left.name.localizedStandardCompare(right.name) == .orderedAscending }
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 actionCard
+                ForEach(drafts) { draft in
+                    HStack {
+                        Label(draft.name.isEmpty ? L10n.string("Unfinished recipe") : draft.name, systemImage: "doc.badge.clock")
+                        Spacer()
+                        Button("Resume") {
+                            if draft.name.isEmpty, !draft.sourceImages.isEmpty { sheet = .photos(draft) }
+                            else if draft.name.isEmpty, draft.sourceText != nil { sheet = .paste(draft) }
+                            else { sheet = .editor(existing: nil, draft: draft) }
+                        }
+                        Button("Discard", role: .destructive) { RecipeLibraryStorage.removeDraft(draft.id); drafts = RecipeLibraryStorage.drafts() }
+                    }.padding().mealCard()
+                }
                 if !store.pendingCaptures.isEmpty { sharedCard }
                 filterRow
+                Menu("Filter and sort") {
+                    Picker("Category", selection: $category) { Text("All").tag(nil as MealTag?); ForEach(MealTag.allCases) { Text($0.name).tag($0 as MealTag?) } }
+                    Picker("Collection", selection: $collection) { Text("All").tag(nil as String?); ForEach(store.householdTools.collections.keys.sorted(), id: \.self) { Text($0).tag($0 as String?) } }
+                    Toggle("Needs review", isOn: $reviewOnly)
+                    Toggle("30 minutes or less", isOn: $quickOnly)
+                    Picker("Label", selection: $customLabel) { Text("All").tag(nil as String?); ForEach(store.customTagsInUse, id: \.self) { Text($0).tag($0 as String?) } }
+                    Picker("Sort", selection: $sortOrder) { Text("Name").tag(0); Text("Quickest first").tag(1); Text("Recently updated").tag(2); Text("Longest since cooked").tag(3) }
+                }
+                NavigationLink("Manage collections") { RecipeCollectionsView() }
                 if filteredMeals.isEmpty { emptyState }
                 ForEach(filteredMeals) { meal in
                     MealRow(
@@ -54,7 +97,7 @@ struct MealLibraryView: View {
                     )
                     .mealCard()
                     .contentShape(Rectangle())
-                    .onTapGesture { sheet = .editor(existing: meal, draft: ImportedRecipeDraft()) }
+                    .onTapGesture { sheet = .detail(meal) }
                     .contextMenu {
                         // The other half of choosing a dinner: from a meal you are looking
                         // at, rather than from the day you are filling.
@@ -75,8 +118,9 @@ struct MealLibraryView: View {
                                 Label("Add to Bring!", systemImage: "cart.badge.plus")
                             }
                         }
-                        if !meal.isBuiltIn {
-                            Button("Delete", role: .destructive) { store.deleteMeal(meal) }
+                        Button(meal.isBuiltIn ? L10n.string("Hide recipe") : L10n.string("Delete"), role: .destructive) { store.deleteMeal(meal) }
+                        if SampleMeals.all.contains(where: { $0.id == meal.id }), !meal.isBuiltIn {
+                            Button("Reset to original") { store.resetRecipeToOriginal(meal) }
                         }
                     }
                 }
@@ -88,17 +132,12 @@ struct MealLibraryView: View {
         .navigationTitle("Meals")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search meals")
-        .sheet(item: $importing) { capture in
-            CapturedRecipeImportView(capture: capture) { draft in
-                store.discardCapture(capture)
-                importing = nil
-                sheet = .editor(existing: nil, draft: draft)
-            } cancel: {
-                importing = nil
-            }
-        }
-        .sheet(item: $sheet) { presented in
+        .sheet(item: $sheet, onDismiss: { drafts = RecipeLibraryStorage.drafts() }) { presented in
             switch presented {
+            case .capture(let capture):
+                CapturedRecipeImportView(capture: capture) { draft in
+                    sheet = .editor(existing: nil, draft: draft)
+                } cancel: { sheet = nil }
             case .editor(let existing, let draft):
                 RecipeEditorView(existingMeal: existing, draft: draft)
                     .environmentObject(store)
@@ -106,10 +145,54 @@ struct MealLibraryView: View {
                 RecipeLinkImportView { imported in
                     sheet = .editor(existing: nil, draft: imported)
                 }
-            case .paste:
-                PasteRecipeView { imported in
+            case .paste(let draft):
+                PasteRecipeView(draft: draft) { imported in
                     sheet = .editor(existing: nil, draft: imported)
                 }
+            case .photos(let source):
+                PhotoRecipeImportView(draft: source) { draft in sheet = .editor(existing: nil, draft: draft) }
+            case .detail(let meal):
+                MealDetailView(meal: meal)
+                    .safeAreaInset(edge: .bottom) {
+                        HStack {
+                            Button("Edit") { sheet = .editor(existing: meal, draft: ImportedRecipeDraft()) }
+                            Menu("Plan") {
+                                ForEach(Weekday.ordered()) { day in Button(day.name) { store.setMeal(meal, on: day); sheet = nil } }
+                            }
+                            Menu("More") {
+                                Button("Save as a variant") {
+                                    var draft = ImportedRecipeDraft(name: meal.name, subtitle: meal.subtitle, emoji: meal.emoji,
+                                        prepMinutes: meal.prepMinutes, servings: meal.defaultServings,
+                                        ingredientLines: meal.ingredients.map(\.editableLine), instructions: meal.instructions,
+                                        tags: meal.tags, customTags: meal.customTags, parsedIngredients: meal.ingredients,
+                                        needsReview: true, source: meal.source, servingsConfirmed: true)
+                                    draft.sourceText = meal.sourceText
+                                    draft.sourceImages = (meal.sourceImageNames ?? []).compactMap { RecipeLibraryStorage.image(named: $0) }
+                                    draft.heroImageURL = meal.heroImageURL
+                                    draft.activeMinutes = meal.activeMinutes
+                                    draft.parentRecipeID = meal.id
+                                    sheet = .editor(existing: nil, draft: draft)
+                                }
+                                if case .web(let url) = meal.source {
+                                    Button("Update from source") {
+                                        Task {
+                                            do {
+                                                var draft = try await RecipeCapture.urlExtractor.extract(from: url)
+                                                draft.updatingMealID = meal.id
+                                                draft.customTags = meal.customTags
+                                                sheet = .editor(existing: nil, draft: draft)
+                                            } catch { importError = error.localizedDescription }
+                                        }
+                                    }
+                                }
+                                ForEach(Array(RecipeLibraryStorage.revisions(for: meal.id).enumerated()), id: \.offset) { _, previous in
+                                    Button(L10n.string("Restore version from %@", previous.updatedAt.formatted())) {
+                                        if store.saveMeal(previous) { sheet = .detail(previous) }
+                                    }
+                                }
+                            }
+                        }.buttonStyle(.bordered).padding().frame(maxWidth: .infinity).background(AppTheme.background)
+                    }
             }
         }
         .fullScreenCover(isPresented: $isScanning) {
@@ -127,9 +210,10 @@ struct MealLibraryView: View {
             get: { importError != nil },
             set: { if !$0 { importError = nil } }
         )) { Button("OK", role: .cancel) {} } message: { Text(importError ?? L10n.string("Unknown error")) }
-        .onChange(of: photoItem) { _, item in
-            guard let item else { return }
-            Task { @MainActor in await importPhoto(item) }
+        .onAppear { drafts = RecipeLibraryStorage.drafts() }
+        .onChange(of: photoItems) { _, items in
+            guard !items.isEmpty else { return }
+            Task { @MainActor in await importPhotos(items) }
         }
     }
 
@@ -166,11 +250,11 @@ struct MealLibraryView: View {
                     Text(capture.summary)
                         .font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(1)
                     Spacer(minLength: 8)
-                    Button("Add") { importing = capture }
+                    Button("Add") { sheet = .capture(capture) }
                         .font(.subheadline.weight(.semibold))
                         .buttonStyle(.bordered)
                     Button { store.discardCapture(capture) } label: {
-                        Image(systemName: "xmark")
+                        Image(systemName: "xmark").iconButtonFrame()
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(AppTheme.muted)
@@ -215,64 +299,114 @@ struct MealLibraryView: View {
     }
 
     private var actionCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Build your family's menu")
-                        .font(.system(.title2, design: .rounded, weight: .bold))
-                    Text("A meal can be complete or simply a name with ingredients.")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.muted)
-                }
-                Spacer()
-                if isImportingPhoto { ProgressView() }
-            }
-
-            // Five ways in, because a recipe arrives in five ways: typed, a link, a photo
-            // already on the phone, a page on the counter, and text copied from a message.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 9) {
-                    ActionChip(title: L10n.string("New"), symbol: "plus") {
-                        sheet = .editor(existing: nil, draft: ImportedRecipeDraft())
-                    }
-                    ActionChip(title: L10n.string("Link"), symbol: "link") { sheet = .linkImport }
-                    if DocumentScannerView.isAvailable {
-                        ActionChip(title: L10n.string("Scan"), symbol: "doc.viewfinder") { isScanning = true }
-                    }
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label("Photo", systemImage: "text.viewfinder").actionChip()
-                    }
-                    ActionChip(title: L10n.string("Paste"), symbol: "doc.on.clipboard") { sheet = .paste }
-                }
-                .padding(.vertical, 2)
-            }
-            .scrollClipDisabled()
-        }
-        .padding(18)
-        .mealCard()
+        Menu {
+            Button("Write a recipe", systemImage: "square.and.pencil") { sheet = .editor(existing: nil, draft: ImportedRecipeDraft()) }
+            Button("Import from a link", systemImage: "link") { sheet = .linkImport }
+            Button("Paste recipe text", systemImage: "doc.on.clipboard") { sheet = .paste(ImportedRecipeDraft()) }
+            Button("Choose recipe photos", systemImage: "photo") { isPickingPhotos = true }
+            if DocumentScannerView.isAvailable { Button("Scan recipe pages", systemImage: "doc.viewfinder") { isScanning = true } }
+        } label: {
+            Label("Add recipe", systemImage: "plus").font(.headline).frame(maxWidth: .infinity, minHeight: 48)
+        }.buttonStyle(.borderedProminent)
+        .disabled(isImportingPhoto)
+        .overlay { if isImportingPhoto { ProgressView() } }
+        .photosPicker(isPresented: $isPickingPhotos, selection: $photoItems, maxSelectionCount: 5, matching: .images)
     }
 
     /// A scan can be several pages of one recipe, which is why it is not the photo path.
     private func importScan(_ pages: [Data]) async {
+        guard pages.count <= 5 else { importError = L10n.string("Choose up to five pages for one recipe."); return }
+        sheet = .photos(ImportedRecipeDraft(source: .photo, sourceImages: pages))
+    }
+
+    private func importPhotos(_ items: [PhotosPickerItem]) async {
         isImportingPhoto = true
-        defer { isImportingPhoto = false }
+        defer { isImportingPhoto = false; photoItems = [] }
         do {
-            sheet = .editor(existing: nil, draft: try await RecipeCapture.extract(fromImages: pages))
+            var images: [Data] = []
+            for item in items {
+                guard let data = try await item.loadTransferable(type: Data.self) else { throw RecipeImportError.unreadableImage }
+                images.append(try RecipeImagePreparation.prepare(data))
+            }
+            sheet = .photos(ImportedRecipeDraft(source: .photo, sourceImages: images))
         } catch {
             importError = error.localizedDescription
         }
     }
+}
 
-    private func importPhoto(_ item: PhotosPickerItem) async {
-        isImportingPhoto = true
-        defer { isImportingPhoto = false; photoItem = nil }
-        do {
-            guard let data = try await item.loadTransferable(type: Data.self) else {
-                throw RecipeImportError.unreadableImage
+private struct PhotoRecipeImportView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var images: [Data]
+    private let sourceDraft: ImportedRecipeDraft
+    @State private var handedOff = false
+    let imported: (ImportedRecipeDraft) -> Void
+    @State private var note = ""
+    @State private var isReading = false
+    @State private var errorMessage: String?
+    @State private var readingTask: Task<Void, Never>?
+
+    init(draft: ImportedRecipeDraft, imported: @escaping (ImportedRecipeDraft) -> Void) {
+        sourceDraft = draft
+        _images = State(initialValue: draft.sourceImages)
+        _note = State(initialValue: draft.sourceText ?? "")
+        self.imported = imported
+    }
+
+    private var pendingDraft: ImportedRecipeDraft {
+        var draft = sourceDraft
+        draft.sourceImages = images
+        draft.sourceText = note
+        return draft
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Recipe pages") {
+                    ForEach(Array(images.enumerated()), id: \.offset) { _, data in
+                        if let image = UIImage(data: data) { Image(uiImage: image).resizable().scaledToFit() }
+                    }
+                    .onMove { images.move(fromOffsets: $0, toOffset: $1) }
+                    Text("Drag pages into reading order.").font(.caption)
+                }
+                .environment(\.editMode, .constant(.active))
+                Section("Additional context") {
+                    TextField("For example: these pages make one recipe for six", text: $note, axis: .vertical)
+                    Text("Photograph the written recipe. A finished dish does not reveal exact ingredients or quantities.").font(.caption)
+                }
+                if let errorMessage { Text(errorMessage).foregroundStyle(AppTheme.warning) }
+                Button("Read recipe") {
+                    isReading = true
+                    readingTask = Task {
+                        defer { isReading = false }
+                        do {
+                            try RecipeLibraryStorage.saveDraft(pendingDraft)
+                            var draft = try await RecipeCapture.extract(fromImages: images, note: note)
+                            try Task.checkCancellation()
+                            draft.id = sourceDraft.id
+                            try RecipeLibraryStorage.saveDraft(draft)
+                            handedOff = true
+                            imported(draft)
+                        } catch is CancellationError { }
+                        catch { errorMessage = error.localizedDescription }
+                    }
+                }.disabled(isReading)
+                if isReading { ProgressView() }
             }
-            sheet = .editor(existing: nil, draft: try await RecipeCapture.imageExtractor.extract(fromImage: data))
-        } catch {
-            importError = error.localizedDescription
+            .navigationTitle("Read recipe photos")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { readingTask?.cancel(); dismiss() } } }
+        }
+        .task(id: pendingDraft) {
+            do {
+                try await Task.sleep(for: .milliseconds(500))
+                if !handedOff { try RecipeLibraryStorage.saveDraft(pendingDraft) }
+            } catch is CancellationError { }
+            catch { errorMessage = error.localizedDescription }
+        }
+        .onDisappear {
+            readingTask?.cancel()
+            if !handedOff { do { try RecipeLibraryStorage.saveDraft(pendingDraft) } catch { errorMessage = error.localizedDescription } }
         }
     }
 }
@@ -305,6 +439,7 @@ private struct RecipeLinkImportView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var urlText = ""
     @State private var isLoading = false
+    @State private var importTask: Task<Void, Never>?
     @State private var errorMessage: String?
     let imported: (ImportedRecipeDraft) -> Void
 
@@ -323,7 +458,7 @@ private struct RecipeLinkImportView: View {
                 }
                 Section {
                     Button {
-                        Task { await importURL() }
+                        importTask = Task { await importURL() }
                     } label: {
                         HStack {
                             Text("Fetch recipe")
@@ -334,6 +469,7 @@ private struct RecipeLinkImportView: View {
                     .disabled(isLoading || urlText.isEmpty)
                 }
             }
+            .onDisappear { importTask?.cancel() }
             .navigationTitle("Import from link")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
@@ -347,7 +483,11 @@ private struct RecipeLinkImportView: View {
         }
         isLoading = true
         defer { isLoading = false }
-        do { imported(try await RecipeCapture.urlExtractor.extract(from: url)) }
+        do {
+            let draft = try await RecipeCapture.urlExtractor.extract(from: url)
+            try Task.checkCancellation()
+            imported(draft)
+        } catch is CancellationError { }
         catch { errorMessage = error.localizedDescription }
     }
 }

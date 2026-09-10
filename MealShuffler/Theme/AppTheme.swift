@@ -16,7 +16,7 @@ enum AppTheme {
     static let accentSoft = dynamic(light: (0.82, 0.90, 0.80), dark: (0.16, 0.25, 0.19))
     static let ink = dynamic(light: (0.12, 0.16, 0.12), dark: (0.91, 0.94, 0.91))
     static let muted = dynamic(light: (0.39, 0.42, 0.36), dark: (0.63, 0.68, 0.62))
-    static let warning = dynamic(light: (0.75, 0.36, 0.18), dark: (0.92, 0.58, 0.38))
+    static let warning = dynamic(light: (0.62, 0.27, 0.10), dark: (0.92, 0.58, 0.38))
     /// Text drawn on top of `accent`. Not plain white: on the light-green dark accent,
     /// white text falls below contrast.
     static let onAccent = dynamic(light: (1.00, 1.00, 1.00), dark: (0.05, 0.10, 0.07))
@@ -94,6 +94,7 @@ extension View {
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            .frame(minHeight: 44)
             .background(selected ? AppTheme.accent : AppTheme.raised)
             .foregroundStyle(selected ? AppTheme.onAccent : AppTheme.ink)
             .clipShape(Capsule())

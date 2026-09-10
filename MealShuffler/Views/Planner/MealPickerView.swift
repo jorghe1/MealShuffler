@@ -11,6 +11,7 @@ struct MealPickerView: View {
     @Environment(\.dismiss) private var dismiss
 
     let day: Weekday
+    var nextWeek = false
 
     @State private var searchText = ""
     @State private var filter: MealFilter = .all
@@ -19,7 +20,7 @@ struct MealPickerView: View {
     /// repeat the generator spends real effort avoiding.
     private var elsewhereThisWeek: [UUID: Weekday] {
         var byMeal: [UUID: Weekday] = [:]
-        for item in store.plan.meals where item.day != day {
+        for item in (nextWeek ? store.nextWeekPlan?.meals ?? [] : store.plan.meals) where item.day != day {
             if let mealID = item.mealID, byMeal[mealID] == nil { byMeal[mealID] = item.day }
         }
         return byMeal
@@ -45,7 +46,7 @@ struct MealPickerView: View {
                     if results.isEmpty { emptyState }
                     ForEach(results) { meal in
                         Button {
-                            store.setMeal(meal, on: day)
+                            if nextWeek { store.setNextWeekMeal(meal, on: day) } else { store.setMeal(meal, on: day) }
                             Haptics.success()
                             dismiss()
                         } label: {

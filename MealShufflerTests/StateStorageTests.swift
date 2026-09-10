@@ -62,6 +62,41 @@ final class StateStorageTests: XCTestCase {
         XCTAssertEqual(restored.pantryStaples, ["olivenolje"])
     }
 
+    func testCorruptionRestoresBackupAndPreservesUnreadableBytes() throws {
+        let directory = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let repository = FileStateRepository(directory: directory, migratingFrom: nil)
+        try repository.saveOrThrow(snapshot(householdSize: 5))
+        try repository.saveOrThrow(snapshot(householdSize: 6))
+        let broken = Data("broken source".utf8)
+        try broken.write(to: directory.appendingPathComponent("state.json"))
+        XCTAssertEqual(repository.load()?.householdSize, 5)
+        XCTAssertNotNil(repository.recoveryNotice)
+        try repository.saveOrThrow(snapshot(householdSize: 7))
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        let preserved = try XCTUnwrap(files.first { $0.lastPathComponent.contains("unreadable-") })
+        XCTAssertEqual(try Data(contentsOf: preserved), broken)
+    }
+
+    func testNewerSchemaCannotBeOverwritten() throws {
+        let directory = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let repository = FileStateRepository(directory: directory, migratingFrom: nil)
+        let future = try JSONSerialization.data(withJSONObject: ["schemaVersion": AppStateSnapshot.currentVersion + 1])
+        let file = directory.appendingPathComponent("state.json")
+        try future.write(to: file)
+        XCTAssertThrowsError(try repository.saveOrThrow(snapshot()))
+        XCTAssertEqual(try Data(contentsOf: file), future)
+    }
+
+    func testNextWeekContextsPersistIndependently() throws {
+        var state = snapshot()
+        state.nextWeekContexts = [.monday: DayPlanContext(diners: 7, mode: .takeaway)]
+        let restored = try JSONDecoder().decode(AppStateSnapshot.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(restored.nextWeekContexts[.monday]?.diners, 7)
+        XCTAssertNil(restored.dayContexts[.monday])
+    }
+
     /// The new reminder settings are additive, so an older blob must decode with defaults
     /// rather than throwing the household's whole plan away.
     func testAnOlderBlobWithoutTheReminderSettingsStillDecodes() throws {

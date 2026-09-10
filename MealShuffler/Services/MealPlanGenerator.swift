@@ -6,6 +6,8 @@ import Foundation
 /// generator's parameter list growing with it.
 struct TasteProfile {
     var favoriteMealIDs: Set<UUID> = []
+    var previousWeekDinner: Meal?
+    var freezerBatches: [FreezerBatch] = []
     /// Swiped right during onboarding. A softer signal than an explicitly hearted favourite.
     var likedMealIDs: Set<UUID> = []
     /// Swiped left. Normally filtered out upstream, but still penalised here because the
@@ -58,18 +60,16 @@ struct MealPlanGenerator {
         swapIntents: [Weekday: MealSwapIntent] = [:],
         matchContext: MealMatcher.MatchContext = .empty
     ) -> GenerationResult {
-        let activeRules = rules.filter(\.isEnabled)
+        let activeRules = rules.filter { $0.isActive(inWeek: existingPlan.startDate) }
         let requiredRules = activeRules.filter { $0.strength == .required }
         let preferredRules = activeRules.filter { $0.strength == .preferred }
         var selected: [Weekday: Meal] = [:]
         var entries: [Weekday: PlannedMeal] = [:]
-        var lockedDays = Set<Weekday>()
         var conflicts: [PlanConflict] = []
 
         for item in existingPlan.meals where item.isLocked {
             entries[item.day] = item
-            lockedDays.insert(item.day)
-            if let mealID = item.mealID, let meal = allMeals.first(where: { $0.id == mealID }) {
+            if item.kind == .meal, let mealID = item.mealID, let meal = allMeals.first(where: { $0.id == mealID }) {
                 selected[item.day] = meal
             }
         }
@@ -84,15 +84,20 @@ struct MealPlanGenerator {
                 entries[day] = PlannedMeal(day: day, mealID: nil, isLocked: false, servings: context.diners, kind: .takeaway)
                 continue
             case .leftovers:
+                if let id = context.freezerBatchID {
+                    let batch = taste.freezerBatches.first(where: { $0.id == id })
+                    var item = PlannedMeal(day: day, mealID: batch?.recipe.id, isLocked: false, servings: context.diners, kind: .leftovers(sourceDay: day), portionScale: context.portionScale)
+                    item.freezerBatch = batch; entries[day] = item; continue
+                }
                 if let source = resolveLeftoverSource(for: day, context: context, selected: selected),
                    let sourceMeal = selected[source] {
-                    selected[day] = sourceMeal
                     entries[day] = PlannedMeal(
                         day: day,
                         mealID: sourceMeal.id,
                         isLocked: false,
                         servings: context.diners,
-                        kind: .leftovers(sourceDay: source)
+                        kind: .leftovers(sourceDay: source),
+                        portionScale: context.portionScale
                     )
                     let availableExtras = (contexts[source] ?? DayPlanContext()).extraServings
                     if availableExtras < context.diners {
@@ -108,7 +113,7 @@ struct MealPlanGenerator {
                         ))
                     }
                 } else {
-                    entries[day] = PlannedMeal(day: day, mealID: nil, isLocked: false, servings: context.diners, kind: .leftovers(sourceDay: context.leftoverSourceDay ?? day))
+                    entries[day] = PlannedMeal(day: day, mealID: nil, isLocked: false, servings: context.diners, kind: .leftovers(sourceDay: context.leftoverSourceDay ?? day), portionScale: context.portionScale)
                     conflicts.append(PlanConflict(
                         message: L10n.string("%@ is set to leftovers, but no earlier dinner can be used.", day.name),
                         suggestion: L10n.string("Choose an earlier day and make extra servings.")
@@ -122,7 +127,7 @@ struct MealPlanGenerator {
             let currentMeal = avoidingMealOnDay[day].flatMap { id in allMeals.first(where: { $0.id == id }) }
             let intent = swapIntents[day]
             let previousDayMeal: Meal? = {
-                guard let index = orderedDays.firstIndex(of: day), index > 0 else { return nil }
+                guard let index = orderedDays.firstIndex(of: day), index > 0 else { return taste.previousWeekDinner }
                 return selected[orderedDays[index - 1]]
             }()
             let preferred = candidatePool(
@@ -166,9 +171,9 @@ struct MealPlanGenerator {
                 rules: requiredRules,
                 dayContext: context,
                 avoiding: nil,
-                enforceWeeklyMaximums: false,
-                previousDayMeal: nil,
-                taste: .empty,
+                enforceWeeklyMaximums: true,
+                previousDayMeal: previousDayMeal,
+                taste: taste,
                 context: matchContext
             )
             let pool = !preferred.isEmpty ? preferred : (!fallback.isEmpty ? fallback : relaxed)
@@ -193,11 +198,17 @@ struct MealPlanGenerator {
             }
         }
 
-        satisfyWeeklyMinimums(
-            selected: &selected,
-            entries: &entries,
-            lockedDays: lockedDays,
-            preferredMeals: preferredMeals,
+        for day in orderedDays where entries[day]?.isLocked != true { entries[day]?.portionScale = contexts[day]?.portionScale }
+        var plan = WeeklyPlan(startDate: existingPlan.startDate, meals: orderedDays.compactMap { entries[$0] })
+        let initialIssues = validate(plan: plan, allMeals: allMeals, rules: requiredRules,
+                                     contexts: contexts, taste: taste, context: matchContext)
+        if !initialIssues.isEmpty {
+            plan = searchPlan(allMeals: allMeals, rules: requiredRules, contexts: contexts, taste: taste,
+                              existingPlan: existingPlan, fallback: plan, context: matchContext).anchored(to: existingPlan.startDate)
+        }
+        plan = resolvingLeftovers(in: plan, contexts: contexts, allMeals: allMeals, rules: requiredRules, matchContext: matchContext)
+        conflicts = validate(
+            plan: plan,
             allMeals: allMeals,
             rules: requiredRules,
             contexts: contexts,
@@ -205,21 +216,11 @@ struct MealPlanGenerator {
             context: matchContext
         )
 
-        let plan = WeeklyPlan(meals: orderedDays.compactMap { entries[$0] })
-        conflicts.append(contentsOf: validate(
-            plan: plan,
-            allMeals: allMeals,
-            rules: requiredRules,
-            contexts: contexts,
-            taste: taste,
-            context: matchContext
-        ))
-
         // Not a rule violation: the plan is valid, it just had to reach past the meals this
         // household has expressed an opinion about. Marked informational so it stops being
         // counted and coloured as a broken rule.
         let preferredIDs = Set(preferredMeals.map(\.id))
-        let fallbackNames = selected.values
+        let fallbackNames = plan.meals.filter { $0.kind == .meal }.compactMap { item in allMeals.first { $0.id == item.mealID } }
             .filter { !preferredIDs.contains($0.id) }
             .map(\.name)
             .uniqued()
@@ -233,6 +234,106 @@ struct MealPlanGenerator {
         }
 
         return GenerationResult(plan: plan, conflicts: conflicts.uniqued(by: \.message))
+    }
+
+    /// A bounded search repairs interacting rules without relaxing any required predicate.
+    /// A partial safe plan is preferable to silently selecting a forbidden dinner.
+    private func searchPlan(allMeals: [Meal], rules: [PlanningRule], contexts: [Weekday: DayPlanContext],
+                            taste: TasteProfile, existingPlan: WeeklyPlan, fallback: WeeklyPlan,
+                            context: MealMatcher.MatchContext) -> WeeklyPlan {
+        var entries = Dictionary(uniqueKeysWithValues: existingPlan.meals.filter(\.isLocked).map { ($0.day, $0) })
+        for day in orderedDays where entries[day] == nil && (contexts[day]?.mode ?? .cook) != .cook {
+            entries[day] = fallback[day]
+        }
+        var selected = Dictionary(uniqueKeysWithValues: entries.values.compactMap { item -> (Weekday, Meal)? in
+            guard item.kind == .meal, let meal = allMeals.first(where: { $0.id == item.mealID }) else { return nil }
+            return (item.day, meal)
+        })
+        var best = Dictionary(uniqueKeysWithValues: fallback.meals.map { ($0.day, $0) })
+        var attempts = 0
+        var evaluations = 0
+        let minimums = rules.compactMap { rule -> (matcher: MealMatcher, minimum: Int)? in
+            guard case .minimumPerWeek(let matcher, let count) = rule.constraint else { return nil }
+            return (matcher, count)
+        } + overdueMinimums(rules: rules, taste: taste, context: context, allMeals: allMeals)
+        let priorities = Dictionary(uniqueKeysWithValues: allMeals.map { ($0.id, random.nextUniform()) })
+        func visit(_ remaining: [Weekday]) -> Bool {
+            attempts += 1
+            guard !Task.isCancelled, attempts <= 20_000, evaluations <= 250_000 else { return false }
+            if entries.count > best.count { best = entries }
+            if remaining.isEmpty {
+                let candidate = resolvingLeftovers(in: WeeklyPlan(startDate: existingPlan.startDate, meals: orderedDays.compactMap { entries[$0] }), contexts: contexts,
+                    allMeals: allMeals, rules: rules, matchContext: context)
+                let valid = validate(plan: candidate, allMeals: allMeals, rules: rules, contexts: contexts,
+                                taste: taste, context: context).isEmpty
+                if valid { entries = Dictionary(uniqueKeysWithValues: candidate.meals.map { ($0.day, $0) }) }
+                return valid
+            }
+            let options = remaining.map { day -> (Weekday, [Meal]) in
+                evaluations += allMeals.count
+                let pool = candidates(for: day, from: allMeals, selected: selected, rules: rules,
+                    dayContext: contexts[day] ?? DayPlanContext(), avoiding: nil, enforceWeeklyMaximums: true,
+                    previousDayMeal: nil, taste: taste, context: context)
+                return (day, pool.sorted { left, right in
+                    let leftUsed = selected.values.contains { $0.id == left.id }
+                    let rightUsed = selected.values.contains { $0.id == right.id }
+                    if leftUsed != rightUsed { return !leftUsed }
+                    return priorities[left.id, default: 0] < priorities[right.id, default: 0]
+                })
+            }
+            for requirement in minimums {
+                let actual = selected.values.filter { requirement.matcher.matches($0, context: context) }.count
+                let possible = options.filter { option in
+                    option.1.contains { requirement.matcher.matches($0, context: context.forDay(option.0)) }
+                }.count
+                if actual + possible < requirement.minimum { return false }
+            }
+            guard let (day, pool) = options.min(by: { $0.1.count < $1.1.count }), !pool.isEmpty else { return false }
+            for meal in pool {
+                selected[day] = meal
+                entries[day] = PlannedMeal(day: day, mealID: meal.id, isLocked: false,
+                                          servings: (contexts[day] ?? DayPlanContext()).cookedServings, portionScale: contexts[day]?.portionScale)
+                if visit(remaining.filter { $0 != day }) { return true }
+                selected.removeValue(forKey: day)
+                entries.removeValue(forKey: day)
+                if attempts > 20_000 || evaluations > 250_000 { break }
+            }
+            return false
+        }
+        let remaining = orderedDays.filter { entries[$0] == nil }
+        if visit(remaining) { return WeeklyPlan(meals: orderedDays.compactMap { entries[$0] }) }
+        return WeeklyPlan(meals: orderedDays.compactMap { best[$0] })
+    }
+
+    func resolvingLeftovers(in plan: WeeklyPlan, contexts: [Weekday: DayPlanContext], allMeals: [Meal] = [], rules: [PlanningRule] = [], matchContext: MealMatcher.MatchContext = .empty) -> WeeklyPlan {
+        var result = plan
+        var allocated: [Weekday: Double] = [:]
+        for day in orderedDays {
+            guard var item = result[day], item.freezerBatch == nil, contexts[day]?.freezerBatchID == nil, case .leftovers(let oldSource) = item.kind,
+                  let index = orderedDays.firstIndex(of: day) else { continue }
+            let earlier = Array(orderedDays[..<index].reversed())
+            func usable(_ source: Weekday) -> Bool {
+                guard earlier.contains(source), let origin = result[source], origin.kind == .meal, let id = origin.mealID else { return false }
+                let available = origin.effectiveServings - (contexts[source]?.effectiveDiners ?? 4) - allocated[source, default: 0]
+                guard available >= item.effectiveServings else { return false }
+                if let meal = allMeals.first(where: { $0.id == id }) {
+                    return !rules.contains { rule in
+                        guard rule.strength == .required, rule.isActive(inWeek: plan.startDate), case .excludedOn(let scope, let matcher) = rule.constraint else { return false }
+                        return scope.covers(day) && matcher.matches(meal, context: matchContext.forDay(day))
+                    }
+                }
+                return true
+            }
+            let source = contexts[day]?.leftoverSourceDay ?? earlier.first(where: usable) ?? oldSource
+            item.kind = .leftovers(sourceDay: source)
+            if earlier.contains(source),
+               let origin = result[source], origin.kind == .meal {
+                item.mealID = origin.mealID
+            } else { item.mealID = nil }
+            allocated[source, default: 0] += item.effectiveServings
+            result[day] = item
+        }
+        return result
     }
 
     private func resolveLeftoverSource(
@@ -283,7 +384,7 @@ struct MealPlanGenerator {
         case .quicker:
             refined = currentMeal.map { current in base.filter { $0.prepMinutes < current.prepMinutes } } ?? base
         case .cheaper:
-            refined = currentMeal.map { current in base.filter { $0.planningCost < current.planningCost } } ?? base
+            refined = currentMeal.map { current in base.filter { $0.costPerServing < current.costPerServing } } ?? base
         case .favorite:
             refined = base.filter { favoriteMealIDs.contains($0.id) }
         }
@@ -311,11 +412,18 @@ struct MealPlanGenerator {
         return meals.filter { meal in
             if meal.id == avoiding { return false }
             if usedIDs.contains(meal.id) { return false }
-            if let maximum = dayContext.maximumPrepMinutes, meal.prepMinutes > maximum { return false }
+            if let maximum = dayContext.maximumPrepMinutes, meal.prepMinutes <= 0 || meal.prepMinutes > maximum { return false }
             guard allows(meal: meal, on: day, rules: rules, context: context) else { return false }
-            guard enforceWeeklyMaximums else { return true }
             if exceedsMaximum(meal: meal, selected: selected, rules: rules, context: context) { return false }
             if repeatsTooSoon(meal: meal, rules: rules, taste: taste) { return false }
+            if rules.contains(where: { if case .noRepeatWithin = $0.constraint { return true }; return false }),
+               selected.values.contains(where: { $0.id == meal.id }) { return false }
+            if let index = orderedDays.firstIndex(of: day) {
+                for neighbor in [index - 1, index + 1] where orderedDays.indices.contains(neighbor) {
+                    if follows(selected[orderedDays[neighbor]], meal: meal, rules: rules, context: context) { return false }
+                }
+            }
+            if day == orderedDays.first, follows(taste.previousWeekDinner, meal: meal, rules: rules, context: context) { return false }
             return !follows(previousDayMeal, meal: meal, rules: rules, context: context)
         }
     }
@@ -326,14 +434,15 @@ struct MealPlanGenerator {
         rules: [PlanningRule],
         context: MealMatcher.MatchContext
     ) -> Bool {
+        let dayContext = context.forDay(day)
         for rule in rules {
             switch rule.constraint {
             case .requiredOn(let scope, let matcher) where scope.covers(day):
-                if !matcher.matches(meal, context: context) { return false }
+                if !matcher.matches(meal, context: dayContext) { return false }
             case .excludedOn(let scope, let matcher) where scope.covers(day):
-                if matcher.matches(meal, context: context) { return false }
+                if matcher.matches(meal, context: dayContext) { return false }
             case .maximumPrepTime(let scope, let minutes) where scope.covers(day):
-                if meal.prepMinutes > minutes { return false }
+                if meal.prepMinutes <= 0 || meal.prepMinutes > minutes { return false }
             default:
                 continue
             }
@@ -405,7 +514,7 @@ struct MealPlanGenerator {
         guard meals.count > 1 else { return meals.first }
         let usedIDs = Set(selected.values.map(\.id))
         let previousMeal: Meal? = {
-            guard let index = orderedDays.firstIndex(of: day), index > 0 else { return nil }
+            guard let index = orderedDays.firstIndex(of: day), index > 0 else { return taste.previousWeekDinner }
             return selected[orderedDays[index - 1]]
         }()
 
@@ -482,7 +591,7 @@ struct MealPlanGenerator {
                     score -= 80
                 }
             case .requiredEvery(_, let matcher):
-                // Overdue is decided once for the week in satisfyWeeklyMinimums; here it is
+                // Required recurrence is checked for the whole week; here it is
                 // only a nudge towards the meals that would settle it.
                 score += matcher.matches(meal, context: context) ? 30 : 0
             case .notOnConsecutiveDays(let matcher):
@@ -517,55 +626,7 @@ struct MealPlanGenerator {
         }
     }
 
-    private func satisfyWeeklyMinimums(
-        selected: inout [Weekday: Meal],
-        entries: inout [Weekday: PlannedMeal],
-        lockedDays: Set<Weekday>,
-        preferredMeals: [Meal],
-        allMeals: [Meal],
-        rules: [PlanningRule],
-        contexts: [Weekday: DayPlanContext],
-        taste: TasteProfile,
-        context: MealMatcher.MatchContext
-    ) {
-        var required: [(matcher: MealMatcher, minimum: Int)] = rules.compactMap { rule in
-            guard case .minimumPerWeek(let matcher, let minimum) = rule.constraint else { return nil }
-            return (matcher, minimum)
-        }
-        required.append(contentsOf: overdueMinimums(
-            rules: rules, taste: taste, context: context, allMeals: allMeals
-        ))
-
-        for entry in required {
-            let matcher = entry.matcher
-            while selected.values.filter({ matcher.matches($0, context: context) }).count < entry.minimum {
-                let usedIDs = Set(selected.values.map(\.id))
-                let pool = preferredMeals + allMeals
-                // Prefer a meal not already on the plan, but accept one rather than leave a
-                // required minimum unmet.
-                let replacement = pool.first { meal in
-                    matcher.matches(meal, context: context) && !usedIDs.contains(meal.id)
-                        && !exceedsMaximum(meal: meal, selected: selected, rules: rules, context: context)
-                } ?? pool.first { meal in
-                    matcher.matches(meal, context: context)
-                        && !exceedsMaximum(meal: meal, selected: selected, rules: rules, context: context)
-                }
-                guard let replacement else { break }
-                let replacementDay = orderedDays.first { day in
-                    guard !lockedDays.contains(day),
-                          (contexts[day] ?? DayPlanContext()).mode == .cook,
-                          let current = selected[day],
-                          !matcher.matches(current, context: context) else { return false }
-                    return allows(meal: replacement, on: day, rules: rules, context: context)
-                }
-                guard let replacementDay else { break }
-                selected[replacementDay] = replacement
-                entries[replacementDay]?.mealID = replacement.id
-            }
-        }
-    }
-
-    private func validate(
+    func validate(
         plan: WeeklyPlan,
         allMeals: [Meal],
         rules: [PlanningRule],
@@ -573,13 +634,17 @@ struct MealPlanGenerator {
         taste: TasteProfile,
         context: MealMatcher.MatchContext
     ) -> [PlanConflict] {
+        let servedByDay: [Weekday: Meal] = Dictionary(uniqueKeysWithValues: plan.meals.compactMap { item in
+            guard let id = item.mealID else { return nil }
+            return (item.freezerBatch?.recipe ?? allMeals.first(where: { $0.id == id })).map { (item.day, $0) }
+        })
         let byDay: [Weekday: Meal] = Dictionary(uniqueKeysWithValues: plan.meals.compactMap { item in
             guard let mealID = item.mealID, item.kind == .meal else { return nil }
             return allMeals.first(where: { $0.id == mealID }).map { (item.day, $0) }
         })
         var conflicts: [PlanConflict] = []
 
-        for day in orderedDays where plan[day] == nil {
+        for day in orderedDays where plan[day] == nil || (plan[day]?.kind == .meal && byDay[day] == nil) {
             conflicts.append(PlanConflict(message: L10n.string("No plan was found for %@.", day.name.lowercased())))
         }
 
@@ -594,12 +659,12 @@ struct MealPlanGenerator {
             orderedDays.filter { scope.covers($0) && (contexts[$0] ?? DayPlanContext()).mode == .cook }
         }
 
-        for rule in rules {
+        for rule in rules where rule.isActive(inWeek: plan.startDate) && rule.strength == .required {
             let ruleDescription = rule.summary(meals: allMeals, context: context)
             switch rule.constraint {
             case .requiredOn(let scope, let matcher):
                 for day in cookingDays(in: scope)
-                where byDay[day].map({ matcher.matches($0, context: context) }) != true {
+                where byDay[day].map({ matcher.matches($0, context: context.forDay(day)) }) != true {
                     conflicts.append(PlanConflict(
                         ruleID: rule.id,
                         message: L10n.string("“%@” cannot be satisfied on %@.", ruleDescription, day.name.lowercased()),
@@ -607,8 +672,8 @@ struct MealPlanGenerator {
                     ))
                 }
             case .excludedOn(let scope, let matcher):
-                for day in cookingDays(in: scope)
-                where byDay[day].map({ matcher.matches($0, context: context) }) == true {
+                for day in orderedDays where scope.covers(day)
+                    && servedByDay[day].map({ matcher.matches($0, context: context.forDay(day)) }) == true {
                     conflicts.append(PlanConflict(
                         ruleID: rule.id,
                         message: L10n.string("“%@” is broken on %@.", ruleDescription, day.name.lowercased()),
@@ -629,7 +694,7 @@ struct MealPlanGenerator {
                 if actual < count {
                     conflicts.append(PlanConflict(
                         ruleID: rule.id,
-                        message: L10n.string("“%@” requires %ld, but only %ld are possible.", ruleDescription, count, actual),
+                        message: L10n.string("“%@” requires %ld, but this plan contains %ld.", ruleDescription, count, actual),
                         suggestion: L10n.string("Add more suitable meals.")
                     ))
                 }
@@ -654,24 +719,69 @@ struct MealPlanGenerator {
                     ))
                 }
             case .notOnConsecutiveDays(let matcher):
-                let ordered = orderedDays.compactMap { day in byDay[day].map { (day, $0) } }
-                for (index, entry) in ordered.enumerated() where index > 0 {
-                    let previous = ordered[index - 1].1
-                    guard matcher.matches(entry.1, context: context),
+                if let first = orderedDays.first, let current = byDay[first], let previous = taste.previousWeekDinner,
+                   matcher.matches(current, context: context.forDay(first)), matcher.matches(previous, context: context) {
+                    conflicts.append(PlanConflict(ruleID: rule.id,
+                        message: L10n.string("“%@” conflicts with the last dinner of the previous week.", ruleDescription),
+                        suggestion: L10n.string("Choose another dinner for the first day.")))
+                }
+                for index in orderedDays.indices where index > 0 {
+                    guard let current = byDay[orderedDays[index]], let previous = byDay[orderedDays[index - 1]],
+                          matcher.matches(current, context: context),
                           matcher.matches(previous, context: context) else { continue }
                     conflicts.append(PlanConflict(
                         ruleID: rule.id,
                         message: L10n.string(
                             "“%@” is broken: %@ and %@ are back to back.",
-                            ruleDescription, ordered[index - 1].0.name.lowercased(), entry.0.name.lowercased()
+                            ruleDescription, orderedDays[index - 1].name.lowercased(), orderedDays[index].name.lowercased()
                         ),
                         suggestion: L10n.string("Swap one of the two days.")
                     ))
                 }
-            case .dinnerMode, .noRepeatWithin:
-                // The day plan and the candidate pools carry these; there is nothing left to
-                // find wrong once the week is built.
+            case .noRepeatWithin:
+                let ids = byDay.values.map(\.id)
+                if Set(ids).count != ids.count || byDay.values.contains(where: { repeatsTooSoon(meal: $0, rules: [rule], taste: taste) }) {
+                    conflicts.append(PlanConflict(ruleID: rule.id, message: ruleDescription,
+                        suggestion: L10n.string("Add a suitable meal or make the rule preferred.")))
+                }
+            case .dinnerMode(let scope, let mode):
+                for day in scope.days() {
+                    if contexts[day]?.overridesDinnerMode == true { continue }
+                    guard let item = plan[day] else { continue }
+                    let actual: DayDinnerMode
+                    switch item.kind { case .meal: actual = .cook; case .away: actual = .away
+                    case .takeaway: actual = .takeaway; case .leftovers: actual = .leftovers }
+                    if actual != mode { conflicts.append(PlanConflict(ruleID: rule.id, message: ruleDescription)) }
+                }
+            }
+        }
+        var allocated: [Weekday: Double] = [:]
+        var frozenAllocations: [UUID: Double] = [:]
+        for day in orderedDays {
+            guard let item = plan[day] else { continue }
+            if let limit = contexts[day]?.maximumPrepMinutes, let meal = byDay[day], meal.prepMinutes > limit {
+                conflicts.append(PlanConflict(message: L10n.string("%@ exceeds the time available on %@.", meal.name, day.name)))
+            }
+            if let batch = item.freezerBatch {
+                if item.freezerConsumed == true { continue }
+                frozenAllocations[batch.id, default: 0] += item.effectiveServings
+                let available = taste.freezerBatches.first(where: { $0.id == batch.id })?.portions ?? 0
+                if frozenAllocations[batch.id, default: 0] > available {
+                    conflicts.append(PlanConflict(message: L10n.string("Not enough freezer portions for %@.", day.name), suggestion: L10n.string("Choose another batch or reduce the portions.")))
+                }
                 continue
+            }
+            if contexts[day]?.freezerBatchID != nil, item.freezerBatch == nil {
+                conflicts.append(PlanConflict(message: L10n.string("The freezer batch for %@ is no longer available.", day.name), suggestion: L10n.string("Choose another batch or reduce the portions.")))
+                continue
+            }
+            if case .leftovers(let source) = item.kind {
+                allocated[source, default: 0] += item.effectiveServings
+                let available = max(0, (plan[source]?.effectiveServings ?? 0) - (contexts[source] ?? DayPlanContext()).effectiveDiners)
+                if item.mealID == nil || allocated[source, default: 0] > available {
+                    conflicts.append(PlanConflict(message: L10n.string("Not enough leftovers for %@.", day.name),
+                        suggestion: L10n.string("Increase the number of extra servings on %@.", source.name.lowercased())))
+                }
             }
         }
         return conflicts
@@ -690,17 +800,19 @@ enum GroceryListBuilder {
             let unit: String
             let aisle: GroceryAisle
             let mealName: String
-            var key: String { "\(name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current))|\(unit)" }
+            var amountNote: String?
+            var key: String { IngredientUnits.key(name: name, unit: unit) }
         }
 
         let contributions: [Contribution] = plan.meals.flatMap { item in
             guard item.kind == .meal,
                   let mealID = item.mealID,
                   let meal = meals.first(where: { $0.id == mealID }) else { return [Contribution]() }
-            let scale = Double(item.servings) / Double(max(meal.defaultServings, 1))
+            let scale = item.effectiveServings / Double(max(meal.defaultServings, 1))
             return meal.ingredients.map { ingredient in
-                let normalized = IngredientUnits.normalize(quantity: ingredient.quantity * scale, unit: ingredient.unit)
-                return Contribution(name: ingredient.name, quantity: normalized.quantity, unit: normalized.unit, aisle: ingredient.aisle, mealName: meal.name)
+                let amount = (ingredient.upperQuantity ?? ingredient.quantity) * (ingredient.packageQuantity ?? 1)
+                let normalized = IngredientUnits.normalize(quantity: amount * scale, unit: ingredient.packageUnit ?? ingredient.unit)
+                return Contribution(name: ingredient.name, quantity: normalized.quantity, unit: normalized.unit, aisle: ingredient.aisle, mealName: meal.name, amountNote: ingredient.amountNote)
             }
         }
         let grouped = Dictionary(grouping: contributions, by: \.key)
@@ -712,7 +824,9 @@ enum GroceryListBuilder {
                 quantity: matches.reduce(0) { $0 + $1.quantity },
                 unit: first.unit,
                 aisle: first.aisle,
-                mealNames: Set(matches.map(\.mealName))
+                mealNames: Set(matches.map(\.mealName)),
+                hasUnspecifiedAmount: matches.contains { $0.quantity <= 0 },
+                amountNote: matches.contains { $0.quantity <= 0 && $0.amountNote == nil } ? nil : Array(Set(matches.compactMap(\.amountNote))).sorted().joined(separator: ", ")
             )
         }
 
@@ -728,7 +842,9 @@ enum GroceryListBuilder {
                     unit: existing.unit,
                     aisle: existing.aisle,
                     mealNames: existing.mealNames,
-                    isManual: existing.isManual
+                    isManual: existing.isManual,
+                    hasUnspecifiedAmount: existing.hasUnspecifiedAmount || manual.quantity == nil,
+                    amountNote: manual.quantity == nil ? nil : existing.amountNote
                 )
             } else {
                 items.append(GroceryItem(

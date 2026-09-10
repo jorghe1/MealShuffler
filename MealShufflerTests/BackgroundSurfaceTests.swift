@@ -160,7 +160,7 @@ final class BackgroundSurfaceTests: XCTestCase {
         harness.store.completeOnboarding()
 
         let mealID = try XCTUnwrap(harness.store.plan[.tuesday]?.mealID)
-        harness.store.handleReminderAction(.cooked(mealID: mealID, day: .tuesday))
+        harness.store.handleReminderAction(.cooked(mealID: mealID, day: .tuesday, date: harness.store.plan.date(for: .tuesday)))
 
         XCTAssertTrue(
             harness.store.feedbackEvents.contains { $0.mealID == mealID && $0.kind == .cooked },
@@ -173,10 +173,11 @@ final class BackgroundSurfaceTests: XCTestCase {
         defer { harness.defaults.removePersistentDomain(forName: harness.suite) }
         harness.store.completeOnboarding()
 
-        let before = try XCTUnwrap(harness.store.plan[.wednesday]?.mealID)
-        harness.store.handleReminderAction(.somethingElse(mealID: before, day: .wednesday))
+        let day = try XCTUnwrap(Weekday.ordered().first { Calendar.current.isDateInToday(harness.store.plan.date(for: $0)) })
+        let before = try XCTUnwrap(harness.store.plan[day]?.mealID)
+        harness.store.handleReminderAction(.somethingElse(mealID: before, day: day, date: harness.store.plan.date(for: day)))
 
-        XCTAssertNotEqual(harness.store.plan[.wednesday]?.mealID, before)
+        XCTAssertNotEqual(harness.store.plan[day]?.mealID, before)
         XCTAssertTrue(harness.store.feedbackEvents.contains { $0.mealID == before && $0.kind == .skipped })
     }
 

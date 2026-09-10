@@ -1,7 +1,8 @@
 import UIKit
+import CloudKit
 import UserNotifications
 
-/// Exists for one reason: notifications.
+/// Receives notification actions and iCloud sharing invitations.
 ///
 /// Two things need a delegate set before the first notification is delivered. A reminder
 /// that fires while the app is frontmost is dropped by iOS unless `willPresent` says
@@ -33,6 +34,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         for action in waiting { handler(action) }
     }
 
+    func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: nil, sessionRole: session.role)
+        configuration.delegateClass = SharingSceneDelegate.self
+        return configuration
+    }
+
+    func application(_ application: UIApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
+        CloudHouseholdSync.shared.received(metadata)
+    }
+
     // MARK: - UNUserNotificationCenterDelegate
 
     func userNotificationCenter(
@@ -59,5 +71,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 buffered.append(action)
             }
         }
+    }
+}
+
+final class SharingSceneDelegate: NSObject, UIWindowSceneDelegate {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
+        if let metadata = options.cloudKitShareMetadata { CloudHouseholdSync.shared.received(metadata) }
+    }
+    func windowScene(_ windowScene: UIWindowScene, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
+        CloudHouseholdSync.shared.received(metadata)
     }
 }

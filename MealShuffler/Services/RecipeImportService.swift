@@ -3,7 +3,8 @@ import Foundation
 import UIKit
 import Vision
 
-struct ImportedRecipeDraft: Hashable {
+struct ImportedRecipeDraft: Hashable, Codable, Identifiable {
+    var id = UUID()
     var name = ""
     var subtitle = ""
     var emoji = "🍽️"
@@ -22,6 +23,18 @@ struct ImportedRecipeDraft: Hashable {
     /// The source was partial or hard to read. Worth the user's eye before saving.
     var needsReview = false
     var source: MealSource = .manual
+    var sourceText: String?
+    var sourceImages: [Data] = []
+    var sourceImageNames: [String]?
+    var servingsConfirmed = false
+    var activeMinutes: Int?
+    var captureID: UUID?
+    var updatingMealID: UUID?
+    var extractionNote: String?
+    var timingNeedsReview: Bool?
+    var parentRecipeID: UUID?
+
+    var hasUsableIngredients: Bool { !(parsedIngredients ?? IngredientParser.parse(lines: ingredientLines)).isEmpty }
 }
 
 enum RecipeImportError: LocalizedError {
@@ -67,9 +80,17 @@ struct ChainedRecipeExtractor: RecipeExtractor {
         _ attempt: (any RecipeExtractor) async throws -> ImportedRecipeDraft
     ) async throws -> ImportedRecipeDraft {
         var lastError: Error = RecipeImportError.recipeNotFound
+        var partial: ImportedRecipeDraft?
         for extractor in extractors {
-            do { return try await attempt(extractor) } catch { lastError = error }
+            try Task.checkCancellation()
+            do {
+                let draft = try await attempt(extractor)
+                if draft.hasUsableIngredients && draft.servingsConfirmed { return draft }
+                if partial == nil { partial = draft }
+            } catch is CancellationError { throw CancellationError() }
+            catch { lastError = error }
         }
+        if var partial { partial.needsReview = true; return partial }
         throw lastError
     }
 }
@@ -95,20 +116,24 @@ struct RecipeImportService: RecipeExtractor {
         request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 20
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
         let http = response as? HTTPURLResponse
         if let http, !(200...299).contains(http.statusCode) {
             throw URLError(.badServerResponse)
         }
         // A response larger than this is not a recipe page worth parsing.
-        guard data.count <= 5_000_000 else { throw RecipeImportError.recipeNotFound }
+        var data = Data()
+        for try await byte in bytes {
+            if data.count >= 5_000_000 { throw RecipeImportError.recipeNotFound }
+            data.append(byte)
+        }
 
         guard let html = Self.decodeHTML(data, response: http) else {
             throw RecipeImportError.recipeNotFound
         }
         let heroImage = Self.heroImageURL(in: html, pageURL: url)
 
-        if let recipe = Self.extractRecipeObject(from: html) {
+        if let recipe = Self.extractRecipeObject(from: html, pageURL: url) {
             let ingredients = Self.parseIngredients(recipe["recipeIngredient"] ?? recipe["ingredients"])
             let instructions = Self.parseInstructions(recipe["recipeInstructions"])
             guard !ingredients.isEmpty || !instructions.isEmpty else {
@@ -120,7 +145,8 @@ struct RecipeImportService: RecipeExtractor {
             return Self.draft(
                 name: name,
                 subtitle: Self.shortSubtitle(recipe["description"] as? String, fallback: url.host),
-                prepMinutes: Self.parseDuration(recipe["totalTime"] as? String ?? recipe["prepTime"] as? String),
+                prepMinutes: Self.parseDuration(recipe["totalTime"] as? String),
+                activeMinutes: Self.parseDuration(recipe["prepTime"] as? String),
                 servings: Self.parseServings(recipe["recipeYield"]),
                 ingredientLines: ingredients,
                 instructions: instructions,
@@ -138,6 +164,7 @@ struct RecipeImportService: RecipeExtractor {
     /// and nothing else, which is how an import arrives with a title and an empty shopping
     /// list.
     static func microdataDraft(html: String, url: URL, heroImage: URL?) throws -> ImportedRecipeDraft {
+        guard let html = recipeScope(in: html) else { throw RecipeImportError.recipeNotFound }
         let ingredients = microdataValues(in: html, property: "recipeIngredient")
         guard !ingredients.isEmpty else { throw RecipeImportError.recipeNotFound }
         let instructions = microdataValues(in: html, property: "recipeInstructions")
@@ -148,6 +175,7 @@ struct RecipeImportService: RecipeExtractor {
             name: name,
             subtitle: shortSubtitle(microdataValues(in: html, property: "description").first, fallback: url.host),
             prepMinutes: parseDuration(microdataValues(in: html, property: "totalTime").first),
+            activeMinutes: parseDuration(microdataValues(in: html, property: "prepTime").first),
             servings: parseServings(microdataValues(in: html, property: "recipeYield").first),
             ingredientLines: ingredients,
             instructions: instructions,
@@ -156,10 +184,28 @@ struct RecipeImportService: RecipeExtractor {
         )
     }
 
+    static func recipeScope(in html: String) -> String? {
+        guard let tags = try? NSRegularExpression(pattern: #"</?([a-z][a-z0-9]*)\b[^>]*>"#, options: [.caseInsensitive]),
+              let type = try? NSRegularExpression(pattern: #"itemtype\s*=\s*["'][^"']*schema\.org/Recipe["']"#, options: [.caseInsensitive]) else { return nil }
+        var start: String.Index?; var rootTag = ""; var depth = 0
+        for token in tags.matches(in: html, range: NSRange(html.startIndex..., in: html)) {
+            guard let range = Range(token.range, in: html), let nameRange = Range(token.range(at: 1), in: html) else { continue }
+            let tag = String(html[range]); let name = html[nameRange].lowercased()
+            if start == nil, type.firstMatch(in: tag, range: NSRange(tag.startIndex..., in: tag)) != nil {
+                start = range.lowerBound; rootTag = name; depth = 1; continue
+            }
+            guard let beginning = start, name == rootTag else { continue }
+            if tag.hasPrefix("</") { depth -= 1 } else if !tag.hasSuffix("/>") { depth += 1 }
+            if depth == 0 { return String(html[beginning..<range.upperBound]) }
+        }
+        return nil
+    }
+
     static func draft(
         name: String,
         subtitle: String,
         prepMinutes: Int,
+        activeMinutes: Int = 0,
         servings: Int,
         ingredientLines: [String],
         instructions: [String],
@@ -174,14 +220,19 @@ struct RecipeImportService: RecipeExtractor {
             name: name,
             subtitle: subtitle,
             emoji: RecipeClassifier.emoji(for: tags),
-            prepMinutes: prepMinutes,
-            servings: servings,
+            prepMinutes: prepMinutes > 0 ? prepMinutes : 30,
+            servings: servings > 0 ? servings : 4,
             ingredientLines: ingredientLines,
             instructions: instructions,
             tags: tags,
             parsedIngredients: parsed,
             heroImageURL: heroImage,
-            source: .web(url)
+            needsReview: true,
+            source: .web(url),
+            sourceText: ingredientLines.joined(separator: "\n") + "\n\n" + instructions.joined(separator: "\n"),
+            servingsConfirmed: servings > 0,
+            activeMinutes: activeMinutes > 0 ? activeMinutes : nil,
+            timingNeedsReview: prepMinutes <= 0
         )
     }
 
@@ -279,7 +330,7 @@ struct RecipeImportService: RecipeExtractor {
     /// first hit. A page with related-recipe cards therefore imported a *different* recipe on
     /// different runs of the same URL. Collecting every candidate and picking the richest one
     /// is both stable and more often right.
-    static func extractRecipeObject(from html: String) -> [String: Any]? {
+    static func extractRecipeObject(from html: String, pageURL: URL? = nil) -> [String: Any]? {
         let pattern = #"<script[^>]*type\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) else { return nil }
         let range = NSRange(html.startIndex..., in: html)
@@ -291,12 +342,20 @@ struct RecipeImportService: RecipeExtractor {
                   let json = try? JSONSerialization.jsonObject(with: data) else { continue }
             collectRecipes(in: json, depth: 0, into: &candidates)
         }
+        func identityScore(_ candidate: [String: Any]) -> Int {
+            guard let pageURL else { return 0 }
+            let identities = [candidate["url"] as? String, candidate["@id"] as? String,
+                candidate["mainEntityOfPage"] as? String, (candidate["mainEntityOfPage"] as? [String: Any])?["@id"] as? String].compactMap { $0 }
+            return identities.contains { value in
+                URL(string: value, relativeTo: pageURL).map { RecipeURLIdentity.normalized($0.absoluteURL) == RecipeURLIdentity.normalized(pageURL) } ?? false
+            } ? 1000 : 0
+        }
         return candidates.max { left, right in
+            if identityScore(left) != identityScore(right) { return identityScore(left) < identityScore(right) }
             let leftScore = parseIngredients(left["recipeIngredient"] ?? left["ingredients"]).count
             let rightScore = parseIngredients(right["recipeIngredient"] ?? right["ingredients"]).count
             if leftScore != rightScore { return leftScore < rightScore }
-            return parseInstructions(left["recipeInstructions"]).count
-                < parseInstructions(right["recipeInstructions"]).count
+            return parseInstructions(left["recipeInstructions"]).count < parseInstructions(right["recipeInstructions"]).count
         }
     }
 
@@ -360,10 +419,10 @@ struct RecipeImportService: RecipeExtractor {
     }
 
     static func parseDuration(_ value: String?) -> Int {
-        guard let value else { return 30 }
+        guard let value else { return 0 }
         let hours = captureNumber(in: value, pattern: #"(\d+)H"#) ?? 0
         let minutes = captureNumber(in: value, pattern: #"(\d+)M"#) ?? 0
-        return max(hours * 60 + minutes, 5)
+        return hours * 60 + minutes
     }
 
     static func captureNumber(in value: String, pattern: String) -> Int? {
@@ -376,7 +435,7 @@ struct RecipeImportService: RecipeExtractor {
     static func parseServings(_ value: Any?) -> Int {
         if let number = value as? Int { return max(number, 1) }
         let text = (value as? String) ?? (value as? [String])?.first ?? ""
-        return captureNumber(in: text, pattern: #"(\d+)"#) ?? 4
+        return captureNumber(in: text, pattern: #"(\d+)"#) ?? 0
     }
 
     /// Flattens `HowToStep` and `HowToSection` alike.
@@ -458,7 +517,7 @@ struct RecipeOCRService: RecipeExtractor {
                 do {
                     // `perform` both calls each request's completion handler and rethrows the
                     // first error, so results are read after it returns: exactly one resume.
-                    try VNImageRequestHandler(cgImage: cgImage).perform([request])
+                    try VNImageRequestHandler(cgImage: cgImage, orientation: RecipeImagePreparation.orientation(image.imageOrientation)).perform([request])
                     continuation.resume(returning: (request.results ?? []).compactMap(RecognisedLine.init))
                 } catch {
                     continuation.resume(throwing: error)
@@ -505,11 +564,22 @@ struct RecipeOCRService: RecipeExtractor {
     }
 
     static func draft(from recognised: [RecognisedLine]) throws -> ImportedRecipeDraft {
-        // Reading order. Lines within roughly the same band count as the same row, so a
-        // two-column layout reads left column then right rather than zig-zagging.
-        let ordered = recognised.sorted { left, right in
-            if abs(left.top - right.top) > 0.012 { return left.top < right.top }
-            return left.left < right.left
+        let pages = Dictionary(grouping: recognised) { Int($0.top) }
+        let ordered = pages.keys.sorted().flatMap { page -> [RecognisedLine] in
+            let lines = pages[page] ?? []
+            let left = lines.filter { $0.left < 0.38 }
+            let right = lines.filter { $0.left > 0.48 }
+            let columns = left.count >= 4 && right.count >= 4 && right.contains { r in left.contains { abs($0.top - r.top) < 0.035 } }
+            if columns, let columnTop = right.map(\.top).min() {
+                let heading = lines.filter { $0.top + $0.height < columnTop }.sorted { $0.top < $1.top }
+                let body = lines.filter { $0.top + $0.height >= columnTop }
+                return heading + body.filter { $0.left < 0.48 }.sorted { $0.top < $1.top }
+                    + body.filter { $0.left >= 0.48 }.sorted { $0.top < $1.top }
+            }
+            return lines.sorted { l, r in
+                let a = Int((l.top / 0.012).rounded()); let b = Int((r.top / 0.012).rounded())
+                return a == b ? l.left < r.left : a < b
+            }
         }
         let structured = RecipeTextStructurer.structure(lines: ordered.map(\.text))
 
@@ -520,16 +590,24 @@ struct RecipeOCRService: RecipeExtractor {
         guard !title.isEmpty else { throw RecipeImportError.unreadableImage }
 
         let parsed = IngredientParser.parse(lines: structured.ingredientLines)
+        let sourceText = ordered.map(\.text).joined(separator: "\n")
+        let metadata = RecipeTextStructurer.metadata(in: sourceText)
         return ImportedRecipeDraft(
             name: title,
             subtitle: L10n.string("Imported from photo – check the text before saving"),
             emoji: RecipeClassifier.emoji(for: RecipeClassifier.tags(name: title, ingredients: parsed.map(\.name))),
+            prepMinutes: metadata.minutes ?? 30,
+            servings: metadata.servings ?? 4,
             ingredientLines: structured.ingredientLines,
             instructions: structured.instructions,
             tags: RecipeClassifier.tags(name: title, ingredients: parsed.map(\.name)),
             parsedIngredients: parsed,
             needsReview: true,
-            source: .photo
+            source: .photo,
+            sourceText: sourceText,
+            servingsConfirmed: metadata.servings != nil,
+            activeMinutes: metadata.activeMinutes,
+            timingNeedsReview: metadata.minutes == nil
         )
     }
 
@@ -545,6 +623,19 @@ struct RecipeOCRService: RecipeExtractor {
 }
 
 enum IngredientParser {
+    static func reconcile(lines: [String], originalLines: [String], ingredients: [Ingredient]) -> [Ingredient] {
+        var usedIDs = Set<String>()
+        var available = ingredients.enumerated().map { index, ingredient in
+            (ingredient.originalText ?? (originalLines.indices.contains(index) ? originalLines[index] : ingredient.editableLine), ingredient)
+        }
+        return parse(lines: lines).map { parsed in
+            guard let index = available.firstIndex(where: { $0.0 == parsed.originalText }) else { return parsed }
+            var retained = available.remove(at: index).1
+            if !usedIDs.insert(retained.id).inserted { retained.lineID = parsed.id }
+            return retained
+        }
+    }
+
     static func isKnownUnit(_ token: String) -> Bool {
         knownUnits.contains(token.lowercased())
     }
@@ -554,39 +645,88 @@ enum IngredientParser {
         "ss", "tbsp", "tablespoon", "tablespoons",
         "ts", "tsp", "teaspoon", "teaspoons",
         "stk", "pc", "pcs", "piece", "pieces",
-        "boks", "can", "cans", "tin", "tins",
+        "boks", "bokser", "can", "cans", "tin", "tins",
         "pose", "bag", "bags", "beger", "tub", "tubs",
         "glass", "jar", "jars", "potte", "pot", "pots",
-        "flaske", "bottle", "bottles"
+        "flaske", "flasker", "poser", "pakke", "pakker", "bottle", "bottles"
+        , "cup", "cups", "oz", "ounce", "ounces", "lb", "lbs", "pound", "pounds",
+        "clove", "cloves", "fedd", "pinch", "klype", "handful", "håndfull"
     ])
 
     static func parse(lines: [String]) -> [Ingredient] {
-        lines.compactMap(parse)
+        var section: String?
+        return lines.enumerated().compactMap { index, line in
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasSuffix(":"), trimmed.rangeOfCharacter(from: .decimalDigits) == nil {
+                section = String(trimmed.dropLast()); return nil
+            }
+            guard var ingredient = parse(line) else { return nil }
+            ingredient.lineID = "line-\(index)-\(line)"
+            ingredient.section = section
+            return ingredient
+        }
     }
 
     static func parse(_ rawLine: String) -> Ingredient? {
-        let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+        var line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"^[•*\-]\s*"#, with: "", options: .regularExpression)
         guard !line.isEmpty else { return nil }
-        let tokens = line.split(separator: " ").map(String.init)
-        var index = 0
-        var quantity = 1.0
-        if let first = tokens.first, let parsed = parseNumber(first) {
-            quantity = parsed
-            index += 1
+        // Normalize container-first notation before reading amounts; retain the untouched source.
+        line = line.replacingOccurrences(of: #"^(\d+)\s+(boks(?:er)?|cans?|tins?|pakker?|poser?)\s*(?:à|a|of|[x×])\s*(\d+(?:[.,]\d+)?)\s*(g|kg|ml|dl|l)\b"#,
+            with: "$1 × $3 $4 $2", options: [.regularExpression, .caseInsensitive])
+        let numberPattern = #"(?:\d+\s+\d+/\d+|\d+\s*[½¼¾⅓⅔⅛⅜⅝⅞]|\d+/\d+|\d+(?:[.,]\d+)?|[½¼¾⅓⅔⅛⅜⅝⅞])"#
+        var quantity = 0.0
+        var upper: Double?
+        func consumeNumber() -> Double? {
+            guard let range = line.range(of: "^" + numberPattern, options: .regularExpression),
+                  let value = parseNumber(String(line[range])), value > 0, value.isFinite else { return nil }
+            line = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+            return value
         }
+        if let amount = consumeNumber() { quantity = amount }
+        line = line.replacingOccurrences(of: #"^\(\s*(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\s*\)"#,
+                                        with: "× $1 $2", options: .regularExpression)
+        if quantity > 0, let separator = line.first, "-–—".contains(separator) {
+            line.removeFirst()
+            line = line.trimmingCharacters(in: .whitespaces)
+            upper = consumeNumber()
+        }
+        var packageQuantity: Double?
+        var packageUnit: String?
+        if quantity > 0, let first = line.first, "x×".contains(first) {
+            line.removeFirst(); line = line.trimmingCharacters(in: .whitespaces)
+            packageQuantity = consumeNumber()
+            if let token = line.split(separator: " ").first, isKnownUnit(String(token)) {
+                packageUnit = String(token)
+                line = String(line.dropFirst(token.count)).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        if let upper, upper < quantity { return Ingredient(name: rawLine.capitalizedSentence, quantity: 0, unit: "", aisle: inferAisle(from: rawLine), originalText: rawLine, amountNote: L10n.string("Check amount range"), requiresReview: true) }
+        if (packageQuantity == nil) != (packageUnit == nil) { return Ingredient(name: rawLine.capitalizedSentence, quantity: 0, unit: "", aisle: inferAisle(from: rawLine), originalText: rawLine, amountNote: L10n.string("Check package size"), requiresReview: true) }
+        var tokens = line.split(whereSeparator: \.isWhitespace).map(String.init)
         var unit = ""
-        if tokens.indices.contains(index), knownUnits.contains(tokens[index].lowercased()) {
-            unit = tokens[index].lowercased()
-            index += 1
+        if let first = tokens.first, isKnownUnit(first.trimmingCharacters(in: .punctuationCharacters)) {
+            unit = first.trimmingCharacters(in: .punctuationCharacters).lowercased()
+            tokens.removeFirst()
         }
-        let name = tokens.dropFirst(index).joined(separator: " ")
+        let name = tokens.joined(separator: " ").replacingOccurrences(of: #"[, ]*\b(to taste|as needed|etter smak|etter behov)\b[. ]*$"#, with: "", options: [.regularExpression, .caseInsensitive])
         guard !name.isEmpty else { return nil }
-        return Ingredient(name: name.capitalizedSentence, quantity: quantity, unit: unit, aisle: inferAisle(from: name))
+        let isToTaste = rawLine.range(of: #"\b(to taste|as needed|etter smak|etter behov|smak til)\b"#, options: [.regularExpression, .caseInsensitive]) != nil
+        return Ingredient(name: name.capitalizedSentence, quantity: quantity, unit: unit, aisle: inferAisle(from: name),
+                          originalText: rawLine, upperQuantity: upper, amountNote: isToTaste ? (rawLine.range(of: #"to taste|etter smak|smak til"#, options: [.regularExpression, .caseInsensitive]) != nil ? L10n.string("To taste") : L10n.string("As needed")) : nil,
+                          packageQuantity: packageQuantity, packageUnit: packageUnit)
     }
 
     private static func parseNumber(_ value: String) -> Double? {
-        let fractions: [String: Double] = ["½": 0.5, "¼": 0.25, "¾": 0.75]
+        let fractions: [String: Double] = ["½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1.0/3, "⅔": 2.0/3,
+                                           "⅛": 0.125, "⅜": 0.375, "⅝": 0.625, "⅞": 0.875]
         if let fraction = fractions[value] { return fraction }
+        if let last = value.last, let fraction = fractions[String(last)],
+           let whole = Double(value.dropLast().trimmingCharacters(in: .whitespaces)) { return whole + fraction }
+        let mixed = value.split(whereSeparator: \.isWhitespace)
+        if mixed.count == 2, let whole = Double(mixed[0]), let fraction = parseNumber(String(mixed[1])) {
+            return whole + fraction
+        }
         if value.contains("/") {
             let parts = value.split(separator: "/").compactMap { Double($0) }
             if parts.count == 2, parts[1] != 0 { return parts[0] / parts[1] }

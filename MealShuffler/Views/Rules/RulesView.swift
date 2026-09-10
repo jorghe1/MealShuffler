@@ -3,6 +3,7 @@ import SwiftUI
 struct RulesView: View {
     @EnvironmentObject private var store: AppStore
     @State private var showingAddRule = false
+    @State private var editingRule: PlanningRule?
 
     var body: some View {
         List {
@@ -29,9 +30,16 @@ struct RulesView: View {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(rule.summary(meals: store.meals, context: store.matchContext))
                                 .font(.headline).foregroundStyle(AppTheme.ink)
+                            Button("Edit") { editingRule = rule }.font(.caption)
+                            if let start = rule.nextActiveWeek(from: store.plan.startDate) {
+                                Text(L10n.string("Next active week: %@", WeekAnchor.label(forWeekStarting: start))).font(.caption).foregroundStyle(AppTheme.muted)
+                            }
+                            if let interval = rule.repeatEveryWeeks, interval > 1 {
+                                Text(L10n.string("Every %ld weeks", interval)).font(.caption)
+                            }
                             Menu {
                                 Button("Required") { store.setRuleStrength(.required, ruleID: rule.id) }
-                                Button("Preferred") { store.setRuleStrength(.preferred, ruleID: rule.id) }
+                                if rule.supportsPreference { Button("Preferred") { store.setRuleStrength(.preferred, ruleID: rule.id) } }
                             } label: {
                                 Label(rule.strength.name, systemImage: rule.strength == .required ? "exclamationmark.shield.fill" : "sparkles")
                                     .font(.caption.weight(.semibold))
@@ -64,6 +72,7 @@ struct RulesView: View {
         .navigationTitle("Rules")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAddRule) { AddRuleView().environmentObject(store) }
+        .sheet(item: $editingRule) { AddRuleView(editing: $0).environmentObject(store) }
     }
 
     private func symbol(for constraint: RuleConstraint) -> String {
@@ -81,7 +90,7 @@ struct RulesView: View {
     }
 }
 
-private struct AddRuleView: View {
+struct AddRuleView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
@@ -98,7 +107,41 @@ private struct AddRuleView: View {
     @State private var minutes = 30
     @State private var weeks = 3
     @State private var strength: RuleStrength = .required
+    @State private var interval = 1
+    @State private var firstWeek = WeekAnchor.startOfCurrentWeek()
     @State private var rejection: String?
+    let editing: PlanningRule?
+    @State private var showingAdvanced = false
+    @State private var showingMoreTemplates = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(editing: PlanningRule? = nil) {
+        self.editing = editing
+        guard let rule = editing else { return }
+        _strength = State(initialValue: rule.strength)
+        _interval = State(initialValue: rule.repeatEveryWeeks ?? 1)
+        _firstWeek = State(initialValue: rule.firstWeek ?? WeekAnchor.startOfCurrentWeek())
+        switch rule.constraint {
+        case .requiredOn(let day, _): _mode = State(initialValue: .requiredDay); _scope = State(initialValue: day)
+        case .excludedOn(let day, _): _mode = State(initialValue: .excludedDay); _scope = State(initialValue: day)
+        case .maximumPerWeek(_, let value): _mode = State(initialValue: .maximumPerWeek); _count = State(initialValue: value)
+        case .minimumPerWeek(_, let value): _mode = State(initialValue: .minimumPerWeek); _count = State(initialValue: value)
+        case .maximumPrepTime(let day, let value): _mode = State(initialValue: .maximumPrepTime); _scope = State(initialValue: day); _minutes = State(initialValue: value)
+        case .dinnerMode(let day, let value): _mode = State(initialValue: .dinnerPlan); _scope = State(initialValue: day); _dinnerMode = State(initialValue: value)
+        case .noRepeatWithin(let value): _mode = State(initialValue: .noRepeat); _weeks = State(initialValue: value)
+        case .requiredEvery(let value, _): _mode = State(initialValue: .bringBack); _weeks = State(initialValue: value)
+        case .notOnConsecutiveDays: _mode = State(initialValue: .notConsecutive)
+        }
+        if let matcher = rule.constraint.matcher {
+            switch matcher {
+            case .tag(let value): _targetKind = State(initialValue: .category); _tag = State(initialValue: value)
+            case .exactMeal(let value): _targetKind = State(initialValue: .exactMeal); _mealID = State(initialValue: value)
+            case .ingredient(let value): _targetKind = State(initialValue: .ingredient); _ingredientText = State(initialValue: value)
+            case .customTag(let value): _targetKind = State(initialValue: .customTag); _customTagText = State(initialValue: value)
+            case .dislikedBy(let value): _targetKind = State(initialValue: .person); _memberID = State(initialValue: value)
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -107,14 +150,19 @@ private struct AddRuleView: View {
                     VStack(alignment: .leading, spacing: 7) {
                         Text("What should the rule do?")
                             .font(.system(.title, design: .rounded, weight: .bold))
-                        Text("Choose a template and tap the green words to change the sentence.")
+                    Text("Choose a template, then adjust its details. The sentence previews your rule.")
                             .foregroundStyle(AppTheme.muted)
                     }
 
                     modeChips
                     sentenceCard
                     if mode.usesMatcher { targetPicker }
-                    strengthCard
+                    if mode != .dinnerPlan { strengthCard }
+                    else { Text("Day plans are fixed commitments. Make an exception in the week when plans change.").font(.caption) }
+                    DisclosureGroup("Schedule", isExpanded: $showingAdvanced) {
+                        Stepper(L10n.string("Every %ld weeks", interval), value: $interval, in: 1...8)
+                        DatePicker("Starting week", selection: $firstWeek, displayedComponents: .date)
+                    }.padding().mealCard()
 
                     if mode.usesMatcher {
                         Label(
@@ -132,7 +180,7 @@ private struct AddRuleView: View {
                     }
 
                     Button {
-                        switch store.addRule(previewRule) {
+                        switch store.addRule(previewRule, replacingID: editing?.id) {
                         case .added:
                             dismiss()
                         case .duplicate(let existing):
@@ -141,7 +189,7 @@ private struct AddRuleView: View {
                             rejection = L10n.string("This cannot hold alongside “%@”.", existing)
                         }
                     } label: {
-                        Text("Add rule").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
+                        Text(editing == nil ? L10n.string("Add rule") : L10n.string("Save")).font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
@@ -150,62 +198,51 @@ private struct AddRuleView: View {
                 .padding(20)
             }
             .appBackground()
-            .navigationTitle("New rule")
+            .navigationTitle(editing == nil ? L10n.string("New rule") : L10n.string("Edit rule"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .onChange(of: mode) { _, _ in rejection = nil }
         }
     }
 
-    private var modeChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(RuleMode.allCases) { option in
-                    Button { withAnimation(.snappy) { mode = option } } label: {
-                        Label(option.shortName, systemImage: option.symbol)
-                            .chipStyle(selected: mode == option)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(mode == option ? [.isButton, .isSelected] : [.isButton])
-                }
+    private let commonModes: [RuleMode] = [.requiredDay, .excludedDay, .maximumPrepTime, .dinnerPlan]
+    private func templateButtons(_ options: [RuleMode]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), alignment: .leading)], alignment: .leading, spacing: 8) {
+            ForEach(options) { option in
+                Button { withAnimation(reduceMotion ? nil : .snappy) { mode = option } } label: {
+                    Label(option.shortName, systemImage: option.symbol)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .chipStyle(selected: mode == option)
+                }.buttonStyle(.plain)
+                .accessibilityAddTraits(mode == option ? [.isButton, .isSelected] : [.isButton])
             }
         }
     }
+    private var modeChips: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            templateButtons(commonModes)
+            DisclosureGroup("More rule templates", isExpanded: $showingMoreTemplates) {
+                templateButtons(RuleMode.allCases.filter { !commonModes.contains($0) })
+            }
+        }.onAppear { if !commonModes.contains(mode) { showingMoreTemplates = true } }
+    }
 
     private var sentenceCard: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("RULE").font(.caption.bold()).tracking(1).foregroundStyle(AppTheme.accent)
-            Group {
-                switch mode {
-                case .requiredDay:
-                    HStack(spacing: 7) { Text("On"); scopeMenu; Text("we'll have") }
-                    targetMenu
-                case .excludedDay:
-                    HStack(spacing: 7) { Text("On"); scopeMenu; Text("we won't have") }
-                    targetMenu
-                case .maximumPerWeek:
-                    HStack(spacing: 7) { Text("Maximum"); countMenu; targetMenu; Text("per week") }
-                case .minimumPerWeek:
-                    HStack(spacing: 7) { Text("At least"); countMenu; targetMenu; Text("per week") }
-                case .maximumPrepTime:
-                    HStack(spacing: 7) { Text("On"); scopeMenu; Text("dinner should take") }
-                    HStack(spacing: 7) { Text("at most"); minuteMenu }
-                case .dinnerPlan:
-                    HStack(spacing: 7) { Text("On"); scopeMenu; Text("we're") }
-                    dinnerModeMenu
-                case .noRepeat:
-                    HStack(spacing: 7) { Text("Don't repeat a dinner within"); weekMenu }
-                case .bringBack:
-                    HStack(spacing: 7) { Text("Have"); targetMenu }
-                    HStack(spacing: 7) { Text("at least every"); weekMenu }
-                case .notConsecutive:
-                    HStack(spacing: 7) { Text("Never"); targetMenu }
-                    Text("two days running")
-                }
+        VStack(alignment: .leading, spacing: 16) {
+            Text(previewRule.summary(meals: store.meals, context: store.matchContext))
+                .font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+            if [.requiredDay, .excludedDay, .maximumPrepTime, .dinnerPlan].contains(mode) {
+                LabeledContent("Choose days") { scopeMenu }
             }
-            .font(.title3.weight(.semibold))
-        }
-        .padding(20).mealCard()
+            if mode.usesMatcher { LabeledContent("Target") { targetMenu } }
+            if mode == .dinnerPlan { LabeledContent("Plan") { dinnerModeMenu } }
+            if mode == .maximumPerWeek || mode == .minimumPerWeek { LabeledContent("per week") { countMenu } }
+            if mode == .maximumPrepTime { minuteMenu }
+            if mode == .noRepeat || mode == .bringBack { weekMenu }
+            Text("Weekly counts measure dinners cooked. Leftovers are counted only by ingredient exclusions.")
+                .font(.caption).foregroundStyle(AppTheme.muted)
+        }.padding(20).mealCard()
     }
 
     private var targetPicker: some View {
@@ -216,14 +253,14 @@ private struct AddRuleView: View {
                     Text($0.name).tag($0)
                 }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
 
             switch targetKind {
             case .ingredient:
                 TextField("Ingredient, for example almonds", text: $ingredientText)
                     .textInputAutocapitalization(.never)
                     .textFieldStyle(.roundedBorder)
-                Text("Matches any meal whose ingredients mention this word. This is where an allergy belongs.")
+                Text("Matches ingredient names. This does not verify allergens or hidden ingredients.")
                     .font(.caption).foregroundStyle(AppTheme.muted)
             case .customTag:
                 TextField("Label, for example kid-friendly", text: $customTagText)
@@ -248,7 +285,7 @@ private struct AddRuleView: View {
                     Text("Choose someone").tag(nil as UUID?)
                     ForEach(selectableMembers) { Text($0.displayName).tag($0.id as UUID?) }
                 }
-                Text("Uses what that person swiped away during onboarding.")
+            Text("Uses this person's saved dislikes.")
                     .font(.caption).foregroundStyle(AppTheme.muted)
             case .category, .exactMeal:
                 EmptyView()
@@ -279,6 +316,15 @@ private struct AddRuleView: View {
             ForEach(DayScope.selectableCases) { option in
                 Button(option.name) { scope = option }
             }
+            Menu("Choose days") {
+                ForEach(Weekday.ordered()) { day in
+                    Button {
+                        var days = scope.days()
+                        if days.contains(day), days.count > 1 { days.remove(day) } else { days.insert(day) }
+                        scope = .selected(days)
+                    } label: { Label(day.name, systemImage: scope.covers(day) ? "checkmark" : "circle") }
+                }
+            }
         } label: { SentenceToken(text: scope.name) }
     }
 
@@ -294,7 +340,7 @@ private struct AddRuleView: View {
                     .disabled(true)
             }
         } label: {
-            SentenceToken(text: matcher.label(meals: store.meals, context: store.matchContext).lowercased())
+            SentenceToken(text: matcher.label(meals: store.meals, context: store.matchContext))
         }
     }
 
@@ -360,11 +406,16 @@ private struct AddRuleView: View {
         case .bringBack: constraint = .requiredEvery(weeks: weeks, matcher: matcher)
         case .notConsecutive: constraint = .notOnConsecutiveDays(matcher: matcher)
         }
-        return PlanningRule(
+        var rule = PlanningRule(
+            id: editing?.id ?? UUID(),
             title: mode.generatedTitle(matcher: matcher, meals: store.meals, context: store.matchContext),
             strength: strength,
             constraint: constraint
         )
+        rule.repeatEveryWeeks = interval
+        rule.firstWeek = WeekAnchor.startOfWeek(containing: firstWeek)
+        rule.isEnabled = editing?.isEnabled ?? true
+        return rule
     }
 
     private var matchingMealCount: Int {
@@ -385,7 +436,8 @@ private struct AddRuleView: View {
         case .ingredient: return !ingredientText.trimmingCharacters(in: .whitespaces).isEmpty
         case .customTag: return !customTagText.trimmingCharacters(in: .whitespaces).isEmpty
         case .person: return memberID != nil
-        case .category, .exactMeal: return matchingMealCount > 0 || mode == .excludedDay
+        case .category: return true
+        case .exactMeal: return store.meals.contains { $0.id == mealID }
         }
     }
 }
@@ -446,7 +498,7 @@ private enum RuleMode: String, CaseIterable, Identifiable {
     }
 
     func generatedTitle(matcher: MealMatcher, meals: [Meal], context: MealMatcher.MatchContext) -> String {
-        let target = matcher.label(meals: meals, context: context).lowercased()
+        let target = matcher.sentenceLabel(meals: meals, context: context)
         return switch self {
         case .requiredDay: L10n.string("Set %@", target)
         case .excludedDay: L10n.string("Without %@", target)

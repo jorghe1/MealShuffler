@@ -25,6 +25,10 @@ LOCALIZED_CONSTRUCTORS = (
     "Menu",
     "Link",
     "LabeledContent",
+    "DisclosureGroup",
+    "NavigationLink",
+    "ProgressView",
+    "Stepper",
 )
 LOCALIZED_MODIFIERS = (
     "navigationTitle",

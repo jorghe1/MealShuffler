@@ -12,7 +12,7 @@ struct CommunityView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("From other dinner tables")
                             .font(.system(.title, design: .rounded, weight: .bold))
-                        Text("A local test community – ready for an external backend later.")
+                        Text("Community sharing is not available yet.")
                             .font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()

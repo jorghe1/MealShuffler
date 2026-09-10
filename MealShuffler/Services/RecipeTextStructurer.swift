@@ -26,17 +26,24 @@ enum RecipeTextStructurer {
             throw RecipeImportError.recipeNotFound
         }
         let parsed = IngredientParser.parse(lines: structured.ingredientLines)
+        let details = metadata(in: text)
         let tags = RecipeClassifier.tags(name: structured.title, ingredients: parsed.map(\.name))
         return ImportedRecipeDraft(
             name: structured.title,
             subtitle: L10n.string("Pasted in – check the details before saving"),
             emoji: RecipeClassifier.emoji(for: tags),
+            prepMinutes: details.minutes ?? 30,
+            servings: details.servings ?? 4,
             ingredientLines: structured.ingredientLines,
             instructions: structured.instructions,
             tags: tags,
             parsedIngredients: parsed,
             needsReview: true,
-            source: .manual
+            source: .manual,
+            sourceText: text,
+            servingsConfirmed: details.servings != nil,
+            activeMinutes: details.activeMinutes,
+            timingNeedsReview: details.minutes == nil
         )
     }
 
@@ -74,9 +81,16 @@ enum RecipeTextStructurer {
             instructionBlock = []
         }
 
-        let ingredients = ingredientBlock.filter { !isNoise($0) && isIngredient($0) }
+        var joined: [String] = []
+        for line in ingredientBlock {
+            if let previous = joined.last, matches(previous, #"^\s*[\d.,/½¼¾ ]+\s*(?:g|kg|ml|dl|l|ss|ts|tbsp|tsp|cups?|fedd)?\s*$"#),
+               !isNoise(line), !isInstruction(line), !matches(line, quantityStartPattern) {
+                joined[joined.count - 1] += " " + line
+            } else { joined.append(line) }
+        }
+        let ingredients = joined.filter { !isNoise($0) && (ingredientHeader != nil || isIngredient($0)) }
         var instructions = instructionBlock
-            .filter { !isNoise($0) && isInstruction($0) }
+            .filter { !isNoise($0) }
             .map(strippingStepNumber)
         if instructions.isEmpty {
             // Unlabelled page: recover steps that fell into the ingredient block.
@@ -90,12 +104,41 @@ enum RecipeTextStructurer {
 
     // MARK: - Classification
 
+    struct Metadata {
+        var servings: Int?
+        var minutes: Int?
+        var activeMinutes: Int?
+    }
+
+    static func metadata(in text: String) -> Metadata {
+        func number(_ pattern: String) -> Int? {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+                  let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+                  let range = Range(match.range(at: 1), in: text), let n = Int(text[range]), n > 0 else { return nil }
+            return n
+        }
+        // Yield must be a yield statement, never an instruction such as "til 200 grader".
+        let servings = number(#"(?m)^\s*(?:serves|servings|porsjoner|serverer|antall porsjoner)\s*:?\s*(\d+)\s*[.!]?\s*$"#)
+            ?? number(#"(?m)^\s*(?:til\s+)?(\d+)\s*(?:servings|porsjoner|personer|people)\s*[.!]?\s*$"#)
+        func duration(labels: String) -> Int? {
+            let prefix = "(?m)^\\s*(?:" + labels + ")\\s*:?\\s*"
+            let hours = number(prefix + #"(\d+)\s*(?:hours?|timer?|t)\b"#)
+            let minutes = number(prefix + #"(?:\d+\s*(?:hours?|timer?|t)\s*(?:og|and)?\s*)?(\d+)\s*(?:minutes?|minutt(?:er)?|min|m)\b"#)
+            guard hours != nil || minutes != nil else { return nil }
+            return (hours ?? 0) * 60 + (minutes ?? 0)
+        }
+        let total = duration(labels: "total time|total tid|totalt|tidsbruk|tid|time")
+        let active = duration(labels: "prep time|preparation time|forberedelsestid|forberedelse|aktiv tid")
+        return Metadata(servings: servings, minutes: total, activeMinutes: active)
+    }
+
     /// Page furniture: timings, yields, credits, page numbers, stray headings.
     static func isNoise(_ line: String) -> Bool {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return true }
         if matches(trimmed, decorationPattern) { return true }
         if matches(trimmed, noisePattern) { return true }
+        if matches(trimmed, #"^(?:(?:prep time|cook time|total time|total tid|totalt|tidsbruk|forberedelsestid|forberedelse|aktiv tid|steketid|koketid|tid|time|porsjoner|servings|serves)\s*:?\s*\d|(?:til\s+)?\d+\s*(?:porsjoner|personer|people|servings)\s*$)"#) { return true }
         if trimmed == trimmed.uppercased(),
            trimmed.rangeOfCharacter(from: .letters) != nil,
            trimmed.split(separator: " ").count <= 3 {

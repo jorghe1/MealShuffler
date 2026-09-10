@@ -76,7 +76,7 @@ struct RemoteRecipeExtractor: RecipeExtractor {
         guard let http = response as? HTTPURLResponse else { throw RecipeImportError.recipeNotFound }
 
         guard (200...299).contains(http.statusCode) else {
-            // The service explains itself in plain language; prefer that to a status code.
+            // Translate stable service codes; server prose may be English or diagnostic text.
             if let failure = try? JSONDecoder().decode(ServiceError.self, from: data) {
                 let key: String
                 switch failure.code {

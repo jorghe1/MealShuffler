@@ -67,7 +67,12 @@ final class MealPlanGeneratorTests: XCTestCase {
     }
 
     func testLeftoversAreNotAddedTwiceToGroceryList() throws {
-        let soup = meals[7]
+        // Keep the quantities independent of edits to the bundled recipe catalog.
+        let soup = Meal(
+            name: "Test tomato soup", subtitle: "", emoji: "🥣", prepMinutes: 20, tags: [.soup],
+            ingredients: [Ingredient(name: "Chopped tomatoes", quantity: 1200, unit: "g", aisle: .pantry)],
+            defaultServings: 4
+        )
         let rules = [PlanningRule(title: "Soup on Monday", constraint: .requiredOn(day: .day(.monday), matcher: .exactMeal(soup.id)))]
         let contexts: [Weekday: DayPlanContext] = [
             .monday: DayPlanContext(diners: 4, extraServings: 4),
@@ -78,10 +83,13 @@ final class MealPlanGeneratorTests: XCTestCase {
             .saturday: DayPlanContext(diners: 4, mode: .away),
             .sunday: DayPlanContext(diners: 4, mode: .away)
         ]
-        let result = generator.generate(preferredMeals: meals, allMeals: meals, rules: rules, contexts: contexts)
-        let list = GroceryListBuilder.build(plan: result.plan, meals: meals)
+        let result = generator.generate(preferredMeals: [soup], allMeals: [soup], rules: rules, contexts: contexts)
+        let list = GroceryListBuilder.build(plan: result.plan, meals: [soup])
         let tomatoes = try XCTUnwrap(list.first(where: { $0.name == soup.ingredients[0].name }))
-        XCTAssertEqual(tomatoes.quantity, 6)
+        XCTAssertEqual(list.count, 1)
+        XCTAssertEqual(tomatoes.quantity, 2400, "Buy eight portions once; Tuesday reuses Monday's extra portions")
+        XCTAssertEqual(tomatoes.unit, "g")
+        XCTAssertEqual(result.plan[.monday]?.servings, 8)
         XCTAssertEqual(result.plan[.tuesday]?.kind, .leftovers(sourceDay: .monday))
         XCTAssertEqual(result.plan[.wednesday]?.kind, .away)
     }

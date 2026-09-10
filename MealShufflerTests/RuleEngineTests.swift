@@ -142,6 +142,8 @@ final class RuleEngineTests: XCTestCase {
     func testADinnerModeRuleDecidesTheDayWithoutTouchingPlanThisDay() throws {
         let (store, defaults, suite) = try makeStore()
         defer { defaults.removePersistentDomain(forName: suite) }
+        // These assertions concern upcoming dinners, regardless of the day CI runs.
+        store.plan = store.plan.anchored(to: WeekAnchor.startOfNextWeek(after: store.plan.startDate))
         store.completeOnboarding()
 
         XCTAssertEqual(store.addRule(PlanningRule(
@@ -161,6 +163,8 @@ final class RuleEngineTests: XCTestCase {
     func testAWeekendScopedDinnerRuleCoversBothDays() throws {
         let (store, defaults, suite) = try makeStore(seed: 33)
         defer { defaults.removePersistentDomain(forName: suite) }
+        // In Sunday-first locales, this week's Sunday may already be in the past.
+        store.plan = store.plan.anchored(to: WeekAnchor.startOfNextWeek(after: store.plan.startDate))
         store.completeOnboarding()
 
         // "Saturday pizza" is a starter rule, and a dinner required on a day nobody is home
@@ -179,6 +183,24 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(store.plan[.saturday]?.kind, .away)
         XCTAssertEqual(store.plan[.sunday]?.kind, .away)
         XCTAssertEqual(store.plan[.monday]?.kind, .meal)
+    }
+
+    func testADinnerModeRulePreservesPastDinners() throws {
+        let (store, defaults, suite) = try makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        store.completeOnboarding()
+        let previousWeek = try XCTUnwrap(Calendar.current.date(
+            byAdding: .weekOfYear, value: -1, to: WeekAnchor.startOfCurrentWeek()
+        ))
+        store.plan = store.plan.anchored(to: previousWeek)
+        let before = store.plan
+
+        XCTAssertEqual(store.addRule(PlanningRule(
+            title: "Friday takeaway", constraint: .dinnerMode(day: .day(.friday), mode: .takeaway)
+        )), .added)
+
+        XCTAssertNotNil(store.dinnerModeRule(for: .friday))
+        XCTAssertEqual(store.plan, before, "A new standing rule must not rewrite past dinners")
     }
 
     // MARK: - Adding a rule

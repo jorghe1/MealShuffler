@@ -120,9 +120,35 @@ final class CaptureTests: XCTestCase {
         XCTAssertTrue(draft.needsReview)
     }
 
-    func testServiceErrorMessageReachesTheUser() async throws {
-        let body = Data(#"{"error":"That page could not be opened."}"#.utf8)
-        let session = URLSession.stubbed(returning: body, status: 502)
+    func testServiceErrorCodesReachTheUserAsLocalizedGuidance() async throws {
+        let cases: [(code: String, status: Int, message: String)] = [
+            ("rate_limited", 429, "Online imports are busy or have reached the service limit. Try again later."),
+            ("too_large", 413, "This source is too large. Try fewer photos or a shorter text."),
+            ("unreadable_recipe", 422, "The recipe could not be read reliably. Check the source or use on-device recognition."),
+            ("invalid_recipe", 502, "The recipe could not be read reliably. Check the source or use on-device recognition.")
+        ]
+        for item in cases {
+            let body = try JSONSerialization.data(withJSONObject: ["code": item.code, "error": "Server diagnostic"])
+            try await assertServiceError(body: body, status: item.status, message: L10n.string(item.message))
+        }
+    }
+
+    func testUnknownAndLegacyServiceErrorsUseLocalizedFallback() async throws {
+        for response in [
+            ["error": "That page could not be opened."],
+            ["code": "future_error_code", "error": "Server diagnostic"]
+        ] {
+            let body = try JSONSerialization.data(withJSONObject: response)
+            try await assertServiceError(body: body, status: 502, message: L10n.string(
+                "Online extraction is unavailable. Try again or use on-device recognition."
+            ))
+        }
+    }
+
+    private func assertServiceError(body: Data, status: Int, message: String,
+                                    file: StaticString = #filePath, line: UInt = #line) async throws {
+        let session = URLSession.stubbed(returning: body, status: status)
+        defer { session.invalidateAndCancel() }
         let extractor = RemoteRecipeExtractor(
             configuration: .init(baseURL: try XCTUnwrap(URL(string: "https://example.invalid"))),
             session: session
@@ -130,10 +156,9 @@ final class CaptureTests: XCTestCase {
 
         do {
             _ = try await extractor.extract(from: try XCTUnwrap(URL(string: "https://a.no/b")))
-            XCTFail("Expected the service error to surface")
+            XCTFail("Expected the service error to surface", file: file, line: line)
         } catch {
-            // The service explains itself; a status code would not.
-            XCTAssertEqual(error.localizedDescription, "That page could not be opened.")
+            XCTAssertEqual(error.localizedDescription, message, file: file, line: line)
         }
     }
 

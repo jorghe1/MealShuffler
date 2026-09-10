@@ -31,6 +31,7 @@ workflows:
         script: bash ci/test-ios.sh
     artifacts:
       - build/*.xcresult
+      - build/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Logs/Test/*.xcresult
 
   ios-testflight:
@@ -131,6 +132,7 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
       - build/ios/xcarchive/**/*.xcarchive
       - build/*.xcresult
+      - build/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
 
     publishing:

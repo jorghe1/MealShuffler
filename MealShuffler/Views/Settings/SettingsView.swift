@@ -146,7 +146,7 @@ struct SettingsView: View {
         } header: {
             Text("Reminders")
         } footer: {
-            Text("The dinner reminder tells you what tonight's meal is, and follows the plan when you reshuffle a day. When next week is empty you get one nudge to plan it.")
+            Text("At most one reminder a day, whichever is most useful. The dinner reminder tells you what tonight's meal is and follows the plan when you reshuffle a day; with start-cooking timing on, that one arrives instead. When next week is empty you get one nudge to plan it.")
         }
     }
 

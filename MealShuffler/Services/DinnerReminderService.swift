@@ -31,6 +31,25 @@ struct ReminderSchedule: Sendable, Equatable {
     )
 }
 
+/// One day's worth of notification, and which one it is.
+///
+/// The app grew four kinds of reminder independently, each correct on its own, and nobody
+/// counted what a household with all of them switched on actually receives: a dinner
+/// reminder and a start-cooking nudge about the *same meal*, plus a shopping nudge and a
+/// plan-next-week nudge landing on the same day. `rawValue` is the priority.
+enum ReminderKind: Int, Comparable, Sendable {
+    /// Least urgent, and must never displace something concrete.
+    case planNextWeek = 0
+    /// The fixed-hour "Dinner today".
+    case dinner = 1
+    /// Timed off the recipe's own prep time, so it says something the fixed-hour one cannot.
+    case prep = 2
+    /// Weekly and time-critical: shops close.
+    case grocery = 3
+
+    static func < (lhs: ReminderKind, rhs: ReminderKind) -> Bool { lhs.rawValue < rhs.rawValue }
+}
+
 /// Something the household tapped on a dinner reminder.
 enum DinnerReminderAction: Equatable, Sendable {
     case cooked(mealID: UUID, day: Weekday, date: Date? = nil)
@@ -178,13 +197,14 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
         await cancelAll()
         guard await isAuthorized() else { return }
 
-        if schedule.dinnerEnabled {
-            await scheduleDinners(for: schedule.plan, schedule: schedule, calendar: calendar, now: now)
-            if let next = schedule.nextWeekPlan {
-                await scheduleDinners(for: next, schedule: schedule, calendar: calendar, now: now)
-            } else {
-                await schedulePlanNextWeekNudge(schedule: schedule, calendar: calendar, now: now)
-            }
+        // Everything the schedule wants, then one a day.
+        let chosen = Self.oneADay(
+            Self.candidates(for: schedule, calendar: calendar, now: now),
+            schedule: schedule,
+            calendar: calendar
+        )
+        for candidate in chosen {
+            await scheduleCandidate(candidate, using: schedule, calendar: calendar)
         }
 
         if schedule.groceryEnabled {
@@ -192,48 +212,35 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
         }
     }
 
-    private func scheduleDinners(
-        for plan: WeeklyPlan,
-        schedule: ReminderSchedule,
-        calendar: Calendar,
-        now: Date
+    /// Turns one chosen candidate into a request.
+    ///
+    /// Not named `schedule`: the parameter it takes is also called that, and a value of a
+    /// non-function type shadows the method name at the call site.
+    private func scheduleCandidate(
+        _ candidate: Candidate,
+        using schedule: ReminderSchedule,
+        calendar: Calendar
     ) async {
-        for item in plan.meals {
-            guard let body = reminderBody(for: item, meals: schedule.meals) else { continue }
-            let dayDate = plan.date(for: item.day, calendar: calendar)
-            let stamp = Self.stamp(for: dayDate, calendar: calendar)
+        let content = UNMutableNotificationContent()
+        content.sound = .default
+        let identifier: String
 
-            guard let dinnerDate = calendar.date(
-                bySettingHour: schedule.dinnerHour, minute: 0, second: 0, of: dayDate
-            ) else { continue }
+        switch candidate.kind {
+        case .dinner:
+            guard let item = candidate.item, let dayDate = candidate.dayDate,
+                  let body = Self.reminderBody(for: item, meals: schedule.meals) else { return }
+            content.title = L10n.string("Dinner today")
+            content.body = body
+            content.categoryIdentifier = Self.categoryIdentifier
+            content.userInfo = Self.userInfo(for: item, date: dayDate)
+            identifier = Self.dinnerPrefix + candidate.stamp
 
-            if dinnerDate > now {
-                let content = UNMutableNotificationContent()
-                content.title = L10n.string("Dinner today")
-                content.body = body
-                content.sound = .default
-                content.categoryIdentifier = Self.categoryIdentifier
-                content.userInfo = Self.userInfo(for: item, date: dayDate)
-                await add(
-                    identifier: Self.dinnerPrefix + stamp,
-                    content: content,
-                    fireDate: dinnerDate,
-                    calendar: calendar
-                )
-            }
-
-            guard let targetDate = calendar.date(bySettingHour: schedule.targetDinnerHour, minute: 0, second: 0, of: dayDate),
-                  schedule.prepLeadEnabled,
-                  let meal = meal(for: item, meals: schedule.meals),
-                  item.kind == .meal,
-                  meal.prepMinutes > 0,
-                  let startDate = calendar.date(
-                      byAdding: .minute, value: -meal.prepMinutes, to: targetDate
-                  ),
-                  startDate > now
-            else { continue }
-
-            let content = UNMutableNotificationContent()
+        case .prep:
+            guard let item = candidate.item, let dayDate = candidate.dayDate,
+                  let meal = Self.meal(for: item, meals: schedule.meals),
+                  let targetDate = calendar.date(
+                      bySettingHour: schedule.targetDinnerHour, minute: 0, second: 0, of: dayDate
+                  ) else { return }
             content.title = L10n.string("Time to start cooking")
             content.body = L10n.string(
                 "%@ takes about %ld min, so dinner lands at %@.",
@@ -241,46 +248,121 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
                 meal.prepMinutes,
                 targetDate.formatted(date: .omitted, time: .shortened)
             )
-            content.sound = .default
             content.categoryIdentifier = Self.categoryIdentifier
             content.userInfo = Self.userInfo(for: item, date: dayDate)
-            await add(
-                identifier: Self.prepPrefix + stamp,
-                content: content,
-                fireDate: startDate,
-                calendar: calendar
-            )
+            identifier = Self.prepPrefix + candidate.stamp
+
+        case .planNextWeek:
+            content.title = L10n.string("Next week is still empty")
+            content.body = L10n.string("Open Meal Shuffler to line up next week's dinners.")
+            identifier = Self.planWeekPrefix + candidate.stamp
+
+        case .grocery:
+            // Scheduled separately: it repeats weekly rather than belonging to one date.
+            return
         }
-    }
 
-    /// A single nudge on the last day of the planned week, when nothing has been prepared
-    /// for the week after it.
-    ///
-    /// Without this the app simply goes quiet: every dated reminder has fired, the week has
-    /// not rolled over because that only happens when the app is opened, and nothing is left
-    /// to bring the household back.
-    private func schedulePlanNextWeekNudge(
-        schedule: ReminderSchedule,
-        calendar: Calendar,
-        now: Date
-    ) async {
-        let ordered = Weekday.ordered(calendar: calendar)
-        guard let lastDay = ordered.last else { return }
-        let lastDate = schedule.plan.date(for: lastDay, calendar: calendar)
-        guard let fireDate = calendar.date(
-            bySettingHour: Self.planNudgeHour, minute: 0, second: 0, of: lastDate
-        ), fireDate > now else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = L10n.string("Next week is still empty")
-        content.body = L10n.string("Open Meal Shuffler to line up next week's dinners.")
-        content.sound = .default
         await add(
-            identifier: Self.planWeekPrefix + Self.stamp(for: lastDate, calendar: calendar),
+            identifier: identifier,
             content: content,
-            fireDate: fireDate,
+            fireDate: candidate.fireDate,
             calendar: calendar
         )
+    }
+
+    /// One notification the schedule would like to send.
+    struct Candidate: Equatable, Sendable {
+        let stamp: String
+        let kind: ReminderKind
+        let fireDate: Date
+        var item: PlannedMeal?
+        var dayDate: Date?
+    }
+
+    /// Everything the schedule wants to send, before the daily cap.
+    ///
+    /// Pure and static so a test can ask what a household would receive without a
+    /// notification centre, an authorisation prompt, or a device.
+    static func candidates(
+        for schedule: ReminderSchedule,
+        calendar: Calendar = .current,
+        now: Date = .now
+    ) -> [Candidate] {
+        guard schedule.dinnerEnabled else { return [] }
+        var found: [Candidate] = []
+
+        for plan in [schedule.plan, schedule.nextWeekPlan].compactMap({ $0 }) {
+            for item in plan.meals {
+                let dayDate = plan.date(for: item.day, calendar: calendar)
+                let stamp = stamp(for: dayDate, calendar: calendar)
+
+                if reminderBody(for: item, meals: schedule.meals) != nil,
+                   let dinnerDate = calendar.date(
+                       bySettingHour: schedule.dinnerHour, minute: 0, second: 0, of: dayDate
+                   ), dinnerDate > now {
+                    found.append(Candidate(
+                        stamp: stamp, kind: .dinner, fireDate: dinnerDate,
+                        item: item, dayDate: dayDate
+                    ))
+                }
+
+                if schedule.prepLeadEnabled, item.kind == .meal,
+                   let meal = meal(for: item, meals: schedule.meals), meal.prepMinutes > 0,
+                   let targetDate = calendar.date(
+                       bySettingHour: schedule.targetDinnerHour, minute: 0, second: 0, of: dayDate
+                   ),
+                   let startDate = calendar.date(byAdding: .minute, value: -meal.prepMinutes, to: targetDate),
+                   startDate > now {
+                    found.append(Candidate(
+                        stamp: stamp, kind: .prep, fireDate: startDate,
+                        item: item, dayDate: dayDate
+                    ))
+                }
+            }
+        }
+
+        // Only worth nudging when nothing has been prepared for the week after this one.
+        if schedule.nextWeekPlan == nil,
+           let lastDay = Weekday.ordered(calendar: calendar).last {
+            let lastDate = schedule.plan.date(for: lastDay, calendar: calendar)
+            if let fireDate = calendar.date(
+                bySettingHour: planNudgeHour, minute: 0, second: 0, of: lastDate
+            ), fireDate > now {
+                found.append(Candidate(
+                    stamp: stamp(for: lastDate, calendar: calendar),
+                    kind: .planNextWeek, fireDate: fireDate,
+                    item: nil, dayDate: lastDate
+                ))
+            }
+        }
+
+        return found
+    }
+
+    /// At most one notification a day.
+    ///
+    /// A household that turned everything on was receiving two pushes about a single dinner,
+    /// plus whatever else landed that day. Keeping the highest-priority candidate loses no
+    /// information -- the start-cooking nudge names the meal and says when dinner lands, so
+    /// it says everything the fixed-hour reminder would have.
+    ///
+    /// The repeating weekly grocery reminder is not dated, so its weekday is reserved rather
+    /// than compared.
+    static func oneADay(
+        _ candidates: [Candidate],
+        schedule: ReminderSchedule,
+        calendar: Calendar = .current
+    ) -> [Candidate] {
+        var best: [String: Candidate] = [:]
+        for candidate in candidates {
+            if schedule.groceryEnabled,
+               calendar.component(.weekday, from: candidate.fireDate) == schedule.groceryWeekday.calendarWeekday {
+                continue
+            }
+            if let existing = best[candidate.stamp], existing.kind >= candidate.kind { continue }
+            best[candidate.stamp] = candidate
+        }
+        return best.values.sorted { $0.fireDate < $1.fireDate }
     }
 
     /// Repeats weekly, unlike the dated dinner reminders. Shopping day is a habit rather
@@ -336,11 +418,11 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
 
     // MARK: - Content
 
-    private func meal(for item: PlannedMeal, meals: [Meal]) -> Meal? {
+    static func meal(for item: PlannedMeal, meals: [Meal]) -> Meal? {
         item.mealID.flatMap { id in meals.first(where: { $0.id == id }) }
     }
 
-    private func reminderBody(for item: PlannedMeal, meals: [Meal]) -> String? {
+    static func reminderBody(for item: PlannedMeal, meals: [Meal]) -> String? {
         switch item.kind {
         case .away:
             return nil

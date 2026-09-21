@@ -1157,3 +1157,6 @@
 "We do not cook the same dinner twice in one week." = "Vi lager ikke samme middag to ganger i løpet av en uke.";
 "We do not cook the same dinner again within %ld weeks." = "Vi lar det gå minst %ld uker før vi lager samme middag igjen.";
 "iCloud sharing is unavailable in this unsigned build. Your local household data is still available." = "iCloud-deling er ikke tilgjengelig i denne usignerte versjonen. Du har fortsatt tilgang til lokale husholdningsdata.";
+
+/* One reminder a day */
+"At most one reminder a day, whichever is most useful. The dinner reminder tells you what tonight's meal is and follows the plan when you reshuffle a day; with start-cooking timing on, that one arrives instead. When next week is empty you get one nudge to plan it." = "Høyst én påminnelse om dagen, den som er mest nyttig. Middagspåminnelsen forteller hva kveldens rett er og følger planen når du stokker om på en dag; med «tid for å begynne» slått på kommer den i stedet. Når neste uke er tom får du én påminnelse om å planlegge den.";

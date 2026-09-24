@@ -9,7 +9,14 @@ import XCTest
 /// nudge landing on the same day. These tests hold the cap at one a day.
 final class ReminderVolumeTests: XCTestCase {
 
-    private let calendar = Calendar(identifier: .gregorian)
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        // weekStart below is a Monday. Keep the test's week numbering independent of
+        // the simulator locale, where a Gregorian calendar may start on Sunday.
+        calendar.firstWeekday = 2
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }()
 
     /// Monday of a fixed week, so the assertions do not drift with the real date.
     private var weekStart: Date {

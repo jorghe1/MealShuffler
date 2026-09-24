@@ -6,6 +6,27 @@ Implementeringsstatus etter gjennomgangen 10. september 2026 finnes i
 [docs/IMPLEMENTATION_STATUS_2026-09-10.md](docs/IMPLEMENTATION_STATUS_2026-09-10.md).
 Den skiller mellom implementerte endringer, verifisering og gjenstående arbeid.
 
+## Nytt 24. september 2026
+
+- **Regler med egne ord.** Skriv «fredagstaco», «fisk to ganger i uka», «maks 30 minutter på
+  hverdager», «ingen nøtter» eller «pizza annenhver lørdag» — på norsk eller engelsk — og
+  regelen vises som setning før den legges til. Flere regler kan skrives på én linje, skilt med
+  komma. Finnes i Regler-fanen og i onboarding, der uka planlegges om mens du skriver.
+- **Sunn** som egen kategori, satt på 13 av de innebygde rettene, slik at «bare sunn mat på
+  hverdager» er en regel appen kan følge.
+- **Stokkingen som et øyeblikk.** Ukestripen snurrer som en spilleautomat og lander dag for dag
+  med et lite trykk i hånden; planleggeren viser hvor mange uker reglene tillater
+  («1 av 2,3 mill. mulige uker»).
+- **Del uka som bilde.** Et 9:16-bilde med uka, husstandens egne regler ved dagene de avgjorde
+  («✓ Fredagstaco») og antallet mulige uker. Tilbys noen sekunder etter en stokking.
+- **Venn-til-venn-deling uten konto.** Husregler, én oppskrift, en hel samling eller ukas
+  oppskrifter sendes som en lenke som bærer innholdet selv etter `#`. Mottakeren ser hva som
+  kom og velger hva som skal legges til; egne regler overstyres aldri. Med tjenesten satt opp
+  åpner lenken en side som også fungerer uten appen.
+- **Hele handlelisten til Bring!** når tjenesten er satt opp, med én tydelig bekreftelse først.
+
+Gjennomgangen og hva som gjenstår står i [docs/APP_REVIEW_2026-09-24.md](docs/APP_REVIEW_2026-09-24.md).
+
 ## Dette er med
 
 - Swipe-onboarding som lærer hvilke hverdagsretter familien liker, og som spør om

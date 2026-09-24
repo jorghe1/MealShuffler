@@ -11,6 +11,12 @@ enum Haptics {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
+    /// One day's reel settling on its dinner after a shuffle. Light, because seven of them
+    /// land in a row: together they should feel like a slot machine, not an alarm.
+    static func land() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.8)
+    }
+
     /// Ticking something off in the shop.
     static func check() {
         UISelectionFeedbackGenerator().selectionChanged()

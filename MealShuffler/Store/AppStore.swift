@@ -40,6 +40,8 @@ final class AppStore: ObservableObject {
     @Published var groceryReminderWeekday: Weekday { didSet { save() } }
     @Published var groceryReminderHour: Int { didSet { save() } }
     @Published var inviteNotice: String?
+    /// Rules or recipes another household sent by link, waiting to be looked at.
+    @Published var incomingShare: IncomingShare?
     /// Recipes shared in from other apps, waiting to be turned into meals.
     @Published var pendingCaptures: [CapturedRecipe] = []
     @Published var persistenceError: String?
@@ -535,6 +537,34 @@ final class AppStore: ObservableObject {
     /// Observations about how the week was built. Nothing is wrong; shown quietly.
     var planNotes: [PlanConflict] { conflicts.filter { $0.severity == .informational } }
 
+    /// Roughly how many different weeks the rules allow. A shuffle is one draw from these.
+    var possibleWeekCount: Double {
+        ShuffleOdds.possibleWeeks(plan: plan, meals: preferredMeals, rules: rules, context: matchContext)
+    }
+
+    /// The week as the shareable picture tells it.
+    var weekPoster: WeekPosterContent {
+        WeekPosterContent.make(
+            plan: plan,
+            meals: meals,
+            rules: rules,
+            household: household.name,
+            blockingRuleIDs: Set(blockingConflicts.compactMap(\.ruleID)),
+            possibleWeeks: possibleWeekCount,
+            context: matchContext
+        )
+    }
+
+    /// The dinners actually being cooked this week, for sending the recipes along.
+    var plannedMeals: [Meal] {
+        var seen = Set<UUID>()
+        return Weekday.ordered().compactMap { day -> Meal? in
+            guard let item = plan[day], item.kind == .meal, let id = item.mealID,
+                  seen.insert(id).inserted else { return nil }
+            return meal(id: id)
+        }
+    }
+
     /// Everything the generator should know about this household's taste.
     private var taste: TasteProfile {
         TasteProfile(
@@ -1004,6 +1034,44 @@ final class AppStore: ObservableObject {
         return .added
     }
 
+    /// What happened to a batch of rules another household sent.
+    struct SharedRulesOutcome: Equatable {
+        var added = 0
+        /// Already said by a rule here.
+        var duplicates = 0
+        /// Cannot hold alongside a rule here; this household's own rule wins.
+        var conflicts = 0
+    }
+
+    /// Adds rules from another household one by one, through the same duplicate and
+    /// contradiction checks as a rule typed here, so a friend's list never overrides this one.
+    @discardableResult
+    func importSharedRules(_ incoming: [PlanningRule]) -> SharedRulesOutcome {
+        var outcome = SharedRulesOutcome()
+        for rule in HouseRulesShare.sanitized(incoming, meals: meals) {
+            switch addRule(rule) {
+            case .added: outcome.added += 1
+            case .duplicate: outcome.duplicates += 1
+            case .contradiction: outcome.conflicts += 1
+            }
+        }
+        return outcome
+    }
+
+    /// Adds another household's recipes as new meals of this one.
+    ///
+    /// Always new identities: a friend's lasagne must never overwrite this household's own
+    /// edits to a recipe that happens to share an id. A dish already in the library by name
+    /// is skipped rather than doubled. Returns how many were added, or nil if saving failed.
+    func importSharedRecipes(_ incoming: [SharedRecipe]) -> Int? {
+        var seen = Set(meals.map { AppStore.stapleKey($0.name) })
+        let fresh = incoming.compactMap { $0.meal() }.filter { meal in
+            seen.insert(AppStore.stapleKey(meal.name)).inserted
+        }
+        guard !fresh.isEmpty else { return 0 }
+        return mergeRecipes(fresh) ? fresh.count : nil
+    }
+
     func resetRecipeToOriginal(_ meal: Meal) {
         guard SampleMeals.all.contains(where: { $0.id == meal.id }) else { return }
         customMeals.removeAll { $0.id == meal.id }
@@ -1237,6 +1305,15 @@ final class AppStore: ObservableObject {
     }
 
     func handleIncomingURL(_ url: URL) {
+        do {
+            if let share = try IncomingShare.parse(url) {
+                incomingShare = share
+                return
+            }
+        } catch {
+            actionNotice = error.localizedDescription
+            return
+        }
         guard url.scheme == "mealshuffler", url.host == "join" else { return }
         let code = url.pathComponents.last?.uppercased() ?? ""
         guard !code.isEmpty else { return }

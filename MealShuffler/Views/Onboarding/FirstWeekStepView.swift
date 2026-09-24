@@ -26,6 +26,7 @@ struct FirstWeekStepView: View {
                                 day: day,
                                 title: title(for: item),
                                 emoji: emoji(for: item),
+                                meal: item.kind == .meal ? item.mealID.flatMap { store.meal(id: $0) } : nil,
                                 minutes: item.mealID.flatMap { store.meal(id: $0)?.prepMinutes }
                             )
                         }
@@ -41,6 +42,11 @@ struct FirstWeekStepView: View {
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+
+                    // The household's own rules, said the way they say them. Adding one
+                    // re-plans the days it touches right here, so "taco Friday" visibly turns
+                    // Friday into tacos -- the clearest way to show what rules are for.
+                    RuleComposer()
 
                     reminderCard
                     rules
@@ -183,11 +189,12 @@ private struct FirstWeekRow: View {
     let day: Weekday
     let title: String
     let emoji: String
+    let meal: Meal?
     let minutes: Int?
 
     var body: some View {
         HStack(spacing: 12) {
-            MealThumbnail(emoji: emoji, size: AppTheme.emojiTileCompact)
+            MealThumbnail(meal: meal, fallbackEmoji: emoji, size: AppTheme.emojiTileCompact)
             VStack(alignment: .leading, spacing: 2) {
                 Text(day.name.uppercased())
                     .font(.caption2.bold()).tracking(0.7).foregroundStyle(AppTheme.accent)

@@ -38,6 +38,38 @@ enum BringExport {
         return components.url
     }
 
+    /// The whole shopping list, through the recipe service, or nil when that is not deployed.
+    ///
+    /// The one route to Bring for a list: the service answers a URL carrying the list with
+    /// the list as recipe markup, Bring fetches that URL and imports it. The service keeps
+    /// nothing and marks the answer `no-store`, but the list does pass through it and through
+    /// Bring's own servers -- which is why the menu says so. Limited to what fits in a URL a
+    /// server will accept; a list too long for that gets no link rather than a truncated one.
+    static func listLink(
+        items: [GroceryItem],
+        title: String,
+        serviceBase: URL? = RemoteRecipeExtractor.Configuration.fromBundle()?.baseURL
+    ) -> URL? {
+        guard let serviceBase, !items.isEmpty else { return nil }
+        struct Payload: Encodable { let n: String; let i: [String] }
+        let lines = items.prefix(250).map { item in
+            item.quantityText.isEmpty ? item.name : "\(item.quantityText) \(item.name)"
+        }
+        guard let encoded = try? ShareCodec.encode(Payload(n: title, i: lines)), encoded.count <= 7_000,
+              var list = URLComponents(url: serviceBase.appendingPathComponent("v1/bring/list"), resolvingAgainstBaseURL: false)
+        else { return nil }
+        list.queryItems = [URLQueryItem(name: "d", value: encoded)]
+        guard let listURL = list.url, var components = URLComponents(string: deeplinkEndpoint) else { return nil }
+        components.queryItems = [
+            URLQueryItem(name: "url", value: listURL.absoluteString),
+            URLQueryItem(name: "source", value: "web"),
+            // Already scaled to this week's diners; Bring must not scale it again.
+            URLQueryItem(name: "baseQuantity", value: "1"),
+            URLQueryItem(name: "requestedQuantity", value: "1")
+        ]
+        return components.url
+    }
+
     /// One dinner that can go, named rather than a tuple so a list can identify it.
     struct Dinner: Identifiable, Hashable {
         let meal: Meal

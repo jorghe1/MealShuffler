@@ -1,7 +1,7 @@
 # Recipe extraction service
 
-One stateless Cloudflare Worker behind `POST /v1/recipes/extract`. No accounts, no database,
-no stored user content.
+One stateless Cloudflare Worker behind `POST /v1/recipes/extract`, plus the public share and
+Bring! pages described below. No accounts, no database, no stored user content.
 
 It exists because the app's import paths were its weakest code: link import broke on
 character encoding, user-agent blocking and any page without schema.org markup, and photo
@@ -69,11 +69,29 @@ anything but lines of text.
 npm run check    # tsc --noEmit, then the unit tests
 ```
 
-The 18 tests cover malformed and ambiguous requests, multi-page forwarding, null amounts,
+The 31 tests cover malformed and ambiguous requests, multi-page forwarding, null amounts,
 invalid output, rate limits, actual body limits, the address rules, the redirect and size caps, the JSON-LD preference and the
-source fence — the parts that can be got wrong quietly. They run on Node's built-in test
+source fence — the parts that can be got wrong quietly — plus the public pages below: payload
+decoding with a decompression-bomb cap, the landing page's script run against a minimal DOM
+(untrusted text stays text), and the Bring! list markup. They run on Node's built-in test
 runner with runtime type stripping, so there is no build step and no test framework to
 install. `tsconfig.json` covers `src/` only; the tests are checked by running them.
+
+## Public pages
+
+Three stateless `GET` routes that never touch the model and never store anything.
+
+| Route | What it is |
+| --- | --- |
+| `/s/rules`, `/s/recipes` | The landing page for a share link from the app. The payload is in the URL **fragment** (`#1.<base64url raw-DEFLATE JSON>`), which browsers never send to a server: this Worker serves one static page, and the page decodes the fragment itself, renders it with `textContent` only, and offers "Open in Meal Shuffler" (`mealshuffler://share/<kind>#…`). CSP allows only the Worker's own script. |
+| `/s/app.js` | That page's script. It is built from the same `decodeSharePayload` and `renderShare` functions the tests run. |
+| `/v1/bring/list?d=…` | The week's shopping list as schema.org `Recipe` markup, for Bring! to import. Bring only imports from a URL its own servers fetch, so this list *does* pass through here: it is decoded, echoed back with `Cache-Control: no-store` and `X-Robots-Tag: noindex`, and forgotten. The access log records a fixed route label, never the URL. The app says so in a confirmation before sending. |
+
+Set `APP_STORE_URL` (an `https://apps.apple.com/…` address) to show a download button on share
+pages to people without the app. Without it the page shows only "Open in Meal Shuffler".
+
+With the service unconfigured in the app, share links fall back to `mealshuffler://share/…`,
+which works between phones that have the app; the Bring! list item is hidden.
 
 ## Request
 

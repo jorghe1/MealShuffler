@@ -173,6 +173,25 @@ telefon som allerede har den gamle appen installert. Ikke slett appen først.
 - Uten `RecipeServiceBaseURL` satt: lenker skal fortsatt virke lokalt, bilder
   bruker tekstgjenkjenning, og tekst skal si at importtjenesten ikke er satt opp.
 
+### Regler med egne ord, stokking og deling (september 24)
+
+- Skriv hvert av forslagene i Regler-fanen, på norsk og engelsk. Setningen under feltet skal
+  beskrive regelen riktig før den legges til, og «N av M retter passer» skal ikke være 0.
+- Skriv «fredagstaco, fisk to ganger i uka» og bekreft at begge legges til. Skriv så
+  «fisk på tirsdag» igjen og bekreft at appen sier at regelen finnes.
+- I onboarding: skriv «fredagstaco» og se at fredag blir taco i uka over.
+- Trykk stokk: stripen skal snurre og lande dag for dag med et lite trykk for hver.
+  Med Reduser bevegelse på skal den bare bytte. «Planlegger middager …» skal ikke blinke.
+- Etter stokking: «En helt ny uke» vises i ca. åtte sekunder. Del bildet til Meldinger og til
+  en Instagram-story — tekst, illustrasjoner og merker skal være skarpe og lyse også når
+  telefonen er i mørk modus.
+- Send husreglene fra én telefon til en annen med appen. Trykk lenken: arket skal vise reglene,
+  hoppe over de som finnes eller motsier egne regler, og «Stokk en uke med dem» skal virke.
+- Send en oppskrift og en samling på samme måte; retter som finnes fra før skal hoppes over.
+- Åpne en lenke med en ødelagt slutt: appen skal si at lenken ikke kunne leses.
+- Med tjenesten satt opp: åpne en delt lenke på en telefon uten appen (siden skal vise innholdet),
+  og send handlelisten til Bring! — varene og mengdene i Bring skal stemme med listen.
+
 ### Handleliste med egne varer
 
 - Legg til en vare uten mengde og bekreft at den ikke vises som «1».

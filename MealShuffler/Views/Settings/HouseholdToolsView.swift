@@ -70,7 +70,21 @@ struct RecipeCollectionsView: View {
                                     .accessibilityLabel(L10n.string("View recipe: %@", meal.name))
                             }
                         }
-                    }.navigationTitle(title)
+                    }
+                    .navigationTitle(title)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            // A collection is the natural unit to hand a friend: "our weeknight
+                            // ten", "grandma's". It travels as one link.
+                            let members = store.meals.filter { store.householdTools.collections[title]?.contains($0.id) == true }
+                            if !members.isEmpty, let link = RecipeShare.link(meals: members, household: store.household.name) {
+                                ShareLink(item: link, subject: Text(title), message: Text(RecipeShare.message(meals: members, household: store.household.name))) {
+                                    Image(systemName: "square.and.arrow.up")
+                                }
+                                .accessibilityLabel("Share this collection")
+                            }
+                        }
+                    }
                 }
             }.onDelete { offsets in
                 let titles = store.householdTools.collections.keys.sorted()

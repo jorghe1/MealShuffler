@@ -170,6 +170,7 @@ enum MealMatcher: Codable, Hashable {
             case .vegetarian: return L10n.string("vegetarian meals")
             case .quick: return L10n.string("quick meals")
             case .weekend: return L10n.string("weekend meals")
+            case .healthy: return L10n.string("healthy meals")
             default: return tag.name.lowercased()
             }
         }

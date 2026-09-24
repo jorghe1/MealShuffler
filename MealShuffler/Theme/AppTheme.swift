@@ -8,6 +8,8 @@ import UIKit
 /// appearance would have painted dark text on dark ground. Each token resolves against the
 /// current trait collection instead, so the modifier could be removed.
 enum AppTheme {
+    /// The illustration's paper is a fixed material, like a photograph, in both themes.
+    static let artworkPaper = Color(red: 247.0 / 255, green: 242.0 / 255, blue: 230.0 / 255)
     static let background = dynamic(light: (0.97, 0.95, 0.90), dark: (0.07, 0.08, 0.07))
     static let surface = dynamic(light: (1.00, 1.00, 1.00), dark: (0.12, 0.13, 0.12))
     /// Sits on `surface`; used for chips and pills that need to read as raised.

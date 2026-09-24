@@ -2,6 +2,13 @@ import Foundation
 
 enum MealTag: String, CaseIterable, Codable, Identifiable, Hashable {
     case fish, chicken, meat, vegetarian, pizza, pasta, soup, taco, quick, weekend
+    /// Lighter, vegetable-forward dinners.
+    ///
+    /// "Only healthy meals on weekdays" is one of the first rules a household states, and
+    /// with no such category it could only be approximated with a custom label nobody had
+    /// applied to the built-in library. Assigned by hand, never guessed from keywords: a
+    /// word like "salad" says nothing about what else is on the plate.
+    case healthy
 
     var id: String { rawValue }
 
@@ -17,6 +24,7 @@ enum MealTag: String, CaseIterable, Codable, Identifiable, Hashable {
         case .taco: L10n.string("Taco")
         case .quick: L10n.string("Quick")
         case .weekend: L10n.string("Weekend")
+        case .healthy: L10n.string("Healthy")
         }
     }
 
@@ -26,12 +34,11 @@ enum MealTag: String, CaseIterable, Codable, Identifiable, Hashable {
         case .chicken: "bird.fill"
         case .meat: "fork.knife"
         case .vegetarian: "leaf.fill"
-        case .pizza: "circle.grid.cross.fill"
-        case .pasta: "takeoutbag.and.cup.and.straw.fill"
-        case .soup: "cup.and.saucer.fill"
-        case .taco: "flame.fill"
+        // A neutral meal icon leaves the adjacent localized label to name the dish.
+        case .pizza, .pasta, .soup, .taco: "fork.knife"
         case .quick: "bolt.fill"
         case .weekend: "sparkles"
+        case .healthy: "carrot.fill"
         }
     }
 }
@@ -188,7 +195,9 @@ struct Meal: Identifiable, Codable, Hashable {
         subtitle = try values.decode(String.self, forKey: .subtitle)
         emoji = try values.decode(String.self, forKey: .emoji)
         prepMinutes = try values.decode(Int.self, forKey: .prepMinutes)
-        tags = try values.decode(Set<MealTag>.self, forKey: .tags)
+        // Read as strings so a category added by a newer version -- arriving through a
+        // backup, a shared recipe or iCloud -- drops out instead of failing the whole meal.
+        tags = Set(try values.decode([String].self, forKey: .tags).compactMap(MealTag.init(rawValue:)))
         customTags = try values.decodeIfPresent(Set<String>.self, forKey: .customTags) ?? []
         ingredients = try values.decode([Ingredient].self, forKey: .ingredients)
         defaultServings = try values.decodeIfPresent(Int.self, forKey: .defaultServings) ?? 4

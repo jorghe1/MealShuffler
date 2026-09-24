@@ -101,15 +101,7 @@ struct RecipeEditorView: View {
                 sourceSection
                 if let heroImageURL {
                     Section {
-                        AsyncImage(url: heroImageURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().scaledToFill()
-                            default:
-                                // No placeholder chrome: a missing image should not look broken.
-                                Color.clear
-                            }
-                        }
+                        MealArtwork(emoji: emoji, imageURL: heroImageURL, tags: tags)
                         .frame(height: 160)
                         .frame(maxWidth: .infinity)
                         .clipped()

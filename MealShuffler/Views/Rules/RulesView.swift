@@ -19,6 +19,12 @@ struct RulesView: View {
                 .listRowBackground(Color.clear)
             }
 
+            Section {
+                RuleComposer()
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear)
+            }
+
             Section("Your rules") {
                 ForEach(store.rules) { rule in
                     HStack(spacing: 12) {
@@ -71,6 +77,19 @@ struct RulesView: View {
         .appBackground()
         .navigationTitle("Rules")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(
+                    item: HouseRulesShare.link(rules: store.rules, household: store.household.name, meals: store.meals),
+                    subject: Text("Our house rules"),
+                    message: Text(HouseRulesShare.message(rules: store.rules, household: store.household.name, meals: store.meals, context: store.matchContext))
+                ) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .disabled(HouseRulesShare.shareableRules(store.rules, meals: store.meals).isEmpty)
+                .accessibilityLabel("Share our house rules")
+            }
+        }
         .sheet(isPresented: $showingAddRule) { AddRuleView().environmentObject(store) }
         .sheet(item: $editingRule) { AddRuleView(editing: $0).environmentObject(store) }
     }

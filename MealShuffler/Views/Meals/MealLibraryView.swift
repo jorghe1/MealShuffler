@@ -229,6 +229,12 @@ struct MealLibraryView: View {
         if let link = BringExport.deeplink(for: meal, servings: store.householdSize) {
             Link(destination: link) { Label("Add to Bring!", systemImage: "cart.badge.plus") }
         }
+        // A recipe travels to a friend inside the link: no account, nothing uploaded.
+        if let link = RecipeShare.link(meals: [meal], household: store.household.name) {
+            ShareLink(item: link, subject: Text(meal.name), message: Text(RecipeShare.message(meals: [meal], household: store.household.name))) {
+                Label("Send to a friend", systemImage: "paperplane")
+            }
+        }
         Button(meal.isBuiltIn ? L10n.string("Hide recipe") : L10n.string("Delete"), role: .destructive) {
             store.deleteMeal(meal)
         }
@@ -262,6 +268,11 @@ struct MealLibraryView: View {
             Menu("Plan") {
                 ForEach(Weekday.ordered()) { day in
                     Button(day.name) { store.setMeal(meal, on: day); sheet = nil }
+                }
+            }
+            if let link = RecipeShare.link(meals: [meal], household: store.household.name) {
+                ShareLink(item: link, subject: Text(meal.name), message: Text(RecipeShare.message(meals: [meal], household: store.household.name))) {
+                    Label("Send", systemImage: "paperplane")
                 }
             }
             moreActions(meal)

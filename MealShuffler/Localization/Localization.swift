@@ -23,7 +23,15 @@ enum L10n {
         "Dinner takes at most %ld minutes %@.": (0, "Dinner takes at most %ld minute %@."),
         "We cook %@ at least once every %ld weeks.": (1, "We cook %@ at least once every %ld week."),
         "Ingredients for %ld planned dinners": (0, "Ingredients for %ld planned dinner"),
-        "%@ at least every %ld weeks": (1, "%@ at least every %ld week")
+        "%@ at least every %ld weeks": (1, "%@ at least every %ld week"),
+        "Add %ld rules": (0, "Add %ld rule"),
+        "Add %ld recipes": (0, "Add %ld recipe"),
+        "Added %ld rules.": (0, "Added %ld rule."),
+        "Added %ld recipes to your meals.": (0, "Added %ld recipe to your meals."),
+        "%ld ingredients": (0, "%ld ingredient"),
+        "%ld rules were about people or recipes you do not have, so they were left out.": (0, "%ld rule was about people or recipes you do not have, so it was left out."),
+        "%ld would contradict your own rules and were left out.": (0, "%ld would contradict your own rules and was left out."),
+        "%ld rules kept": (0, "%ld rule kept")
     ]
     static func string(_ key: String, _ arguments: CVarArg...) -> String {
         var selectedKey = key

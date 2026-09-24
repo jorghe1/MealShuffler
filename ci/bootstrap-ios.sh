@@ -18,5 +18,6 @@ python3 ci/check-localized-format.py
 python3 ci/check-swift-structure.py
 python3 ci/check-store-api.py
 python3 ci/check-swift-call-labels.py
+python3 ci/sync-theme-colors.py --check
 xcodegen generate --spec project.yml
 xcodebuild -project MealShuffler.xcodeproj -scheme MealShuffler -list

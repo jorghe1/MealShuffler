@@ -8,6 +8,13 @@ struct WeekPlanView: View {
     @State private var editingDay: Weekday?
     @State private var pickingDay: Weekday?
     @State private var cooking: CookingSession?
+    /// Bumped per day to spin that day's reel in the week strip.
+    @State private var spins: [Weekday: Int] = [:]
+    @State private var showingShare = false
+    /// Offered for a few seconds after a whole-week shuffle, which is when a week is worth
+    /// showing someone.
+    @State private var showingSharePrompt = false
+    @State private var sharePromptTask: Task<Void, Never>?
 
     /// Which meal is being cooked, and for which day, so the "we cooked this" at the end
     /// lands on the right entry.
@@ -25,6 +32,7 @@ struct WeekPlanView: View {
             LazyVStack(spacing: 14) {
                 plannerHeader
                 weekStrip(scroll: scroll)
+                if showingSharePrompt { sharePrompt }
                 todayCard
                 if !store.blockingConflicts.isEmpty { PlanConflictView(conflicts: store.blockingConflicts) }
                 if !store.planNotes.isEmpty { notesRow }
@@ -46,6 +54,7 @@ struct WeekPlanView: View {
                             toggleLock: { store.toggleLock(day: day) },
                             shuffle: { intent in
                                 Haptics.shuffle()
+                                spins[day, default: 0] += 1
                                 withAnimation(reduceMotion ? nil : .snappy) { store.shuffle(day: day, intent: intent) }
                             },
                             snooze: {
@@ -84,10 +93,7 @@ struct WeekPlanView: View {
                     }
                 }
 
-                Button {
-                    Haptics.shuffle()
-                    Task { await store.generateInBackground() }
-                } label: {
+                Button(action: shuffleWeek) {
                     Label(L10n.string("Shuffle %ld remaining dinners", store.remainingDinnerCount), systemImage: "shuffle")
                         .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                 }
@@ -107,7 +113,7 @@ struct WeekPlanView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                ShareLink(item: PlanTextExporter.weeklyPlan(store.plan, meals: store.meals)) {
+                Button { showingShare = true } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .accessibilityLabel("Share this week")
@@ -120,6 +126,10 @@ struct WeekPlanView: View {
             CookModeView(meal: session.meal, day: session.day, servings: session.servings, plannedDate: session.date)
                 .environmentObject(store)
         }
+        .sheet(isPresented: $showingShare) {
+            WeekShareView().environmentObject(store)
+        }
+        .onDisappear { sharePromptTask?.cancel() }
         .sheet(item: $pickingDay) { day in
             MealPickerView(day: day).environmentObject(store)
         }
@@ -166,6 +176,11 @@ struct WeekPlanView: View {
                         .font(.caption.bold()).foregroundStyle(AppTheme.accent)
                     Text("Your week")
                         .font(.system(.title, design: .rounded, weight: .bold)).foregroundStyle(AppTheme.ink)
+                    // The size of the draw is the point of a shuffle: it makes the rules feel
+                    // like a shape rather than a cage, and it moves when a meal is added.
+                    Text(L10n.string("1 of %@ possible weeks", WeekPosterContent.compactCount(store.possibleWeekCount)))
+                        .font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
+                        .contentTransition(.numericText())
                 }
                 Spacer()
                 if store.canUndo { undoButton }
@@ -177,10 +192,7 @@ struct WeekPlanView: View {
     }
 
     private var shuffleButton: some View {
-        Button {
-            Haptics.shuffle()
-            Task { await store.generateInBackground() }
-        } label: {
+        Button(action: shuffleWeek) {
             Image(systemName: "shuffle").font(.title2.bold())
                 .frame(width: AppTheme.primaryAction, height: AppTheme.primaryAction)
                 .background(AppTheme.accent).foregroundStyle(AppTheme.onAccent).clipShape(Circle())
@@ -274,9 +286,13 @@ struct WeekPlanView: View {
                         VStack(spacing: 3) {
                             Text(day.shortName.uppercased())
                                 .font(.caption2.bold()).foregroundStyle(AppTheme.muted)
-                            Text(glanceEmoji(item))
-                                .font(.system(size: 22))
-                                .opacity(isCooking(item) ? 1 : 0.55)
+                            SlotReel(
+                                symbol: glanceEmoji(item),
+                                spin: spins[day, default: 0],
+                                delay: Double(Weekday.ordered().firstIndex(of: day) ?? 0) * 0.08
+                            )
+                            .font(.system(size: 22))
+                            .opacity(isCooking(item) ? 1 : 0.55)
                             // A locked day is the one thing about a week worth seeing at a
                             // glance: it is what shuffle will not touch.
                             Image(systemName: "lock.fill")
@@ -301,6 +317,52 @@ struct WeekPlanView: View {
             .padding(.vertical, 4)
         }
         .scrollClipDisabled()
+    }
+
+    /// The signature action: every day that can still change spins, then the week is drawn.
+    ///
+    /// The reels start at the tap rather than when the plan arrives, so the response is
+    /// immediate; the draw takes a fraction of the time the reels take to settle.
+    private func shuffleWeek() {
+        Haptics.shuffle()
+        let today = Calendar.current.startOfDay(for: .now)
+        for day in Weekday.ordered() {
+            let isFixed = store.plan[day]?.isLocked == true || store.isCompleted(on: day)
+                || store.plan.date(for: day) < today
+            if !isFixed { spins[day, default: 0] += 1 }
+        }
+        sharePromptTask?.cancel()
+        sharePromptTask = Task {
+            await store.generateInBackground()
+            guard !Task.isCancelled else { return }
+            withAnimation(reduceMotion ? nil : .snappy) { showingSharePrompt = true }
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled else { return }
+            withAnimation(reduceMotion ? nil : .snappy) { showingSharePrompt = false }
+        }
+    }
+
+    private var sharePrompt: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "dice.fill")
+                .font(.title2).foregroundStyle(AppTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("A fresh week").font(.subheadline.bold()).foregroundStyle(AppTheme.ink)
+                Text("Send it to the family chat?").font(.caption).foregroundStyle(AppTheme.muted)
+            }
+            Spacer(minLength: 0)
+            Button("Share") {
+                sharePromptTask?.cancel()
+                showingSharePrompt = false
+                showingShare = true
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(AppTheme.accentSoft.opacity(0.8))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     private func isToday(_ day: Weekday) -> Bool {
@@ -706,22 +768,9 @@ struct MealDetailView: View {
 
     /// Uses the imported photograph when the recipe came with one.
     private var hero: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous).fill(AppTheme.accentSoft)
-            if let url = meal.heroImageURL {
-                AsyncImage(url: url) { phase in
-                    if case .success(let image) = phase {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Text(meal.emoji).font(.system(size: 105))
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous))
-            } else {
-                Text(meal.emoji).font(.system(size: 105))
-            }
-        }
-        .frame(height: 220)
-        .accessibilityHidden(true)
+        MealArtwork(meal: meal)
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous))
+            .accessibilityHidden(true)
     }
 }

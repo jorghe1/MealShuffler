@@ -22,7 +22,7 @@ enum SampleMeals {
             subtitle: L10n.string("Lemon, potatoes and herbs"),
             emoji: "🐟",
             prepMinutes: 35,
-            tags: [.fish],
+            tags: [.fish, .healthy],
             ingredients: [
                 .init(name: L10n.string("Salmon fillet"), quantity: 600, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Potatoes"), quantity: 800, unit: "g", aisle: .produce),
@@ -44,7 +44,7 @@ enum SampleMeals {
             subtitle: L10n.string("Crispy cod and fresh cabbage slaw"),
             emoji: "🌮",
             prepMinutes: 30,
-            tags: [.fish, .taco],
+            tags: [.fish, .taco, .healthy],
             ingredients: [
                 .init(name: L10n.string("Cod fillet"), quantity: 600, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Tortilla wraps"), quantity: 8, unit: "pcs", aisle: .bread),
@@ -66,7 +66,7 @@ enum SampleMeals {
             subtitle: L10n.string("Vegetables, noodles and ginger"),
             emoji: "🥢",
             prepMinutes: 25,
-            tags: [.chicken, .quick],
+            tags: [.chicken, .quick, .healthy],
             ingredients: [
                 .init(name: L10n.string("Chicken breast"), quantity: 600, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Egg noodles"), quantity: 300, unit: "g", aisle: .pantry),
@@ -152,7 +152,7 @@ enum SampleMeals {
             subtitle: L10n.string("Coconut milk, tomato and warming spices"),
             emoji: "🍛",
             prepMinutes: 30,
-            tags: [.vegetarian],
+            tags: [.vegetarian, .healthy],
             ingredients: [
                 .init(name: L10n.string("Red lentils"), quantity: 300, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Coconut milk"), quantity: 800, unit: "ml", aisle: .pantry),
@@ -175,7 +175,7 @@ enum SampleMeals {
             subtitle: L10n.string("Quick, warm and simple"),
             emoji: "🥣",
             prepMinutes: 20,
-            tags: [.vegetarian, .soup, .quick],
+            tags: [.vegetarian, .soup, .quick, .healthy],
             ingredients: [
                 .init(name: L10n.string("Chopped tomatoes"), quantity: 1200, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Eggs"), quantity: 4, unit: "pcs", aisle: .dairy),
@@ -220,7 +220,7 @@ enum SampleMeals {
             subtitle: L10n.string("Creamy soup with a crispy topping"),
             emoji: "🥣",
             prepMinutes: 25,
-            tags: [.vegetarian, .soup, .quick],
+            tags: [.vegetarian, .soup, .quick, .healthy],
             ingredients: [
                 .init(name: L10n.string("Cauliflower"), quantity: 1, unit: "pcs", aisle: .produce),
                 .init(name: L10n.string("Potatoes"), quantity: 300, unit: "g", aisle: .produce),
@@ -241,7 +241,7 @@ enum SampleMeals {
             subtitle: L10n.string("Salad, dressing and warm pita bread"),
             emoji: "🥙",
             prepMinutes: 25,
-            tags: [.chicken, .quick],
+            tags: [.chicken, .quick, .healthy],
             ingredients: [
                 .init(name: L10n.string("Chicken breast"), quantity: 500, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Pita bread"), quantity: 6, unit: "pcs", aisle: .bread),
@@ -509,7 +509,7 @@ enum SampleMeals {
             subtitle: L10n.string("Sticky, sweet and on the table fast"),
             emoji: "🍣",
             prepMinutes: 25,
-            tags: [.fish, .quick],
+            tags: [.fish, .quick, .healthy],
             ingredients: [
                 .init(name: L10n.string("Salmon fillet"), quantity: 600, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Teriyaki sauce"), quantity: 90, unit: "ml", aisle: .pantry),
@@ -597,7 +597,7 @@ enum SampleMeals {
             subtitle: L10n.string("Butter, lemon and boiled potatoes"),
             emoji: "🐟",
             prepMinutes: 30,
-            tags: [.fish],
+            tags: [.fish, .healthy],
             ingredients: [
                 .init(name: L10n.string("Cod fillet"), quantity: 700, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Potatoes"), quantity: 800, unit: "g", aisle: .produce),
@@ -681,7 +681,7 @@ enum SampleMeals {
             subtitle: L10n.string("What you want when someone is poorly"),
             emoji: "🍜",
             prepMinutes: 30,
-            tags: [.chicken, .soup],
+            tags: [.chicken, .soup, .healthy],
             ingredients: [
                 .init(name: L10n.string("Chicken breast"), quantity: 400, unit: "g", aisle: .meatAndFish),
                 .init(name: L10n.string("Egg noodles"), quantity: 200, unit: "g", aisle: .pantry),
@@ -704,7 +704,7 @@ enum SampleMeals {
             subtitle: L10n.string("A pot of vegetables and beans"),
             emoji: "🥣",
             prepMinutes: 30,
-            tags: [.vegetarian, .soup],
+            tags: [.vegetarian, .soup, .healthy],
             ingredients: [
                 .init(name: L10n.string("Chopped tomatoes"), quantity: 800, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Kidney beans"), quantity: 240, unit: "g", aisle: .pantry),
@@ -751,7 +751,7 @@ enum SampleMeals {
             subtitle: L10n.string("Ready faster than the couscous swells"),
             emoji: "🧆",
             prepMinutes: 30,
-            tags: [.vegetarian],
+            tags: [.vegetarian, .healthy],
             ingredients: [
                 .init(name: L10n.string("Falafel"), quantity: 16, unit: "pcs", aisle: .frozen),
                 .init(name: L10n.string("Couscous"), quantity: 300, unit: "g", aisle: .pantry),
@@ -862,7 +862,7 @@ enum SampleMeals {
             subtitle: L10n.string("Beans, not mince"),
             emoji: "🫘",
             prepMinutes: 35,
-            tags: [.vegetarian],
+            tags: [.vegetarian, .healthy],
             ingredients: [
                 .init(name: L10n.string("Kidney beans"), quantity: 480, unit: "g", aisle: .pantry),
                 .init(name: L10n.string("Chickpeas"), quantity: 240, unit: "g", aisle: .pantry),

@@ -8,6 +8,7 @@ import {
   sourceBlock,
   readCapped,
 } from "./page.ts";
+import { handlePublicPage } from "./share.ts";
 
 /**
  * Recipe extraction for Meal Shuffler.
@@ -26,6 +27,8 @@ import {
 export interface Env {
   MODEL_BUDGET: Pick<DurableObjectNamespace, "idFromName" | "get">;
   DAILY_MODEL_CALL_LIMIT?: string;
+  /** Optional App Store link shown on share pages to someone without the app. */
+  APP_STORE_URL?: string;
   ANTHROPIC_API_KEY: string;
   /** Per-install cap. The install id is client-supplied, so this is a courtesy limit. */
   RATE_LIMITER: { limit: (options: { key: string }) => Promise<{ success: boolean }> };
@@ -46,7 +49,7 @@ const AISLES = ["produce", "bread", "meatAndFish", "dairy", "pantry", "frozen"] 
  *  "fish on Tuesday" could never match one. */
 const TAGS = [
   "fish", "chicken", "meat", "vegetarian", "pizza",
-  "pasta", "soup", "taco", "quick", "weekend",
+  "pasta", "soup", "taco", "quick", "weekend", "healthy",
 ] as const;
 
 const IngredientSchema = z.object({
@@ -70,7 +73,8 @@ export const RecipeSchema = z.object({
   servings: z.number().int().positive().max(1000).nullable().describe("Original recipe yield, null when unstated"),
   ingredients: z.array(IngredientSchema).min(1).max(200),
   instructions: z.array(z.string().max(10000)).max(200).describe("One step per entry, no leading numbers"),
-  tags: z.array(z.enum(TAGS)),
+  tags: z.array(z.enum(TAGS))
+    .describe("healthy only for clearly light, vegetable-forward dinners; omit when in doubt"),
   confidence: z.enum(["high", "medium", "low"])
     .describe("low when the source was partial or hard to read"),
 });
@@ -174,6 +178,10 @@ export async function handleRequest(request: Request, env: Env,
   extractRecipe: (content: Anthropic.MessageParam["content"]) => Promise<unknown> = content =>
     extract(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 25000, maxRetries: 0 }), content),
 ): Promise<Response> {
+    // Share landing pages and the Bring! list: stateless GETs that never touch the model.
+    const page = await handlePublicPage(request, env.APP_STORE_URL);
+    if (page) return page;
+
     if (request.method !== "POST") return json({ error: "Use POST." }, 405);
 
     const url = new URL(request.url);
@@ -275,7 +283,9 @@ export default { async fetch(request: Request, env: Env) {
   const started = Date.now();
   const response = await handleRequest(request, env);
   // Aggregate latency and outcome only: no URL, IP, headers, source, or model output.
-  console.log(JSON.stringify({ event: "recipe_extraction", status: response.status, durationMs: Date.now() - started }));
+  // The route is logged as a fixed label, never the URL: a Bring! list travels in the query.
+  const route = new URL(request.url).pathname.startsWith("/v1/recipes/") ? "recipe_extraction" : "public_page";
+  console.log(JSON.stringify({ event: route, status: response.status, durationMs: Date.now() - started }));
   return response;
 } };
 

@@ -229,15 +229,7 @@ private struct TasteCard: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                LinearGradient(
-                    colors: [AppTheme.accentSoft, AppTheme.surface],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                Text(meal.emoji)
-                    .font(.system(size: 112))
-                    .shadow(color: .black.opacity(0.08), radius: 12, y: 8)
-                    .accessibilityHidden(true)
+                MealArtwork(meal: meal)
 
                 if abs(offset.width) > 35 {
                     Text(offset.width > 0 ? L10n.string("LIKE") : L10n.string("NO THANKS"))
@@ -245,6 +237,7 @@ private struct TasteCard: View {
                         .foregroundStyle(offset.width > 0 ? AppTheme.accent : AppTheme.destructive)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: AppTheme.chipRadius))
                         .overlay(
                             RoundedRectangle(cornerRadius: AppTheme.chipRadius)
                                 .stroke(offset.width > 0 ? AppTheme.accent : AppTheme.destructive, lineWidth: 3)
@@ -254,7 +247,7 @@ private struct TasteCard: View {
                         .padding(22)
                 }
             }
-            .frame(maxHeight: .infinity)
+            .frame(height: 230)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(meal.name)

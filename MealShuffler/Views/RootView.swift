@@ -6,6 +6,9 @@ struct RootView: View {
     @ObservedObject private var cloud = CloudHouseholdSync.shared
     @State private var showingCloud = false
     @State private var showingBackup = false
+    /// Only for a draw slow enough to notice. A shuffle usually takes a fraction of a second,
+    /// and flashing a blocking spinner over the reels made the fast case feel slow.
+    @State private var showingPlanningOverlay = false
 
     var body: some View {
         Group {
@@ -19,7 +22,12 @@ struct RootView: View {
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.35), value: store.hasCompletedOnboarding)
         .disabled(store.isGenerating)
-        .overlay { if store.isGenerating { ProgressView("Planning dinners…").padding(24).background(.regularMaterial).clipShape(RoundedRectangle(cornerRadius: 16)) } }
+        .overlay { if showingPlanningOverlay { ProgressView("Planning dinners…").padding(24).background(.regularMaterial).clipShape(RoundedRectangle(cornerRadius: 16)) } }
+        .task(id: store.isGenerating) {
+            guard store.isGenerating else { showingPlanningOverlay = false; return }
+            try? await Task.sleep(for: .milliseconds(600))
+            if !Task.isCancelled, store.isGenerating { showingPlanningOverlay = true }
+        }
         .safeAreaInset(edge: .top) {
             if cloud.hasInvitation || cloud.pendingRemote != nil {
                 Button("Review iCloud changes") { showingCloud = true }.frame(maxWidth: .infinity, minHeight: 44).background(AppTheme.accentSoft)
@@ -30,6 +38,9 @@ struct RootView: View {
         }
         .sheet(isPresented: $showingBackup) { NavigationStack { DeviceBackupView().environmentObject(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingBackup = false } } } } }
         .onOpenURL(perform: store.handleIncomingURL)
+        .sheet(item: $store.incomingShare) { share in
+            IncomingShareView(share: share).environmentObject(store)
+        }
         .alert("Meal plan", isPresented: Binding(get: { store.actionNotice != nil }, set: { if !$0 { store.actionNotice = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(store.actionNotice ?? "") }

@@ -51,6 +51,12 @@ A household importing a few recipes a week will not notice it.
 
 ## 2. The whole shopping list to Bring!
 
+> **Built on 2026-09-24**, following the design below: `GET /v1/bring/list` in
+> `server/src/share.ts`, `BringExport.listLink` in the app, and "Send the list to Bring!" in
+> the shopping list's export menu behind a one-time confirmation. It appears only once the
+> recipe service is deployed. What remains is the check at the end of this section, on a phone
+> with Bring installed -- Bring's parser has not been exercised against the page yet.
+
 **What it does.** Sends the week's actual shopping list — aggregated across seven dinners,
 scaled to the number of diners, minus pantry staples and minus what is already at home — into
 Bring! in one tap. Today the app can only send a single recipe that came from a link, because
@@ -123,6 +129,13 @@ anyone sees. Nothing shows a price.
 ---
 
 ## 4. Community
+
+> **The friend-to-friend half exists as of 2026-09-24.** House rules, single recipes, whole
+> collections and a week's recipes can be sent as a link that carries its content in the URL
+> fragment; the receiver previews and picks what to add, and nothing overrides their own
+> rules. No account, no server state, no moderation needed -- it is a private message between
+> people who know each other. With the service deployed, the link opens a landing page for
+> people without the app. Everything below still applies to a *public* library.
 
 **What it does.** Recipes from other households, with ratings, in a fifth tab.
 

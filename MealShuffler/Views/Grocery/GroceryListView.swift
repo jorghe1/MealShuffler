@@ -11,6 +11,8 @@ struct GroceryListView: View {
     @State private var editingItem: ManualGroceryItem?
     @State private var visibility = 0
 
+    @Environment(\.openURL) private var openURL
+    @State private var pendingBringList: URL?
     private var remainingItems: [GroceryItem] { store.groceryItems.filter { !store.checkedGroceryIDs.contains($0.id) } }
     private var visibleItems: [GroceryItem] { visibility == 1 ? store.groceryItems : visibility == 2 ? store.groceryItems.filter { store.checkedGroceryIDs.contains($0.id) } : remainingItems }
 
@@ -226,6 +228,11 @@ struct GroceryListView: View {
                 Task { await exportToReminders() }
             } label: { Label("Apple Reminders", systemImage: "checklist") }
             .disabled(isExporting)
+            if let link = BringExport.listLink(items: remainingItems, title: WeekAnchor.label(forWeekStarting: store.shoppingStart)) {
+                Button { pendingBringList = link } label: {
+                    Label("Send the list to Bring!", systemImage: "cart.fill.badge.plus")
+                }
+            }
             if !bringDinners.isEmpty {
                 Menu {
                     ForEach(bringDinners) { dinner in
@@ -246,6 +253,19 @@ struct GroceryListView: View {
             }
         }
         .accessibilityLabel(L10n.string("Export grocery list"))
+        // Said once, plainly, before anything leaves the phone: this is the one export that
+        // passes the list through a server.
+        .confirmationDialog("Send the list to Bring!?", isPresented: Binding(
+            get: { pendingBringList != nil }, set: { if !$0 { pendingBringList = nil } }
+        ), titleVisibility: .visible) {
+            Button("Send") {
+                if let link = pendingBringList { openURL(link) }
+                pendingBringList = nil
+            }
+            Button("Cancel", role: .cancel) { pendingBringList = nil }
+        } message: {
+            Text("Bring! reads the list from our recipe service, which passes it on without keeping it.")
+        }
     }
 
     private var remainingCount: Int {

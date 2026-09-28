@@ -47,6 +47,42 @@ Hvis capability-en mangler, faller appen tilbake til privat lagring og
 fortsetter å virke, men widgeten viser «Ingen plan ennå» uansett hva som er
 planlagt. Det er den vanligste årsaken til en tom widget.
 
+## Engangsoppsett for iCloud-deling (CloudKit-skjema)
+
+Dette er den nest vanligste årsaken til at noe ser ødelagt ut uten å være det,
+etter App Groups.
+
+CloudKit har to miljøer: **Development** og **Production**. Skjemaet — posttyper,
+soner og indekser — opprettes automatisk i Development når du kjører appen fra
+Xcode eller simulator. Det skjer **aldri** av seg selv i Production.
+
+**TestFlight- og App Store-builds kjører mot Production.** Uten et promotert skjema
+starter appen, ser normal ut, og iCloud-deling feiler i det stille.
+
+Engangsoppsett:
+
+1. Opprett iCloud-containeren `iCloud.no.mealshuffler` under Identifiers →
+   iCloud Containers, hvis den ikke finnes.
+2. Slå på iCloud-capability med CloudKit på App ID-en `no.mealshuffler.app`, og
+   velg containeren. Regenerer provisioning profiles etterpå.
+3. Kjør appen minst én gang mot Development slik at skjemaet faktisk finnes der.
+   Opprett en husholdning og del den, slik at sonen `MealShufflerHousehold` og
+   postene blir laget.
+4. Gå til [CloudKit Console](https://icloud.developer.apple.com) → velg
+   containeren → **Deploy Schema Changes** → se gjennom diffen → **Deploy to
+   Production**.
+
+Etter dette må steg 4 gjentas hver gang en ny posttype, et nytt felt eller en ny
+indeks tas i bruk. Et felt som bare finnes i Development finnes ikke for en
+TestFlight-bruker.
+
+### Slik ser feilen ut
+
+Appen degraderer ærlig: `CloudHouseholdSync` sjekker `accountStatus()` og faller
+tilbake til lokal lagring med en forklarende melding. Du mister altså ikke data.
+Men «iCloud-deling virker ikke» i TestFlight, mens det virker i simulator, er
+nesten alltid dette — ikke en feil i koden.
+
 ## Alternativ B: Codemagic til TestFlight
 
 `codemagic.yaml` følger samme signeringsmønster som Fiks og forventer:

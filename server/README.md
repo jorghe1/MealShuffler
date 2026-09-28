@@ -56,6 +56,19 @@ settings:
 ```
 
 or is passed per build, `xcodebuild ... RECIPE_SERVICE_BASE_URL=https://your-worker.workers.dev`.
+
+**Setting the URL is not the whole switch, and that is deliberate.** There are two gates:
+
+| Gate | Who sets it | What it means |
+| --- | --- | --- |
+| `RECIPE_SERVICE_BASE_URL` | the build | the feature exists at all |
+| `online-extraction-enabled` | the household, in Settings | consent to send recipe text and photos off the device |
+
+The Settings toggle (`OnlineExtractionSettingsView`) only appears once the build carries a
+URL; before that the same row explains that recognition happens on-device. So after
+deploying, expect the app to *still* use on-device parsing until someone opts in. That is
+the correct order for a feature that sends someone's photos to a third party, not an
+oversight -- do not collapse the two gates into one.
 Leave it empty and the app stays on its on-device parsers, which is the correct behaviour
 before the service exists. That is also the state the app shipped in, and it is why import
 looked like it only ever extracted the name: every path fell back, and the fallbacks were

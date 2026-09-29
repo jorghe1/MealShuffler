@@ -79,16 +79,20 @@ anything but lines of text.
 ## Checks
 
 ```bash
-npm run check    # tsc --noEmit, then the unit tests
+npm run check        # tsc --noEmit, then the unit tests
+npm run test:bundle  # run share-page tests against a real local Wrangler bundle
 ```
 
-The 31 tests cover malformed and ambiguous requests, multi-page forwarding, null amounts,
+The 34 tests cover malformed and ambiguous requests, multi-page forwarding, null amounts,
 invalid output, rate limits, actual body limits, the address rules, the redirect and size caps, the JSON-LD preference and the
 source fence — the parts that can be got wrong quietly — plus the public pages below: payload
 decoding with a decompression-bomb cap, the landing page's script run against a minimal DOM
 (untrusted text stays text), and the Bring! list markup. They run on Node's built-in test
 runner with runtime type stripping, so there is no build step and no test framework to
-install. `tsconfig.json` covers `src/` only; the tests are checked by running them.
+install. CI also starts the bundled Worker and repeats the 13 public-page tests against
+the browser script it actually serves. Keep `keep_names = false`: serialized browser
+functions must not depend on name-preservation helpers from the Worker bundle.
+`tsconfig.json` covers `src/` only; the tests are checked by running them.
 
 ## Public pages
 
@@ -210,5 +214,13 @@ those outcome and latency fields in Cloudflare logs for monitoring. Error respon
 stable `code` values for app localization.
 
 The app's online-reading setting requires both a configured service URL and explicit opt-in.
-No deployment or live model-quality/cost benchmark was performed in this implementation pass.
-`npm run check` passes TypeScript and 21 unit tests using a substituted model.
+The September 29 follow-up passes TypeScript, 34 unit tests, 13 bundled-page tests and a
+production deployment dry run. Production upload remains blocked by missing Cloudflare
+authentication. No live model-quality/cost benchmark is claimed.
+
+
+### Development dependency override
+
+Wrangler 4.143.0 pins Miniflare's Undici to 7.29.0. The package override selects
+7.29.1 to address GHSA-3wwx-pv8p-q78v. Recheck this override when updating Wrangler;
+the packaged Worker does not include this local development server dependency.

@@ -152,3 +152,13 @@ The nine prioritized findings above are addressed in the follow-up patch. Saved 
 Additional fixes separate recipe and favorite buttons, increase suggestion tap targets, remove duplicate household-size controls, move onboarding shuffles off the main thread, and disclose unavailable cooking-timer notifications. Invalid web links have no app handoff; fragment changes replace content. A real Wrangler bundle exposed a name-preservation helper dependency in serialized browser functions; `keep_names = false` fixes it, and CI now exercises the bundled page script. The script URL is versioned to replace cached older code.
 
 Validation before native CI: 34 backend tests, TypeScript, 13 tests against bundled Worker JavaScript, five Swift/localization source checks, and live browser inspection of the packaged recipe page passed. Dependency audit is clean after updating Wrangler and overriding its development-only Undici dependency to the patched 7.29.1. Native XCTest/build and production deployment are tracked separately; source checks are not a simulator test. The original review above remains the before-state record.
+
+
+### Final build evidence
+
+- Code commit: `89ab592400850c8d4884893c141eabfe481c5a3a`.
+- [iOS validation](https://github.com/jorghe1/MealShuffler/actions/runs/36557377238): app and embedded extensions built; **227 XCTest tests passed, zero failures**. Unsigned simulator validation does not replace signed device, notification-delivery or two-device iCloud testing.
+- [Backend and source checks](https://github.com/jorghe1/MealShuffler/actions/runs/36557348834): passed, including the bundled Worker browser-script tests.
+- Local production dry run: `wrangler deploy --dry-run --outdir ../build/worker` passed; 1224.68 KiB upload, 207.90 KiB gzip.
+- Production deployment was attempted and stopped before upload because Wrangler had neither a Cloudflare login nor `CLOUDFLARE_API_TOKEN`. No production URL or successful live deployment is claimed. Run `npx wrangler login` in `server/` to unblock deployment; extraction also requires the account's `ANTHROPIC_API_KEY` Worker secret.
+- Previously present, unrelated untracked branding explorations remain untouched.

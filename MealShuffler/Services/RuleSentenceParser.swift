@@ -109,6 +109,9 @@ enum RuleSentenceParser {
         if consecutive { return make(.notOnConsecutiveDays(matcher: matcher)) }
 
         if negated || allergy {
+            if case .ingredient = matcher {
+                return make(.excludedOn(day: scope ?? .everyDay, matcher: matcher), schedule: interval)
+            }
             if let scope, scope != .everyDay {
                 return make(.excludedOn(day: scope, matcher: matcher), schedule: interval)
             }
@@ -163,8 +166,10 @@ enum RuleSentenceParser {
         }
         pieces.append(current)
         let parts = pieces.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        return parts.prefix(12).map { part in
-            (text: part, outcome: parse(part, meals: meals, customTags: customTags, now: now, calendar: calendar))
+        return parts.enumerated().map { index, part in
+            (text: part, outcome: index < 12
+                ? parse(part, meals: meals, customTags: customTags, now: now, calendar: calendar)
+                : .incomplete(hint: L10n.string("Add up to 12 rules at a time. The rest will stay here.")))
         }
     }
 

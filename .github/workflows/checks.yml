@@ -70,3 +70,7 @@ jobs:
       - name: Test
         working-directory: server
         run: npm test
+
+      - name: Test bundled share pages
+        working-directory: server
+        run: npm run test:bundle

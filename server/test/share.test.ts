@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { deflateRawSync } from "node:zlib";
+import { readFileSync } from "node:fs";
 
 import { handleRequest } from "../src/index.ts";
 import { bringListPage, decodeSharePayload, handlePublicPage, shareScript } from "../src/share.ts";
@@ -43,7 +44,7 @@ test("share pages are static, uncached, unindexed and locked down", async () => 
     assert.match(response.headers.get("x-robots-tag") ?? "", /noindex/);
     assert.match(response.headers.get("content-security-policy") ?? "", /script-src 'self'/);
     const html = await response.text();
-    assert.match(html, /<script src="\/s\/app\.js"><\/script>/);
+    assert.match(html, /<script src="\/s\/app\.js\?v=2"><\/script>/);
     assert.doesNotMatch(html, /apps\.apple\.com/, "No store link unless one is configured");
   }
   const withStore = await handlePublicPage(new Request("https://svc.example/s/rules"), "https://apps.apple.com/app/id123");
@@ -63,26 +64,39 @@ test("other requests fall through to the extractor", async () => {
 function fakeDocument() {
   const byID = new Map<string, any>();
   const make = (tag: string): any => ({
-    tag, textContent: "", className: "", attributes: {} as Record<string, string>, children: [] as any[],
+    tag, value: "", hidden: false,
+    get textContent() { return this.value; },
+    set textContent(value: string) { this.value = value; this.children = []; },
+    removeAttribute(name: string) { delete this.attributes[name]; },
+    className: "", attributes: {} as Record<string, string>, children: [] as any[],
     appendChild(child: any) { this.children.push(child); return child; },
     setAttribute(name: string, value: string) { this.attributes[name] = value; },
     get childElementCount() { return this.children.length; },
   });
   for (const id of ["content", "heading", "intro", "open", "get", "privacy"]) byID.set(id, make("div"));
-  return { byID, document: { getElementById: (id: string) => byID.get(id) ?? null, createElement: make } };
+  return { byID, document: { documentElement: { lang: "en" }, getElementById: (id: string) => byID.get(id) ?? null, createElement: make } };
 }
 
-async function runScript(path: string, fragment: string, language = "en-GB") {
+async function runScript(path: string, fragment: string, language = "en-GB", nextFragment?: string) {
   const { byID, document } = fakeDocument();
   const scope = globalThis as any;
-  const saved = { document: scope.document, location: scope.location, navigator: scope.navigator };
+  const saved = { document: scope.document, location: scope.location, navigator: scope.navigator, addEventListener: scope.addEventListener };
+  let hashchange: (() => void) | undefined;
+  scope.addEventListener = (_: string, callback: () => void) => { hashchange = callback; };
   scope.document = document;
   scope.location = { pathname: path, hash: "#" + fragment };
   Object.defineProperty(scope, "navigator", { value: { language }, configurable: true });
   try {
-    new Function(shareScript())();
+    new Function(process.env.SHARE_SCRIPT_PATH ? readFileSync(process.env.SHARE_SCRIPT_PATH, "utf8") : shareScript())();
     await new Promise(resolve => setTimeout(resolve, 50));
+    if (nextFragment !== undefined) {
+      scope.location.hash = "#" + nextFragment;
+      hashchange?.();
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    byID.set("html", document.documentElement);
   } finally {
+    scope.addEventListener = saved.addEventListener;
     scope.document = saved.document;
     scope.location = saved.location;
     Object.defineProperty(scope, "navigator", { value: saved.navigator, configurable: true });
@@ -100,11 +114,13 @@ test("the landing page renders rules as text and hands the link to the app", asy
 });
 
 test("the landing page renders recipes, in Norwegian for a Norwegian browser", async () => {
-  const fragment = encode({ f: "Familien Hansen", r: [{ n: "Lasagne", e: "🍝", p: 60, i: [{ n: "Kjøttdeig", q: 400, u: "g", a: "meatAndFish" }], x: ["Stek."] }] });
+  const fragment = encode({ f: "Familien Hansen", r: [{ n: "Lasagne", e: "🍝", p: 60, v: 4, i: [{ n: "Kjøttdeig", q: 400, u: "g", a: "meatAndFish" }], x: ["Stek."] }] });
   const page = await runScript("/s/recipes", fragment, "nb-NO");
   assert.equal(page.get("heading").textContent, "Fra Familien Hansen");
   assert.equal(page.get("open").textContent, "Åpne i Meal Shuffler");
+  assert.equal(page.get("html").lang, "nb");
   const card = page.get("content").children[0];
+  assert.ok(card.children.some((node: any) => node.textContent === "4 porsjoner"));
   assert.equal(card.children[0].textContent, "🍝 Lasagne");
   assert.ok(card.children.some((node: any) => node.children?.some((item: any) => item.textContent === "400 g Kjøttdeig")));
 });
@@ -112,6 +128,8 @@ test("the landing page renders recipes, in Norwegian for a Norwegian browser", a
 test("an unreadable link says so instead of rendering nothing", async () => {
   const page = await runScript("/s/rules", "1.garbage");
   assert.equal(page.get("intro").textContent, "This link could not be read. Ask for a new one.");
+  assert.equal(page.get("open").hidden, true);
+  assert.equal(page.get("open").attributes.href, undefined);
 });
 
 test("the shopping list becomes recipe markup Bring! can read", async () => {
@@ -134,4 +152,33 @@ test("the Bring! list is served uncached through the worker", async () => {
   assert.equal(response.headers.get("cache-control"), "no-store");
   const bad = await handleRequest(new Request("https://svc.example/v1/bring/list?d=nope"), env as never);
   assert.equal(bad.status, 400);
+});
+
+
+test("changing the fragment replaces content and invalid links remove the previous handoff", async () => {
+  const first = encode({ l: ["First rule"] });
+  const second = encode({ l: ["Second rule"] });
+  const changed = await runScript("/s/rules", first, "en", second);
+  assert.equal(changed.get("content").children.length, 1);
+  assert.equal(changed.get("content").children[0].children[0].children[0].textContent, "Second rule");
+  assert.ok(changed.get("open").attributes.href.endsWith(second));
+  const invalid = await runScript("/s/rules", first, "en", "invalid");
+  assert.equal(invalid.get("content").children.length, 0);
+  assert.equal(invalid.get("open").hidden, true);
+  assert.equal(invalid.get("open").attributes.href, undefined);
+});
+
+test("empty or oversized shares cannot masquerade as successful imports", async () => {
+  for (const data of [{}, { r: [] }, { r: [{ n: "" }] }, { r: Array(25).fill({ n: "Dish" }) }]) {
+    const page = await runScript("/s/recipes", encode(data));
+    assert.equal(page.get("open").hidden, true);
+  }
+});
+
+test("Bring refuses excess items and overlong lines without truncating the list", async () => {
+  for (const items of [Array(251).fill("Milk"), ["a".repeat(201)], ["Milk", 12]]) {
+    await assert.rejects(bringListPage(encode({ i: items })));
+  }
+  const page = await bringListPage(encode({ i: Array(250).fill("Milk") }));
+  assert.equal((page.match(/<li>/g) ?? []).length, 250);
 });

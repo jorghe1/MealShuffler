@@ -8,6 +8,7 @@ import SwiftUI
 /// in before you know what the app does.
 struct FirstWeekStepView: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let finished: () -> Void
 
     @State private var isTuning = false
@@ -34,13 +35,14 @@ struct FirstWeekStepView: View {
 
                     Button {
                         Haptics.shuffle()
-                        withAnimation(.snappy) { store.shuffleAll() }
+                        Task { await store.generateInBackground() }
                     } label: {
                         Label("Try another week", systemImage: "shuffle")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity).padding(.vertical, 13)
                     }
                     .buttonStyle(.bordered)
+                    .disabled(store.isGenerating)
                     .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
 
                     // The household's own rules, said the way they say them. Adding one
@@ -117,7 +119,7 @@ struct FirstWeekStepView: View {
     private var rules: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button {
-                withAnimation(.snappy) { isTuning.toggle() }
+                withAnimation(reduceMotion ? nil : .snappy) { isTuning.toggle() }
             } label: {
                 HStack {
                     Label("Rules we assumed", systemImage: "slider.horizontal.3")
@@ -130,21 +132,6 @@ struct FirstWeekStepView: View {
             .buttonStyle(.plain)
 
             if isTuning {
-                HStack {
-                    Label("People at dinner", systemImage: "person.2")
-                        .font(.subheadline)
-                    Spacer()
-                    Stepper(
-                        "\(store.householdSize)",
-                        value: Binding(
-                            get: { store.householdSize },
-                            set: { store.setHouseholdSize($0) }
-                        ),
-                        in: 1...12
-                    )
-                    .fixedSize()
-                }
-
                 ForEach(store.rules) { rule in
                     Toggle(isOn: Binding(
                         get: { store.rules.first(where: { $0.id == rule.id })?.isEnabled ?? false },

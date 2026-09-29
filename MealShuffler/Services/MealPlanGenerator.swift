@@ -253,7 +253,7 @@ struct MealPlanGenerator {
         var attempts = 0
         var evaluations = 0
         let minimums = rules.compactMap { rule -> (matcher: MealMatcher, minimum: Int)? in
-            guard case .minimumPerWeek(let matcher, let count) = rule.constraint else { return nil }
+            guard case .minimumPerWeek(let matcher, let count) = rule.constraint.servingConstraint else { return nil }
             return (matcher, count)
         } + overdueMinimums(rules: rules, taste: taste, context: context, allMeals: allMeals)
         let priorities = Dictionary(uniqueKeysWithValues: allMeals.map { ($0.id, random.nextUniform()) })
@@ -318,7 +318,7 @@ struct MealPlanGenerator {
                 guard available >= item.effectiveServings else { return false }
                 if let meal = allMeals.first(where: { $0.id == id }) {
                     return !rules.contains { rule in
-                        guard rule.strength == .required, rule.isActive(inWeek: plan.startDate), case .excludedOn(let scope, let matcher) = rule.constraint else { return false }
+                        guard rule.strength == .required, rule.isActive(inWeek: plan.startDate), case .excludedOn(let scope, let matcher) = rule.constraint.servingConstraint else { return false }
                         return scope.covers(day) && matcher.matches(meal, context: matchContext.forDay(day))
                     }
                 }
@@ -436,7 +436,7 @@ struct MealPlanGenerator {
     ) -> Bool {
         let dayContext = context.forDay(day)
         for rule in rules {
-            switch rule.constraint {
+            switch rule.constraint.servingConstraint {
             case .requiredOn(let scope, let matcher) where scope.covers(day):
                 if !matcher.matches(meal, context: dayContext) { return false }
             case .excludedOn(let scope, let matcher) where scope.covers(day):
@@ -457,7 +457,7 @@ struct MealPlanGenerator {
         context: MealMatcher.MatchContext
     ) -> Bool {
         for rule in rules {
-            guard case .maximumPerWeek(let matcher, let maximum) = rule.constraint,
+            guard case .maximumPerWeek(let matcher, let maximum) = rule.constraint.servingConstraint,
                   matcher.matches(meal, context: context) else { continue }
             if selected.values.filter({ matcher.matches($0, context: context) }).count >= maximum { return true }
         }
@@ -470,7 +470,7 @@ struct MealPlanGenerator {
     /// windows reach past the current week into the archive.
     private func repeatsTooSoon(meal: Meal, rules: [PlanningRule], taste: TasteProfile) -> Bool {
         for rule in rules {
-            guard case .noRepeatWithin(let weeks) = rule.constraint, weeks > 1 else { continue }
+            guard case .noRepeatWithin(let weeks) = rule.constraint.servingConstraint, weeks > 1 else { continue }
             guard let weeksAgo = taste.weeksSinceLastPlanned[meal.id] else { continue }
             if weeksAgo < weeks { return true }
         }
@@ -486,7 +486,7 @@ struct MealPlanGenerator {
     ) -> Bool {
         guard let previous else { return false }
         for rule in rules {
-            guard case .notOnConsecutiveDays(let matcher) = rule.constraint else { continue }
+            guard case .notOnConsecutiveDays(let matcher) = rule.constraint.servingConstraint else { continue }
             if matcher.matches(meal, context: context), matcher.matches(previous, context: context) {
                 return true
             }
@@ -573,7 +573,7 @@ struct MealPlanGenerator {
     ) -> Int {
         var score = 0
         for rule in rules {
-            switch rule.constraint {
+            switch rule.constraint.servingConstraint {
             case .requiredOn(let scope, let matcher) where scope.covers(day):
                 score += matcher.matches(meal, context: context) ? 90 : 0
             case .excludedOn(let scope, let matcher) where scope.covers(day):
@@ -615,7 +615,7 @@ struct MealPlanGenerator {
         allMeals: [Meal]
     ) -> [(matcher: MealMatcher, minimum: Int)] {
         rules.compactMap { rule in
-            guard case .requiredEvery(let weeks, let matcher) = rule.constraint else { return nil }
+            guard case .requiredEvery(let weeks, let matcher) = rule.constraint.servingConstraint else { return nil }
             let matching = allMeals.filter { matcher.matches($0, context: context) }
             guard !matching.isEmpty else { return nil }
             // Nothing that matches has been planned inside the window, so it is due.
@@ -661,7 +661,7 @@ struct MealPlanGenerator {
 
         for rule in rules where rule.isActive(inWeek: plan.startDate) && rule.strength == .required {
             let ruleDescription = rule.summary(meals: allMeals, context: context)
-            switch rule.constraint {
+            switch rule.constraint.servingConstraint {
             case .requiredOn(let scope, let matcher):
                 for day in cookingDays(in: scope)
                 where byDay[day].map({ matcher.matches($0, context: context.forDay(day)) }) != true {

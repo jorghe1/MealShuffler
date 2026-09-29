@@ -215,6 +215,15 @@ enum RuleConstraint: Codable, Hashable {
 }
 
 extension RuleConstraint {
+    /// Older saved ingredient bans used a weekly cooking count. They also apply to
+    /// leftovers and freezer servings, including recipes no longer in the library.
+    var servingConstraint: RuleConstraint {
+        if case .maximumPerWeek(let matcher, 0) = self, case .ingredient = matcher {
+            return .excludedOn(day: .everyDay, matcher: matcher)
+        }
+        return self
+    }
+
     /// Days whose dinner this constraint can change.
     ///
     /// Day-scoped rules only ever affect their own days, so editing one no longer needs to

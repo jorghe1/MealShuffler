@@ -59,7 +59,7 @@ struct RuleComposer: View {
                 Label(L10n.string("Added: %@", justAdded), systemImage: "checkmark.seal.fill")
                     .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
             } else {
-                Text("Days, limits, allergies, day plans and variety all work. Try a suggestion.")
+                Text("Days, limits, ingredient exclusions, day plans and variety all work. Try a suggestion.")
                     .font(.caption).foregroundStyle(AppTheme.muted)
             }
         } else if readings.count > 1 {
@@ -90,8 +90,11 @@ struct RuleComposer: View {
     /// One line per rule when several were typed at once.
     @ViewBuilder private func readingRow(_ piece: String, _ outcome: RuleSentenceParser.Outcome) -> some View {
         if let rule = outcome.rule {
-            Label(rule.summary(meals: store.meals, context: store.matchContext), systemImage: "checkmark.circle.fill")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
+            VStack(alignment: .leading, spacing: 4) {
+                Label(rule.summary(meals: store.meals, context: store.matchContext), systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
+                Text(detail(for: rule)).font(.caption).foregroundStyle(AppTheme.muted)
+            }
         } else {
             Label(piece, systemImage: "questionmark.circle")
                 .font(.subheadline).foregroundStyle(AppTheme.muted)
@@ -105,6 +108,9 @@ struct RuleComposer: View {
         if let matcher = rule.constraint.matcher {
             let fitting = store.meals.filter { matcher.matches($0, context: store.matchContext) }.count
             parts.append(L10n.string("%ld of %ld meals match", fitting, store.meals.count))
+        }
+        if case .ingredient? = rule.constraint.matcher {
+            parts.append(L10n.string("Matches ingredient names. This does not verify allergens or hidden ingredients."))
         }
         return parts.joined(separator: " · ")
     }
@@ -129,7 +135,7 @@ struct RuleComposer: View {
                         Text(suggestion)
                             .font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 12).padding(.vertical, 8)
-                            .frame(minHeight: 40)
+                            .frame(minHeight: AppTheme.tapTarget)
                             .background(text == suggestion ? AppTheme.accent : AppTheme.accentSoft)
                             .foregroundStyle(text == suggestion ? AppTheme.onAccent : AppTheme.accent)
                             .clipShape(Capsule())
@@ -147,23 +153,34 @@ struct RuleComposer: View {
         guard !rules.isEmpty else { return }
         var added: [String] = []
         var problems: [String] = []
-        for rule in rules {
+        var remaining: [String] = []
+        for reading in readings {
+            guard let rule = reading.outcome.rule else {
+                remaining.append(reading.text)
+                if case .incomplete(let hint) = reading.outcome { problems.append(hint) }
+                continue
+            }
             switch store.addRule(rule) {
             case .added:
                 added.append(rule.summary(meals: store.meals, context: store.matchContext))
             case .duplicate(let existing):
+                remaining.append(reading.text)
                 problems.append(L10n.string("You already have this rule: %@", existing))
             case .contradiction(let existing):
+                remaining.append(reading.text)
                 problems.append(L10n.string("This cannot hold alongside “%@”.", existing))
             }
         }
         if !added.isEmpty {
             Haptics.success()
             justAdded = added.joined(separator: " ")
-            isFocused = false
+            isFocused = !remaining.isEmpty
         }
         // Anything added leaves the field; what could not be added is said about what remains.
-        if !added.isEmpty { text = "" }
+        text = remaining.joined(separator: "; ")
+        if !remaining.isEmpty, !added.isEmpty {
+            problems.insert(L10n.string("Added: %@", added.joined(separator: " ")), at: 0)
+        }
         feedback = problems.isEmpty ? nil : problems.joined(separator: " ")
         feedbackText = text
     }

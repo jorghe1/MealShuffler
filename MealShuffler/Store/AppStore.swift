@@ -537,11 +537,6 @@ final class AppStore: ObservableObject {
     /// Observations about how the week was built. Nothing is wrong; shown quietly.
     var planNotes: [PlanConflict] { conflicts.filter { $0.severity == .informational } }
 
-    /// Roughly how many different weeks the rules allow. A shuffle is one draw from these.
-    var possibleWeekCount: Double {
-        ShuffleOdds.possibleWeeks(plan: plan, meals: preferredMeals, rules: rules, context: matchContext)
-    }
-
     /// The week as the shareable picture tells it.
     var weekPoster: WeekPosterContent {
         WeekPosterContent.make(
@@ -549,8 +544,6 @@ final class AppStore: ObservableObject {
             meals: meals,
             rules: rules,
             household: household.name,
-            blockingRuleIDs: Set(blockingConflicts.compactMap(\.ruleID)),
-            possibleWeeks: possibleWeekCount,
             context: matchContext
         )
     }

@@ -1,0 +1,50 @@
+{
+  "ruleFixture": {
+    "f": "Familien Solheim",
+    "r": [],
+    "l": [
+      "Taco på fredag",
+      "Fisk minst to ganger i uka",
+      "Maks 30 minutter på hverdager"
+    ]
+  },
+  "recipeFixture": {
+    "f": "Familien Solheim",
+    "r": [
+      {
+        "n": "Ovnsbakt laks med poteter",
+        "e": "🐟",
+        "p": 30,
+        "s": "",
+        "i": [
+          {
+            "q": 600,
+            "u": "g",
+            "n": "laks",
+            "a": "meatAndFish"
+          },
+          {
+            "q": 800,
+            "u": "g",
+            "n": "poteter",
+            "a": "produce"
+          },
+          {
+            "q": 2,
+            "u": "ss",
+            "n": "olivenolje",
+            "a": "pantry"
+          }
+        ],
+        "x": [
+          "Varm ovnen til 200 grader.",
+          "Bak potetene først. Legg til laksen og stek til den er ferdig."
+        ],
+        "v": 4,
+        "t": [
+          "fish"
+        ]
+      }
+    ]
+  }
+}

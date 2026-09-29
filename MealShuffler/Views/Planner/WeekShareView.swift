@@ -198,8 +198,8 @@ struct WeekPoster: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 10) {
-                if content.rulesKept > 0 {
-                    Label(L10n.string("%ld rules kept", content.rulesKept), systemImage: "checkmark.seal.fill")
+                if content.activeRuleCount > 0 {
+                    Label(L10n.string("%ld active rules", content.activeRuleCount), systemImage: "slider.horizontal.3")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(Self.green)
                 }
@@ -207,9 +207,6 @@ struct WeekPoster: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Self.ink)
             }
-            Text(L10n.string("1 of %@ possible weeks", content.possibleWeeksText))
-                .font(.system(size: 17, weight: .heavy, design: .rounded))
-                .foregroundStyle(Self.ink)
             Text("Shuffled with Meal Shuffler")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(Self.muted)

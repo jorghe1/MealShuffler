@@ -35,6 +35,7 @@ enum ShareCodec {
 
     static func encode<Value: Encodable>(_ value: Value) throws -> String {
         let json = try JSONEncoder().encode(value)
+        guard json.count < maximumDecodedBytes else { throw ShareError.tooLarge }
         guard let compressed = deflate(json) else { throw ShareError.unreadable }
         let encoded = version + "." + base64url(compressed)
         guard encoded.count <= maximumEncodedLength else { throw ShareError.tooLarge }
@@ -267,10 +268,13 @@ struct SharedRecipe: Codable, Equatable {
     var instructions: [String]
     var source: URL?
     var image: URL?
+    var servingsConfirmed: Bool?
+    var activeMinutes: Int?
 
     private enum CodingKeys: String, CodingKey {
         case name = "n", subtitle = "s", emoji = "e", prepMinutes = "p", tags = "t", labels = "c"
         case servings = "v", ingredients = "i", instructions = "x", source = "u", image = "h"
+        case servingsConfirmed = "vc", activeMinutes = "am"
     }
 
     init(meal: Meal) {
@@ -285,6 +289,8 @@ struct SharedRecipe: Codable, Equatable {
         instructions = meal.instructions
         if case .web(let url) = meal.source { source = url } else { source = nil }
         image = meal.heroImageURL
+        servingsConfirmed = meal.servingsConfirmed
+        activeMinutes = meal.activeMinutes
     }
 
     /// A new meal in the receiving library, or nil when there is nothing usable in it.
@@ -296,7 +302,7 @@ struct SharedRecipe: Codable, Equatable {
             guard let url, let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else { return nil }
             return url
         }
-        return Meal(
+        var result = Meal(
             name: cleanName,
             subtitle: String(subtitle.prefix(300)),
             emoji: emoji.isEmpty ? "🍽️" : String(emoji.prefix(4)),
@@ -309,6 +315,9 @@ struct SharedRecipe: Codable, Equatable {
             source: web(source).map { MealSource.web($0) } ?? MealSource.manual,
             heroImageURL: image.flatMap { $0.scheme?.lowercased() == "https" ? $0 : nil }
         )
+        result.servingsConfirmed = servingsConfirmed
+        result.activeMinutes = activeMinutes.flatMap { (0...10_080).contains($0) ? $0 : nil }
+        return result
     }
 }
 
@@ -319,9 +328,15 @@ struct SharedIngredient: Codable, Equatable {
     var aisle: String
     var text: String?
     var upper: Double?
+    var packageQuantity: Double?
+    var packageUnit: String?
+    var amountNote: String?
+    var section: String?
+    var requiresReview: Bool?
 
     private enum CodingKeys: String, CodingKey {
         case name = "n", quantity = "q", unit = "u", aisle = "a", text = "o", upper = "r"
+        case packageQuantity = "pq", packageUnit = "pu", amountNote = "an", section = "s", requiresReview = "rr"
     }
 
     init(ingredient: Ingredient) {
@@ -331,6 +346,11 @@ struct SharedIngredient: Codable, Equatable {
         aisle = ingredient.aisle.rawValue
         text = ingredient.originalText
         upper = ingredient.upperQuantity
+        packageQuantity = ingredient.packageQuantity
+        packageUnit = ingredient.packageUnit
+        amountNote = ingredient.amountNote
+        section = ingredient.section
+        requiresReview = ingredient.requiresReview
     }
 
     func ingredient() -> Ingredient? {
@@ -344,6 +364,19 @@ struct SharedIngredient: Codable, Equatable {
             originalText: text.map { String($0.prefix(500)) }
         )
         if let upper, upper.isFinite, upper >= quantity, upper <= 1_000_000 { result.upperQuantity = upper }
+        result.amountNote = amountNote.map { String($0.prefix(200)) }
+        result.section = section.map { String($0.prefix(200)) }
+        result.requiresReview = requiresReview
+        if packageQuantity != nil || packageUnit != nil {
+            if let amount = packageQuantity, amount.isFinite, amount > 0, amount <= 1_000_000,
+               let unit = packageUnit?.trimmingCharacters(in: .whitespacesAndNewlines), !unit.isEmpty, unit.count <= 20 {
+                result.packageQuantity = amount
+                result.packageUnit = unit
+            } else {
+                result.requiresReview = true
+            }
+        }
+        if upper != nil && result.upperQuantity == nil { result.requiresReview = true }
         return result
     }
 }
@@ -379,13 +412,14 @@ struct SharedRecipes: Codable, Equatable {
 enum RecipeShare {
     /// A link carrying these recipes, or nil when they will not fit in one.
     static func link(meals: [Meal], household: String) -> URL? {
-        let payload = SharedRecipes(from: household, recipes: meals.prefix(SharedRecipes.maximumRecipes).map(SharedRecipe.init(meal:)))
+        guard !meals.isEmpty, meals.count <= SharedRecipes.maximumRecipes else { return nil }
+        let payload = SharedRecipes(from: household, recipes: meals.map(SharedRecipe.init(meal:)))
         guard let encoded = try? ShareCodec.encode(payload) else { return nil }
         return ShareLinks.url(kind: .recipes, payload: encoded)
     }
 
     static func message(meals: [Meal], household: String) -> String {
-        let names = meals.prefix(SharedRecipes.maximumRecipes).map { "\($0.emoji) \($0.name)" }
+        let names = meals.map { "\($0.emoji) \($0.name)" }
         let header = meals.count == 1
             ? L10n.string("A recipe from %@:", household)
             : L10n.string("Recipes from %@:", household)

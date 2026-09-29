@@ -1,5 +1,8 @@
 name = "mealshuffler-extract"
 main = "src/index.ts"
+# Share-page functions are serialized into browser JavaScript. Name-preservation
+# helpers would capture Worker-only scope and break every valid share after bundling.
+keep_names = false
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 

@@ -1,0 +1,38 @@
+{
+  "icons": {
+    "Icon-1024.png": {
+      "width": 1024,
+      "height": 1024,
+      "bit_depth": 8,
+      "png_color_type": 2
+    },
+    "Icon-180.png": {
+      "width": 180,
+      "height": 180,
+      "bit_depth": 8,
+      "png_color_type": 2
+    },
+    "Icon-32.png": {
+      "width": 32,
+      "height": 32,
+      "bit_depth": 8,
+      "png_color_type": 2
+    },
+    "Icon-60.png": {
+      "width": 60,
+      "height": 60,
+      "bit_depth": 8,
+      "png_color_type": 2
+    },
+    "Logo-Master.png": {
+      "width": 1254,
+      "height": 1254,
+      "bit_depth": 8,
+      "png_color_type": 2
+    }
+  },
+  "active_catalog_image": "AppIcon-DinnerShuffle-v6.png",
+  "production_matches_export": true,
+  "archived_v5_matches_git": true,
+  "missing_image_assets": []
+}

@@ -11,6 +11,7 @@ struct IncomingShareView: View {
     let share: IncomingShare
     @State private var excluded: Set<Int> = []
     @State private var result: String?
+    @State private var saveError: String?
     @State private var rules: [PlanningRule] = []
 
     var body: some View {
@@ -22,7 +23,7 @@ struct IncomingShareView: View {
                 .listRowBackground(Color.clear)
 
                 switch share {
-                case .rules(let shared): rulesSection(shared)
+                case .rules(let shared): rulesSection(shared).disabled(result != nil)
                 case .recipes(let shared): recipesSection(shared)
                 }
 
@@ -30,6 +31,12 @@ struct IncomingShareView: View {
                     Section {
                         Label(result, systemImage: "checkmark.seal.fill")
                             .foregroundStyle(AppTheme.accent)
+                    }
+                }
+                if let saveError {
+                    Section {
+                        Label(saveError, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(AppTheme.warning)
                     }
                 }
             }
@@ -124,7 +131,7 @@ struct IncomingShareView: View {
                         }
                     }
                 }
-                .disabled(known)
+                .disabled(known || result != nil)
             }
         }
     }
@@ -188,6 +195,7 @@ struct IncomingShareView: View {
     }
 
     private func add() {
+        saveError = nil
         switch share {
         case .rules:
             let chosen = rules.indices.filter { !excluded.contains($0) }.map { rules[$0] }
@@ -201,7 +209,8 @@ struct IncomingShareView: View {
             if let added = store.importSharedRecipes(chosen) {
                 result = L10n.string("Added %ld recipes to your meals.", added)
             } else {
-                result = L10n.string("The recipes could not be saved. Try again.")
+                saveError = L10n.string("The recipes could not be saved. Try again.")
+                return
             }
         }
         Haptics.success()

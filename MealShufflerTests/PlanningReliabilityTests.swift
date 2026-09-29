@@ -122,4 +122,26 @@ final class PlanningReliabilityTests: XCTestCase {
         XCTAssertTrue(rule.isActive(inWeek: WeekAnchor.startOfNextWeek(after: next)))
         XCTAssertEqual(try JSONDecoder().decode(PlanningRule.self, from: JSONEncoder().encode(rule)), rule)
     }
+    func testIngredientBansIncludeCookedLeftoverAndFreezerServings() {
+        let dish = Meal(name: "Peanut stew", subtitle: "", emoji: "", prepMinutes: 20, tags: [],
+                        ingredients: [Ingredient(name: "Peanuts", quantity: 100, unit: "g", aisle: .pantry)])
+        let batch = FreezerBatch(recipe: dish, portions: 4, label: "Stew")
+        for constraint: RuleConstraint in [.maximumPerWeek(matcher: .ingredient("peanut"), count: 0),
+                                           .excludedOn(day: .everyDay, matcher: .ingredient("peanut"))] {
+            let rule = PlanningRule(title: "No peanuts", constraint: constraint)
+            var frozen = PlannedMeal(day: .wednesday, mealID: dish.id, isLocked: true, kind: .leftovers(sourceDay: .monday))
+            frozen.freezerBatch = batch
+            let plan = WeeklyPlan(meals: [
+                PlannedMeal(day: .monday, mealID: dish.id, isLocked: true, servings: 8),
+                PlannedMeal(day: .tuesday, mealID: dish.id, isLocked: true, kind: .leftovers(sourceDay: .monday)), frozen
+            ])
+            let generator = MealPlanGenerator(orderedDays: [.monday, .tuesday, .wednesday])
+            let conflicts = generator.validate(plan: plan, allMeals: [dish], rules: [rule], contexts: [:], taste: .empty, context: .empty)
+            XCTAssertEqual(conflicts.filter { $0.ruleID == rule.id }.count, 3)
+            let frozenOnly = WeeklyPlan(meals: [frozen])
+            let withoutLibrary = generator.validate(plan: frozenOnly, allMeals: [], rules: [rule], contexts: [:], taste: .empty, context: .empty)
+            XCTAssertTrue(withoutLibrary.contains { $0.ruleID == rule.id })
+        }
+    }
+
 }

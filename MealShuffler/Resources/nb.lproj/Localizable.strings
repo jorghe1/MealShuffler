@@ -1237,3 +1237,17 @@
 "Send the list to Bring!" = "Send listen til Bring!";
 "Send the list to Bring!?" = "Sende listen til Bring!?";
 "Bring! reads the list from our recipe service, which passes it on without keeping it." = "Bring! leser listen fra oppskriftstjenesten vår, som sender den videre uten å ta vare på den.";
+
+"Add up to 12 rules at a time. The rest will stay here." = "Legg til opptil 12 regler om gangen. Resten blir stående her.";
+
+"Days, limits, ingredient exclusions, day plans and variety all work. Try a suggestion." = "Dager, grenser, utelatte ingredienser, dagsplaner og variasjon fungerer. Prøv et forslag.";
+
+"%ld active rules" = "%ld aktive regler";
+
+"Cannot share this collection" = "Kan ikke dele denne samlingen";
+
+"Share up to 24 recipes at a time. For large recipes, use a smaller collection." = "Del opptil 24 oppskrifter om gangen. Bruk en mindre samling for store oppskrifter.";
+
+"This list is too large for Bring! Use Share remaining items instead." = "Listen er for stor for Bring! Bruk Del gjenværende varer i stedet.";
+
+"Notifications are unavailable. Keep this screen open to see when the timer finishes." = "Varsler er utilgjengelige. Hold denne skjermen åpen for å se når tiden er ute.";

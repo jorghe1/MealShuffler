@@ -18,6 +18,7 @@ struct CookModeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var timerMinutes = 10
     @State private var timerEndsAt: Date?
+    @State private var timerWarning: String?
     @State private var step = 0
     @State private var gathered: Set<String> = []
     @State private var didMarkCooked = false
@@ -79,21 +80,39 @@ struct CookModeView: View {
                 Button("Cancel timer") {
                     UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [progressKey])
                     timerEndsAt = nil
+                    timerWarning = nil
                 }
             } else {
                 Stepper(L10n.string("%ld minutes", timerMinutes), value: $timerMinutes, in: 1...240)
                 Button("Start timer") {
                     let end = Date.now.addingTimeInterval(Double(timerMinutes) * 60)
                     timerEndsAt = end
+                    timerWarning = nil
                     Task {
                         let center = UNUserNotificationCenter.current()
-                        guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true, timerEndsAt == end else { return }
+                        let allowed = (try? await center.requestAuthorization(options: [.alert, .sound])) == true
+                        guard timerEndsAt == end else { return }
+                        guard allowed else {
+                            timerWarning = L10n.string("Notifications are unavailable. Keep this screen open to see when the timer finishes.")
+                            return
+                        }
                         let content = UNMutableNotificationContent()
                         content.title = meal.name; content.body = L10n.string("Timer finished"); content.sound = .default
-                        try? await center.add(UNNotificationRequest(identifier: progressKey, content: content,
-                            trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(1, end.timeIntervalSinceNow), repeats: false)))
+                        do {
+                            try await center.add(UNNotificationRequest(identifier: progressKey, content: content,
+                                trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(1, end.timeIntervalSinceNow), repeats: false)))
+                            if timerEndsAt != end { center.removePendingNotificationRequests(withIdentifiers: [progressKey]) }
+                        } catch {
+                            if timerEndsAt == end {
+                                timerWarning = L10n.string("Notifications are unavailable. Keep this screen open to see when the timer finishes.")
+                            }
+                        }
                     }
                 }.buttonStyle(.bordered)
+            }
+            if let timerWarning {
+                Label(timerWarning, systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(AppTheme.warning)
             }
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading).mealCard()
     }

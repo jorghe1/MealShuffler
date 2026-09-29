@@ -8,11 +8,15 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test test/*.test.ts",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "test:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
     "zod": "^4.0.0"
+  },
+  "overrides": {
+    "undici": "7.29.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260907.1",

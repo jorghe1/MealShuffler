@@ -50,11 +50,12 @@ enum BringExport {
         title: String,
         serviceBase: URL? = RemoteRecipeExtractor.Configuration.fromBundle()?.baseURL
     ) -> URL? {
-        guard let serviceBase, !items.isEmpty else { return nil }
+        guard let serviceBase, !items.isEmpty, items.count <= 250 else { return nil }
         struct Payload: Encodable { let n: String; let i: [String] }
-        let lines = items.prefix(250).map { item in
+        let lines = items.map { item in
             item.quantityText.isEmpty ? item.name : "\(item.quantityText) \(item.name)"
         }
+        guard lines.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.utf16.count <= 200 }) else { return nil }
         guard let encoded = try? ShareCodec.encode(Payload(n: title, i: lines)), encoded.count <= 7_000,
               var list = URLComponents(url: serviceBase.appendingPathComponent("v1/bring/list"), resolvingAgainstBaseURL: false)
         else { return nil }

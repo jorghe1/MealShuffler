@@ -176,11 +176,7 @@ struct WeekPlanView: View {
                         .font(.caption.bold()).foregroundStyle(AppTheme.accent)
                     Text("Your week")
                         .font(.system(.title, design: .rounded, weight: .bold)).foregroundStyle(AppTheme.ink)
-                    // The size of the draw is the point of a shuffle: it makes the rules feel
-                    // like a shape rather than a cage, and it moves when a meal is added.
-                    Text(L10n.string("1 of %@ possible weeks", WeekPosterContent.compactCount(store.possibleWeekCount)))
-                        .font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
-                        .contentTransition(.numericText())
+
                 }
                 Spacer()
                 if store.canUndo { undoButton }

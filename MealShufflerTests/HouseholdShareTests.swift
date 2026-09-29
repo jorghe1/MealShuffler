@@ -202,22 +202,58 @@ final class HouseholdShareTests: XCTestCase {
             PlanningRule(title: "Tacos any day", constraint: .requiredOn(day: .everyDay, matcher: .tag(.taco))),
             PlanningRule(title: "Saturday takeaway", constraint: .dinnerMode(day: .day(.saturday), mode: .takeaway))
         ]
-        let poster = WeekPosterContent.make(plan: plan, meals: meals, rules: rules, household: "The Hansens", possibleWeeks: 1)
+        let poster = WeekPosterContent.make(plan: plan, meals: meals, rules: rules, household: "The Hansens")
         XCTAssertEqual(poster.days.first { $0.day == .friday }?.badge, "Taco Friday", "The most specific rule wins")
         XCTAssertEqual(poster.days.first { $0.day == .saturday }?.badge, "Saturday takeaway")
         XCTAssertEqual(poster.heading, "The Hansens")
-        XCTAssertEqual(poster.rulesKept, 3)
+        XCTAssertEqual(poster.activeRuleCount, 3)
     }
 
-    func testTheOddsMoveTheRightWay() {
+
+    func testPosterCountsActiveRulesWithoutClaimingTheyWereSatisfied() {
         let plan = WeeklyPlan(startDate: WeekAnchor.startOfCurrentWeek(), meals: [])
-        let open = ShuffleOdds.possibleWeeks(plan: plan, meals: meals, rules: [])
-        let tight = ShuffleOdds.possibleWeeks(plan: plan, meals: meals, rules: [
-            PlanningRule(title: "Fish", constraint: .requiredOn(day: .weekdays, matcher: .tag(.fish)))
-        ])
-        XCTAssertGreaterThan(open, 1_000_000, "Forty dinners over seven days is a lot of weeks")
-        XCTAssertLessThan(tight, open, "A tighter rule allows fewer weeks")
-        XCTAssertEqual(WeekPosterContent.compactCount(12), "12")
-        XCTAssertEqual(WeekPosterContent.compactCount(0), "1")
+        let preferred = PlanningRule(title: "Fish", strength: .preferred, constraint: .requiredOn(day: .everyDay, matcher: .tag(.fish)))
+        var disabled = preferred
+        disabled.isEnabled = false
+        let poster = WeekPosterContent.make(plan: plan, meals: meals, rules: [preferred, disabled], household: "")
+        XCTAssertEqual(poster.activeRuleCount, 1)
+        XCTAssertTrue(poster.days.allSatisfy { $0.badge == nil })
+    }
+
+    func testSharingPreservesPackageAmountsNotesSectionsAndReviewStatus() throws {
+        var ingredient = Ingredient(name: "Tomatoes", quantity: 2, unit: "cans", aisle: .pantry)
+        ingredient.packageQuantity = 400
+        ingredient.packageUnit = "g"
+        ingredient.upperQuantity = 3
+        ingredient.amountNote = "drained"
+        ingredient.section = "Sauce"
+        ingredient.requiresReview = true
+        let encoded = try ShareCodec.encode(SharedIngredient(ingredient: ingredient))
+        let received = try XCTUnwrap(ShareCodec.decode(SharedIngredient.self, from: encoded).ingredient())
+        XCTAssertEqual(received.packageQuantity, 400)
+        XCTAssertEqual(received.packageUnit, "g")
+        XCTAssertEqual(received.upperQuantity, 3)
+        XCTAssertEqual(received.amountNote, "drained")
+        XCTAssertEqual(received.section, "Sauce")
+        XCTAssertTrue(received.needsAmountReview)
+        XCTAssertEqual(received.amountText(scale: 2), ingredient.amountText(scale: 2))
+    }
+
+    func testOldIngredientSharesStillDecodeAndInvalidPackageNeedsReview() throws {
+        let old = Data(#"{"n":"Milk","q":1,"u":"l","a":"dairy"}"#.utf8)
+        var shared = try JSONDecoder().decode(SharedIngredient.self, from: old)
+        XCTAssertNotNil(shared.ingredient())
+        shared.packageQuantity = 400
+        XCTAssertTrue(try XCTUnwrap(shared.ingredient()).needsAmountReview)
+        XCTAssertNil(shared.ingredient()?.packageQuantity)
+    }
+
+    func testOversizedExportsAreRefusedWithoutDroppingItems() throws {
+        XCTAssertNil(RecipeShare.link(meals: Array(repeating: meals[0], count: 25), household: "Family"))
+        XCTAssertNotNil(RecipeShare.link(meals: Array(repeating: meals[0], count: 24), household: "Family"))
+        let item = GroceryItem(name: "Milk", quantity: 1, unit: "l", aisle: .pantry, mealNames: [])
+        let base = URL(string: "https://example.com")!
+        XCTAssertNil(BringExport.listLink(items: Array(repeating: item, count: 251), title: "Week", serviceBase: base))
+        XCTAssertNotNil(BringExport.listLink(items: Array(repeating: item, count: 250), title: "Week", serviceBase: base))
     }
 }

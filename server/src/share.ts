@@ -59,6 +59,8 @@ const PAGE_STYLE = `
 :root { color-scheme: light dark; --paper: #f7f2e6; --ink: #1f291f; --muted: #636b5c; --green: #1f6b47; --soft: #d1e6cc; --card: #fff; }
 @media (prefers-color-scheme: dark) { :root { --paper: #121412; --ink: #e8f0e8; --muted: #a1ad9e; --green: #70c794; --soft: #29402f; --card: #1f211f; } }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+h1, h2, li { overflow-wrap: anywhere; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 main { max-width: 560px; margin: 0 auto; padding: 28px 16px 48px; }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--green); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
@@ -80,7 +82,7 @@ const COPY = {
   en: {
     loading: "Opening…", unreadable: "This link could not be read. Ask for a new one.",
     rules: "House rules", recipes: "Recipes", from: "From", open: "Open in Meal Shuffler",
-    get: "Get Meal Shuffler", minutes: "min", ingredients: "Ingredients", steps: "Method",
+    get: "Get Meal Shuffler", minutes: "min", servings: "servings", ingredients: "Ingredients", steps: "Method",
     rulesIntro: "Add these rules and shuffle a week that follows them.",
     recipesIntro: "Add these to your meals, or cook straight from this page.",
     privacy: "Everything on this page travelled inside the link. Nothing was uploaded or stored.",
@@ -88,7 +90,7 @@ const COPY = {
   nb: {
     loading: "Åpner …", unreadable: "Denne lenken kunne ikke leses. Be om en ny.",
     rules: "Husregler", recipes: "Oppskrifter", from: "Fra", open: "Åpne i Meal Shuffler",
-    get: "Last ned Meal Shuffler", minutes: "min", ingredients: "Ingredienser", steps: "Fremgangsmåte",
+    get: "Last ned Meal Shuffler", minutes: "min", servings: "porsjoner", ingredients: "Ingredienser", steps: "Fremgangsmåte",
     rulesIntro: "Legg til reglene og stokk en uke som følger dem.",
     recipesIntro: "Legg dem til i rettene dine, eller lag mat rett fra denne siden.",
     privacy: "Alt på denne siden lå i selve lenken. Ingenting ble lastet opp eller lagret.",
@@ -112,6 +114,8 @@ function renderShare(kind: string, data: any, copy: typeof COPY.en): void {
   };
   const from = typeof data?.f === "string" && data.f ? `${copy.from} ${data.f}` : "";
   if (kind === "rules") {
+    if (!Array.isArray(data?.l) || !data.l.length || data.l.length > 30
+        || data.l.some((line: unknown) => typeof line !== "string" || !line.trim())) throw new Error("unreadable");
     heading.textContent = from ? `${copy.rules} · ${data.f}` : copy.rules;
     intro.textContent = copy.rulesIntro;
     const card = element("div", undefined, "card");
@@ -122,6 +126,10 @@ function renderShare(kind: string, data: any, copy: typeof COPY.en): void {
     card.appendChild(list);
     root.appendChild(card);
   } else {
+    if (!Array.isArray(data?.r) || !data.r.length || data.r.length > 24
+        || data.r.some((recipe: any) => typeof recipe?.n !== "string" || !recipe.n.trim()
+          || (recipe.i !== undefined && (!Array.isArray(recipe.i) || recipe.i.length > 200))
+          || (recipe.x !== undefined && (!Array.isArray(recipe.x) || recipe.x.length > 200)))) throw new Error("unreadable");
     heading.textContent = from || copy.recipes;
     intro.textContent = copy.recipesIntro;
     for (const recipe of Array.isArray(data?.r) ? data.r.slice(0, 24) : []) {
@@ -129,11 +137,15 @@ function renderShare(kind: string, data: any, copy: typeof COPY.en): void {
       const card = element("div", undefined, "card");
       card.appendChild(element("h2", `${typeof recipe.e === "string" ? recipe.e + " " : ""}${recipe.n}`));
       if (typeof recipe.p === "number" && recipe.p > 0) card.appendChild(element("p", `${recipe.p} ${copy.minutes}`));
+      if (Number.isInteger(recipe.v) && recipe.v > 0 && recipe.v <= 100) card.appendChild(element("p", `${recipe.v} ${copy.servings}`));
       const ingredients = element("ul");
       for (const item of Array.isArray(recipe.i) ? recipe.i.slice(0, 200) : []) {
         const text = typeof item?.o === "string" && item.o
           ? item.o
-          : [item?.q > 0 ? String(item.q) : "", item?.u ?? "", item?.n ?? ""].filter(Boolean).join(" ");
+          : [item?.q > 0 ? String(item.q) + (item.r > item.q ? "–" + item.r : "") : (typeof item?.an === "string" ? item.an : ""),
+              typeof item?.u === "string" ? item.u : "",
+              item?.pq > 0 && typeof item.pu === "string" ? `× ${item.pq} ${item.pu}` : "",
+              typeof item?.n === "string" ? item.n : ""].filter(Boolean).join(" ");
         if (text) ingredients.appendChild(element("li", text));
       }
       if (ingredients.childElementCount) {
@@ -159,21 +171,39 @@ export function shareScript(): string {
 const COPY = ${JSON.stringify(COPY)};
 const decodeSharePayload = ${decodeSharePayload.toString()};
 const renderShare = ${renderShare.toString()};
-(async () => {
-  const copy = /^(nb|no|nn)\\b/i.test(navigator.language || "") ? COPY.nb : COPY.en;
+(() => {
+  const language = /^(nb|no|nn)\\b/i.test(navigator.language || "") ? "nb" : "en";
+  const copy = COPY[language];
+  document.documentElement.lang = language;
   const kind = location.pathname.split("/").pop() === "rules" ? "rules" : "recipes";
-  const fragment = location.hash.slice(1);
   for (const [id, key] of [["open", "open"], ["get", "get"], ["privacy", "privacy"]]) {
     const node = document.getElementById(id);
     if (node) node.textContent = copy[key];
   }
-  const open = document.getElementById("open");
-  if (open) open.setAttribute("href", "mealshuffler://share/" + kind + "#" + fragment);
-  try {
-    renderShare(kind, await decodeSharePayload(fragment, ${MAX_DECODED_BYTES}), copy);
-  } catch {
-    document.getElementById("intro").textContent = copy.unreadable;
+  let revision = 0;
+  async function update() {
+    const current = ++revision;
+    const fragment = location.hash.slice(1);
+    const open = document.getElementById("open");
+    open.hidden = true;
+    open.removeAttribute("href");
+    document.getElementById("content").textContent = "";
+    document.getElementById("heading").textContent = "Meal Shuffler";
+    document.getElementById("intro").textContent = copy.loading;
+    try {
+      const data = await decodeSharePayload(fragment, ${MAX_DECODED_BYTES});
+      if (current !== revision) return;
+      renderShare(kind, data, copy);
+      open.setAttribute("href", "mealshuffler://share/" + kind + "#" + fragment);
+      open.hidden = false;
+    } catch {
+      if (current !== revision) return;
+      document.getElementById("content").textContent = "";
+      document.getElementById("intro").textContent = copy.unreadable;
+    }
   }
+  globalThis.addEventListener("hashchange", update);
+  void update();
 })();
 `;
 }
@@ -191,14 +221,14 @@ export function sharePage(appStoreURL?: string): string {
 </head><body><main>
 <div class="brand"><span>⇄</span> Meal Shuffler</div>
 <h1 id="heading">Meal Shuffler</h1>
-<p id="intro">Opening…</p>
+<p id="intro" role="status">Opening…</p>
 <div id="content"></div>
 <div class="actions">
-<a class="button primary" id="open" href="#">Open in Meal Shuffler</a>
+<a class="button primary" id="open" hidden>Open in Meal Shuffler</a>
 ${store}
 </div>
 <small id="privacy"></small>
-</main><script src="/s/app.js"></script></body></html>`;
+</main><script src="/s/app.js?v=2"></script></body></html>`;
 }
 
 // MARK: - Bring!
@@ -214,11 +244,9 @@ export async function bringListPage(payload: string): Promise<string> {
   if (!PAYLOAD.test(payload)) throw new Error("unreadable");
   const data = await decodeSharePayload(payload, 200_000) as { n?: unknown; i?: unknown };
   const name = typeof data?.n === "string" && data.n.trim() ? data.n.trim().slice(0, 120) : "Shopping list";
-  const items = (Array.isArray(data?.i) ? data.i : [])
-    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-    .map(item => item.trim().slice(0, 200))
-    .slice(0, 250);
-  if (items.length === 0) throw new Error("empty");
+  if (!Array.isArray(data?.i) || !data.i.length || data.i.length > 250
+      || data.i.some(item => typeof item !== "string" || !item.trim() || item.trim().length > 200)) throw new Error("unreadable");
+  const items = (data.i as string[]).map(item => item.trim());
   const recipe = {
     "@context": "https://schema.org",
     "@type": "Recipe",

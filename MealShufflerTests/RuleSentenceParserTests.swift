@@ -101,8 +101,8 @@ final class RuleSentenceParserTests: XCTestCase {
 
     /// Foods outside the categories are read as ingredients, singular so "nuts" finds "nut".
     func testUnknownFoodsBecomeIngredients() {
-        XCTAssertEqual(constraint("no nuts"), .maximumPerWeek(matcher: .ingredient("nut"), count: 0))
-        XCTAssertEqual(constraint("allergic to peanuts"), .maximumPerWeek(matcher: .ingredient("peanut"), count: 0))
+        XCTAssertEqual(constraint("no nuts"), .excludedOn(day: .everyDay, matcher: .ingredient("nut")))
+        XCTAssertEqual(constraint("allergic to peanuts"), .excludedOn(day: .everyDay, matcher: .ingredient("peanut")))
         XCTAssertEqual(constraint("salmon on monday"), .requiredOn(day: .day(.monday), matcher: .ingredient("salmon")))
     }
 
@@ -195,4 +195,12 @@ final class RuleSentenceParserTests: XCTestCase {
         let decoded = try JSONDecoder().decode(Meal.self, from: JSONSerialization.data(withJSONObject: json))
         XCTAssertEqual(decoded.tags, [.fish])
     }
+    func testBatchRetainsOverflowAndUnrecognizedText() {
+        let input = Array(repeating: "Taco Friday", count: 12) + ["fish on Tuesday", "unfinished"]
+        let readings = RuleSentenceParser.parseAll(input.joined(separator: "; "), meals: [])
+        XCTAssertEqual(readings.map(\.text), input)
+        XCTAssertEqual(readings.compactMap { $0.outcome.rule }.count, 12)
+        XCTAssertNil(readings[12].outcome.rule)
+    }
+
 }

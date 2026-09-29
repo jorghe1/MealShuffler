@@ -205,11 +205,11 @@ struct MealLibraryView: View {
         MealRow(
             meal: meal,
             isFavorite: store.favoriteMealIDs.contains(meal.id),
+            openMeal: { sheet = .detail(meal) },
             toggleFavorite: { store.toggleFavorite(meal) }
         )
         .mealCard()
         .contentShape(Rectangle())
-        .onTapGesture { sheet = .detail(meal) }
         .contextMenu { mealActions(meal) }
     }
 

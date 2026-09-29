@@ -45,6 +45,7 @@ struct RecipeCollectionsView: View {
     @EnvironmentObject private var store: AppStore
     @State private var name = ""
     @State private var selectedMeal: Meal?
+    @State private var shareTooLarge = false
     var body: some View {
         List {
             Section("New collection") {
@@ -82,6 +83,9 @@ struct RecipeCollectionsView: View {
                                     Image(systemName: "square.and.arrow.up")
                                 }
                                 .accessibilityLabel("Share this collection")
+                            } else if !members.isEmpty {
+                                Button { shareTooLarge = true } label: { Image(systemName: "square.and.arrow.up") }
+                                    .accessibilityLabel("Share this collection")
                             }
                         }
                     }
@@ -91,6 +95,11 @@ struct RecipeCollectionsView: View {
                 for offset in offsets { store.householdTools.collections.removeValue(forKey: titles[offset]) }
             }
         }.navigationTitle("Collections")
+            .alert("Cannot share this collection", isPresented: $shareTooLarge) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Share up to 24 recipes at a time. For large recipes, use a smaller collection.")
+            }
             .sheet(item: $selectedMeal) { MealDetailView(meal: $0) }
     }
 }

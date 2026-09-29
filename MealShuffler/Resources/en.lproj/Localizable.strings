@@ -306,3 +306,17 @@
 "We do not cook the same dinner twice in one week." = "We do not cook the same dinner twice in one week.";
 "We do not cook the same dinner again within %ld weeks." = "We do not cook the same dinner again within %ld weeks.";
 "iCloud sharing is unavailable in this unsigned build. Your local household data is still available." = "iCloud sharing is unavailable in this unsigned build. Your local household data is still available.";
+
+"Add up to 12 rules at a time. The rest will stay here." = "Add up to 12 rules at a time. The rest will stay here.";
+
+"Days, limits, ingredient exclusions, day plans and variety all work. Try a suggestion." = "Days, limits, ingredient exclusions, day plans and variety all work. Try a suggestion.";
+
+"%ld active rules" = "%ld active rules";
+
+"Cannot share this collection" = "Cannot share this collection";
+
+"Share up to 24 recipes at a time. For large recipes, use a smaller collection." = "Share up to 24 recipes at a time. For large recipes, use a smaller collection.";
+
+"This list is too large for Bring! Use Share remaining items instead." = "This list is too large for Bring! Use Share remaining items instead.";
+
+"Notifications are unavailable. Keep this screen open to see when the timer finishes." = "Notifications are unavailable. Keep this screen open to see when the timer finishes.";

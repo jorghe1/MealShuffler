@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
+    @EnvironmentObject private var router: AppRouter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var cloud = CloudHouseholdSync.shared
     @State private var showingCloud = false
@@ -29,7 +30,7 @@ struct RootView: View {
             if !Task.isCancelled, store.isGenerating { showingPlanningOverlay = true }
         }
         .safeAreaInset(edge: .top) {
-            if cloud.hasInvitation || cloud.pendingRemote != nil {
+            if FeatureFlags.householdSyncEnabled, cloud.hasInvitation || cloud.pendingRemote != nil {
                 Button("Review iCloud changes") { showingCloud = true }.frame(maxWidth: .infinity, minHeight: 44).background(AppTheme.accentSoft)
             }
         }
@@ -37,7 +38,11 @@ struct RootView: View {
             NavigationStack { CloudSharingView().environmentObject(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingCloud = false } } } }
         }
         .sheet(isPresented: $showingBackup) { NavigationStack { DeviceBackupView().environmentObject(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingBackup = false } } } } }
-        .onOpenURL(perform: store.handleIncomingURL)
+        .onOpenURL { url in
+            // The widget's and notifications' own links move the app; anything else is a
+            // shared recipe, rule list or week.
+            if !router.open(url) { store.handleIncomingURL(url) }
+        }
         .sheet(item: $store.incomingShare) { share in
             IncomingShareView(share: share).environmentObject(store)
         }
@@ -60,35 +65,32 @@ struct RootView: View {
     }
 }
 
-/// Tab labels match the screen titles behind them.
+/// Four tabs, in the order of the weekly loop: plan the week, pick dishes, shop, and the
+/// family the rules belong to.
 ///
-/// Settings is a tab of its own now. Notification setup, the family and history all used to
-/// be a section inside Rules, which is not a place anyone looks for them. Rules keep their
-/// tab: they are the thing the app is about, not a preference.
+/// Settings was a tab of its own and Rules another. Settings is a gear inside Family now --
+/// preferences are opened a few times a year -- and rules live with the family, while the Week
+/// screen shows the active ones as chips right where they shape the week.
 private struct MainTabView: View {
+    @EnvironmentObject private var router: AppRouter
+
     var body: some View {
-        TabView {
+        TabView(selection: $router.tab) {
             NavigationStack { WeekPlanView() }
                 .tabItem { Label("Week", systemImage: "calendar") }
-
-            NavigationStack { GroceryListView() }
-                .tabItem { Label("Shop", systemImage: "cart") }
+                .tag(AppTab.week)
 
             NavigationStack { MealLibraryView() }
                 .tabItem { Label("Meals", systemImage: "fork.knife") }
+                .tag(AppTab.meals)
 
-            if FeatureFlags.communityEnabled {
-                // Rules move under Settings to make room; five tabs is the limit before iOS
-                // collapses the rest into a "More" list nobody opens.
-                NavigationStack { CommunityView() }
-                    .tabItem { Label("Explore", systemImage: "person.3") }
-            } else {
-                NavigationStack { RulesView() }
-                    .tabItem { Label("Rules", systemImage: "slider.horizontal.3") }
-            }
+            NavigationStack { GroceryListView() }
+                .tabItem { Label("Shop", systemImage: "cart") }
+                .tag(AppTab.shop)
 
-            NavigationStack { SettingsView() }
-                .tabItem { Label("Settings", systemImage: "gearshape") }
+            NavigationStack { FamilyView() }
+                .tabItem { Label("Family", systemImage: "person.2") }
+                .tag(AppTab.family)
         }
     }
 }

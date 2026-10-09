@@ -1,73 +1,50 @@
 import SwiftUI
 
+/// The household's rules: what the week already settles, a line to write a new one, and the
+/// rules themselves in the household's own words.
+///
+/// The screen was titled with how it worked ("Rules written as plain sentences") rather than
+/// what it held, explained "hard" and "soft" rules while the controls said "Must"/"Should", and
+/// gave every rule four controls -- a sentence, an Edit link below 44 points, a strength menu
+/// and a switch. A rule now reads as what was typed, with what the app understood under it;
+/// tap to edit, swipe to delete.
 struct RulesView: View {
     @EnvironmentObject private var store: AppStore
-    @State private var showingAddRule = false
+    @State private var showingBuilder = false
     @State private var editingRule: PlanningRule?
 
     var body: some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Rules written as plain sentences")
-                        .font(.system(.title2, design: .rounded, weight: .bold))
-                        .foregroundStyle(AppTheme.ink)
-                    Text("Required rules must be followed. Preferred rules influence the choice, but never block an otherwise good week.")
-                        .font(.subheadline).foregroundStyle(AppTheme.muted).lineSpacing(3)
-                }
-                .padding(.vertical, 8)
-                .listRowBackground(Color.clear)
+                RuleWeekStrip()
+            } footer: {
+                Text("Days your rules already decide.")
             }
 
             Section {
                 RuleComposer()
-                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
-                    .listRowBackground(Color.clear)
             }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
 
-            Section("Your rules") {
-                ForEach(store.rules) { rule in
-                    HStack(spacing: 12) {
-                        Image(systemName: symbol(for: rule.constraint))
-                            .foregroundStyle(rule.isEnabled ? AppTheme.accent : AppTheme.muted)
-                            .frame(width: 36, height: 36)
-                            .background(rule.isEnabled ? AppTheme.accentSoft : AppTheme.raised)
-                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous))
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(rule.summary(meals: store.meals, context: store.matchContext))
-                                .font(.headline).foregroundStyle(AppTheme.ink)
-                            Button("Edit") { editingRule = rule }.font(.caption)
-                            if let start = rule.nextActiveWeek(from: store.plan.startDate) {
-                                Text(L10n.string("Next active week: %@", WeekAnchor.label(forWeekStarting: start))).font(.caption).foregroundStyle(AppTheme.muted)
-                            }
-                            if let interval = rule.repeatEveryWeeks, interval > 1 {
-                                Text(L10n.string("Every %ld weeks", interval)).font(.caption)
-                            }
-                            Menu {
-                                Button("Required") { store.setRuleStrength(.required, ruleID: rule.id) }
-                                if rule.supportsPreference { Button("Preferred") { store.setRuleStrength(.preferred, ruleID: rule.id) } }
-                            } label: {
-                                Label(rule.strength.name, systemImage: rule.strength == .required ? "exclamationmark.shield.fill" : "sparkles")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(rule.strength == .required ? AppTheme.warning : AppTheme.accent)
-                            }
+            ForEach(RuleGroup.allCases) { group in
+                let rules = store.rules.filter { group.contains($0.constraint) }
+                if !rules.isEmpty {
+                    Section(group.title) {
+                        ForEach(rules) { rule in
+                            RuleRow(rule: rule) { editingRule = rule }
                         }
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { store.rules.first(where: { $0.id == rule.id })?.isEnabled ?? false },
-                            set: { store.setRule(rule, enabled: $0) }
-                        ))
-                        .labelsHidden()
-                        .accessibilityLabel(rule.summary(meals: store.meals, context: store.matchContext))
+                        .onDelete { offsets in
+                            let ids = Set(offsets.map { rules[$0].id })
+                            store.deleteRules(at: IndexSet(store.rules.indices.filter { ids.contains(store.rules[$0].id) }))
+                        }
                     }
-                    .padding(.vertical, 5)
                 }
-                .onDelete(perform: store.deleteRules)
             }
 
             Section {
-                Button { showingAddRule = true } label: {
-                    Label("Create a new rule", systemImage: "plus.circle.fill").font(.headline)
+                Button { showingBuilder = true } label: {
+                    Label("Build a rule step by step", systemImage: "slider.horizontal.3")
                 }
             } footer: {
                 Text("Rules cover the day plan too: eating out, nobody home, or living off leftovers can be stated once here instead of set on the day every week.")
@@ -75,7 +52,7 @@ struct RulesView: View {
         }
         .scrollContentBackground(.hidden)
         .appBackground()
-        .navigationTitle("Rules")
+        .navigationTitle("House rules")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -90,21 +67,136 @@ struct RulesView: View {
                 .accessibilityLabel("Share our house rules")
             }
         }
-        .sheet(isPresented: $showingAddRule) { AddRuleView().environmentObject(store) }
+        .sheet(isPresented: $showingBuilder) { AddRuleView().environmentObject(store) }
         .sheet(item: $editingRule) { AddRuleView(editing: $0).environmentObject(store) }
     }
+}
 
-    private func symbol(for constraint: RuleConstraint) -> String {
+/// How the rules are grouped on screen.
+private enum RuleGroup: CaseIterable, Identifiable {
+    case days, limits, variety
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .days: L10n.string("Set days")
+        case .limits: L10n.string("Limits")
+        case .variety: L10n.string("Variety")
+        }
+    }
+
+    func contains(_ constraint: RuleConstraint) -> Bool {
         switch constraint {
-        case .requiredOn: "calendar.badge.checkmark"
-        case .excludedOn: "calendar.badge.minus"
-        case .maximumPerWeek: "lessthan.circle"
-        case .minimumPerWeek: "greaterthan.circle"
-        case .maximumPrepTime: "clock"
-        case .dinnerMode: "house"
-        case .noRepeatWithin: "arrow.triangle.2.circlepath"
-        case .requiredEvery: "arrow.clockwise.circle"
-        case .notOnConsecutiveDays: "arrow.left.arrow.right"
+        case .requiredOn, .excludedOn, .dinnerMode: self == .days
+        case .maximumPerWeek, .minimumPerWeek, .maximumPrepTime: self == .limits
+        case .noRepeatWithin, .requiredEvery, .notOnConsecutiveDays: self == .variety
+        }
+    }
+}
+
+/// One rule: the words, what they mean, and the switch.
+private struct RuleRow: View {
+    @EnvironmentObject private var store: AppStore
+    let rule: PlanningRule
+    let edit: () -> Void
+
+    var body: some View {
+        HStack(spacing: AppTheme.Space.m) {
+            Button(action: edit) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: AppTheme.Space.xs) {
+                        Text(rule.title).font(.body.weight(.semibold)).foregroundStyle(AppTheme.ink)
+                        StrengthTag(strength: rule.strength)
+                    }
+                    Text(rule.summary(meals: store.meals, context: store.matchContext))
+                        .font(.caption).foregroundStyle(AppTheme.muted)
+                    if let interval = rule.repeatEveryWeeks, interval > 1,
+                       let start = rule.nextActiveWeek(from: store.plan.startDate) {
+                        Text(L10n.string("Every %ld weeks", interval) + " · "
+                             + L10n.string("Next active week: %@", WeekAnchor.label(forWeekStarting: start)))
+                            .font(.caption).foregroundStyle(AppTheme.muted)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(L10n.string("Edits the rule"))
+
+            Toggle("", isOn: Binding(
+                get: { store.rules.first(where: { $0.id == rule.id })?.isEnabled ?? false },
+                set: { store.setRule(rule, enabled: $0) }
+            ))
+            .labelsHidden()
+            .tint(AppTheme.accent)
+            .accessibilityLabel(rule.title)
+        }
+        .opacity(rule.isEnabled ? 1 : 0.6)
+    }
+}
+
+/// The week as the rules see it: which days are already decided, and by what.
+private struct RuleWeekStrip: View {
+    @EnvironmentObject private var store: AppStore
+
+    var body: some View {
+        HStack(spacing: AppTheme.Space.xs) {
+            ForEach(Weekday.ordered()) { day in
+                let marks = marks(for: day)
+                VStack(spacing: AppTheme.Space.xs) {
+                    Text(Weekday.shortSymbol(for: day).uppercased())
+                        .font(.caption2.weight(.bold)).foregroundStyle(AppTheme.muted)
+                    Text(marks.isEmpty ? "·" : marks.joined())
+                        .font(.body)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .foregroundStyle(AppTheme.muted)
+                }
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .background(marks.isEmpty ? Color.clear : AppTheme.accentSoft.opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(day.name + ", " + (marks.isEmpty ? L10n.string("open") : L10n.string("decided by a rule")))
+            }
+        }
+        .padding(.vertical, AppTheme.Space.xs)
+    }
+
+    /// Up to two symbols for what the rules settle on this day.
+    private func marks(for day: Weekday) -> [String] {
+        var result: [String] = []
+        for rule in store.rules where rule.isActive(inWeek: store.plan.startDate) {
+            switch rule.constraint {
+            case .requiredOn(let scope, let matcher) where scope.covers(day) && scope != .everyDay:
+                result.append(Self.symbol(for: matcher))
+            case .dinnerMode(let scope, let mode) where scope.covers(day):
+                result.append(mode == .takeaway ? "🥡" : mode == .leftovers ? "♻️" : mode == .away ? "🏃" : "🍳")
+            case .maximumPrepTime(let scope, _) where scope.covers(day) && scope != .everyDay:
+                result.append("⏱")
+            case .excludedOn(let scope, _) where scope.covers(day) && scope != .everyDay:
+                result.append("⊘")
+            default:
+                continue
+            }
+        }
+        return Array(result.prefix(2))
+    }
+
+    static func symbol(for matcher: MealMatcher) -> String {
+        guard case .tag(let tag) = matcher else { return "🍽️" }
+        return switch tag {
+        case .fish: "🐟"
+        case .chicken: "🍗"
+        case .meat: "🥩"
+        case .vegetarian: "🥦"
+        case .pizza: "🍕"
+        case .pasta: "🍝"
+        case .soup: "🥣"
+        case .taco: "🌮"
+        case .quick: "⚡️"
+        case .weekend: "🎉"
+        case .healthy: "🥗"
         }
     }
 }
@@ -208,11 +300,11 @@ struct AddRuleView: View {
                             rejection = L10n.string("This cannot hold alongside “%@”.", existing)
                         }
                     } label: {
-                        Text(editing == nil ? L10n.string("Add rule") : L10n.string("Save")).font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
+                        Text(editing == nil ? L10n.string("Add rule") : L10n.string("Save"))
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
-                    .disabled(!isComplete)
+                    .buttonStyle(.primary)
+                    // A requirement nothing satisfies would leave the day empty.
+                    .disabled(!isComplete || (previewRule.constraint.needsAMatch && matchingMealCount == 0))
                 }
                 .padding(20)
             }

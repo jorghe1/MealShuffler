@@ -767,7 +767,8 @@ enum IngredientParser {
                     "spinach", "cabbage", "garlic", "pepper", "mushroom", "apple", "banana"])
     ]
 
-    private static func inferAisle(from name: String) -> GroceryAisle {
+    /// Also used for items typed straight into the shopping list.
+    static func inferAisle(from name: String) -> GroceryAisle {
         let value = name.lowercased()
         for override in aisleOverrides where value.contains(override.phrase) {
             return override.aisle

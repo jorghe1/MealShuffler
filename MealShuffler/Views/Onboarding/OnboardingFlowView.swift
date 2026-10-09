@@ -74,12 +74,8 @@ private struct WelcomeStepView: View {
 
             Button(action: next) {
                 Text("Get started")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 17)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+            .buttonStyle(.primary)
         }
         .padding(24)
         }

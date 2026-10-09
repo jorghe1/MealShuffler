@@ -238,6 +238,28 @@ extension RuleConstraint {
         }
     }
 
+    /// The same rule about something else: "laks på torsdag" read as fish rather than salmon.
+    func replacingMatcher(_ matcher: MealMatcher) -> RuleConstraint {
+        switch self {
+        case .requiredOn(let day, _): .requiredOn(day: day, matcher: matcher)
+        case .excludedOn(let day, _): .excludedOn(day: day, matcher: matcher)
+        case .maximumPerWeek(_, let count): .maximumPerWeek(matcher: matcher, count: count)
+        case .minimumPerWeek(_, let count): .minimumPerWeek(matcher: matcher, count: count)
+        case .requiredEvery(let weeks, _): .requiredEvery(weeks: weeks, matcher: matcher)
+        case .notOnConsecutiveDays: .notOnConsecutiveDays(matcher: matcher)
+        case .maximumPrepTime, .dinnerMode, .noRepeatWithin: self
+        }
+    }
+
+    /// Rules that need at least one dinner to match: a requirement nothing satisfies leaves
+    /// the day empty. A ban that matches nothing is harmless and still protects new recipes.
+    var needsAMatch: Bool {
+        switch self {
+        case .requiredOn, .minimumPerWeek, .requiredEvery: true
+        default: false
+        }
+    }
+
     /// Two rules that say the same thing, whatever they are titled.
     ///
     /// `PlanningRule` carries an id and a title, so equality on the rule cannot answer this.

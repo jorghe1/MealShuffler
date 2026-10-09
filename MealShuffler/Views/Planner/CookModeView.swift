@@ -108,7 +108,7 @@ struct CookModeView: View {
                             }
                         }
                     }
-                }.buttonStyle(.bordered)
+                }.buttonStyle(.secondary)
             }
             if let timerWarning {
                 Label(timerWarning, systemImage: "exclamationmark.triangle")
@@ -204,19 +204,15 @@ struct CookModeView: View {
             if hasSteps, step > 0 {
                 Button { withAnimation(reduceMotion ? nil : .snappy) { step -= 1 } } label: {
                     Label("Back", systemImage: "chevron.left")
-                        .font(.headline).padding(.vertical, 15).padding(.horizontal, 18)
                 }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+                .buttonStyle(.secondary)
             }
 
             if hasSteps, step < meal.instructions.count - 1 {
                 Button { withAnimation(reduceMotion ? nil : .snappy) { step += 1 } } label: {
                     Label("Next step", systemImage: "chevron.right")
-                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+                .buttonStyle(.primary)
             } else {
                 Button {
                     Haptics.success()
@@ -225,10 +221,8 @@ struct CookModeView: View {
                     dismiss()
                 } label: {
                     Label("We cooked this", systemImage: "checkmark.seal")
-                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+                .buttonStyle(.primary)
                 .disabled(didMarkCooked)
             }
         }

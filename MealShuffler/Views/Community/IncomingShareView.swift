@@ -164,10 +164,9 @@ struct IncomingShareView: View {
         VStack(spacing: 10) {
             if result == nil {
                 Button(action: add) {
-                    Text(addTitle).font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                    Text(addTitle)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+                .buttonStyle(.primary)
                 .disabled(selectionCount == 0)
             } else if case .rules = share {
                 // The reason a household accepts someone's rules is to see what week they make.
@@ -177,10 +176,8 @@ struct IncomingShareView: View {
                     Task { await store.generateInBackground() }
                 } label: {
                     Label("Shuffle a week with them", systemImage: "shuffle")
-                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+                .buttonStyle(.primary)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)

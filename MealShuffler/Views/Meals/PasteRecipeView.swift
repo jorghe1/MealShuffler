@@ -62,23 +62,19 @@ struct PasteRecipeView: View {
                             if let clipboard = UIPasteboard.general.string { text = clipboard }
                         } label: {
                             Label("Paste", systemImage: "doc.on.clipboard")
-                                .font(.subheadline.weight(.semibold))
                         }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+                        .buttonStyle(.secondary)
                         .disabled(!UIPasteboard.general.hasStrings)
 
                         Button {
                             readingTask = Task { await read() }
                         } label: {
                             HStack {
-                                Text("Read recipe").font(.headline)
+                                Text("Read recipe")
                                 if isReading { ProgressView().padding(.leading, 4) }
                             }
-                            .frame(maxWidth: .infinity).padding(.vertical, 15)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+                        .buttonStyle(.primary)
                         .disabled(!canRead)
                     }
                 }

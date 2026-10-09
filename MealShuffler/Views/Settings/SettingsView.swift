@@ -1,16 +1,15 @@
 import SwiftUI
 import UIKit
 
-/// Everything that is not planning, in one place.
+/// The preferences a household opens a few times a year, behind the gear in Family.
 ///
-/// Reminders, the family, history and the shop's aisle order all used to live in a section
-/// called "Settings" *inside the Rules tab*, which is not a place anyone looks for
-/// notification setup. Rules keep their own tab -- they are what the app is about -- and
-/// everything around them moved here.
+/// This used to be a tab holding everything that was not planning: the freezer, collections
+/// and history (which are content, and live in Meals now), the shop's aisle order and pantry
+/// staples (which belong to the shopping list, in its ⋯ menu), the family (its own tab), and
+/// reminders at the very bottom, under backups.
 struct SettingsView: View {
     @EnvironmentObject private var store: AppStore
     @State private var showingResetConfirmation = false
-    @State private var showingPermissionHelp = false
 
     private var appVersion: String {
         let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "Unknown"
@@ -20,46 +19,31 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            Section("Household") {
-                NavigationLink { CloudSharingView() } label: { Label("iCloud sharing", systemImage: "icloud") }
-                NavigationLink { FreezerView() } label: { Label("Freezer", systemImage: "snowflake") }
-                NavigationLink { RecipeCollectionsView() } label: { Label("Collections", systemImage: "folder") }
-                NavigationLink { HouseholdView() } label: {
-                    Label("Family", systemImage: "person.2")
-                }
-                NavigationLink { MealHistoryView() } label: {
-                    Label("History", systemImage: "clock.arrow.circlepath")
-                }
-                NavigationLink { AisleOrderView() } label: {
-                    Label("Shop order", systemImage: "arrow.up.arrow.down")
-                }
-                NavigationLink { PantryStaplesView() } label: {
-                    Label("Pantry staples", systemImage: "cabinet")
-                }
-                if FeatureFlags.communityEnabled {
-                    NavigationLink { RulesView() } label: {
-                        Label("Rules", systemImage: "slider.horizontal.3")
-                    }
-                }
+            Section {
+                NavigationLink { ReminderSettingsView() } label: { Label("Reminders", systemImage: "bell") }
             }
-
-            Section("Data") {
-                NavigationLink { DeviceBackupView() } label: { Label("Full backups", systemImage: "externaldrive.fill") }
-                NavigationLink { LibraryTransferView() } label: { Label("Recipe backups", systemImage: "externaldrive") }
-            }
-            Section("Recipe imports") {
-                OnlineExtractionSettingsView()
-            }
-            reminderSection
 
             Section {
-                Button("Show onboarding again") { showingResetConfirmation = true }
-                    .foregroundStyle(AppTheme.warning)
+                OnlineExtractionSettingsView()
+            } header: {
+                Text("Recipe imports")
+            }
+
+            Section {
+                NavigationLink { DeviceBackupView() } label: { Label("Backup", systemImage: "externaldrive.fill") }
+                NavigationLink { LibraryTransferView() } label: { Label("Export recipes", systemImage: "square.and.arrow.up.on.square") }
+            } header: {
+                Text("Your data")
+            } footer: {
+                Text("A backup keeps everything, including photos and history. Exporting recipes makes a file another household can import.")
+            }
+
+            Section {
+                NavigationLink { PrivacyView() } label: { Label("Privacy", systemImage: "hand.raised") }
+                Button("Show the introduction again") { showingResetConfirmation = true }
                 LabeledContent("Version", value: appVersion)
             } header: {
                 Text("About")
-            } footer: {
-                Text("Recipes are stored on this device. When online extraction is enabled, imported text and photos are sent to the recipe service. Website imports and saved website images contact their publishers.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -72,81 +56,103 @@ struct SettingsView: View {
         } message: {
             Text("Rules and custom meals are kept, but taste choices and the weekly plan are reset.")
         }
+    }
+}
+
+/// When the app may interrupt the household. At most one notification a day.
+struct ReminderSettingsView: View {
+    @EnvironmentObject private var store: AppStore
+    @State private var showingPermissionHelp = false
+
+    var body: some View {
+        List {
+            Section {
+                Toggle(isOn: Binding(
+                    get: { store.dinnerReminderEnabled },
+                    set: { wanted in
+                        Task { @MainActor in
+                            let granted = await store.setDinnerReminder(enabled: wanted)
+                            if wanted && !granted { showingPermissionHelp = true }
+                        }
+                    }
+                )) {
+                    Label("What's for dinner", systemImage: "bell")
+                }
+
+                if store.dinnerReminderEnabled {
+                    Picker(selection: Binding(
+                        get: { store.dinnerReminderHour },
+                        set: { store.setDinnerReminderHour($0) }
+                    )) {
+                        ForEach(HourOption.all, id: \.self) { hour in
+                            Text(HourOption.label(hour)).tag(hour)
+                        }
+                    } label: {
+                        Label("Reminder time", systemImage: "clock")
+                    }
+
+                    Toggle(isOn: $store.prepLeadReminderEnabled) {
+                        Label("Time to start cooking", systemImage: "timer")
+                    }
+                    if store.prepLeadReminderEnabled {
+                        Picker(selection: $store.householdTools.dinnerHour) {
+                            ForEach(HourOption.all, id: \.self) { Text(HourOption.label($0)).tag($0) }
+                        } label: {
+                            Label("Dinner time", systemImage: "fork.knife")
+                        }
+                    }
+                }
+            } header: {
+                Text("Dinner")
+            } footer: {
+                Text("Tells you what tonight's dinner is, and follows the plan when a day changes. With start-cooking on, it comes when it is time to start instead. The evening before a dinner from the freezer, it says to take it out.")
+            }
+
+            Section {
+                Toggle(isOn: Binding(
+                    get: { store.groceryReminderEnabled },
+                    set: { wanted in
+                        Task { @MainActor in
+                            let granted = await store.setGroceryReminder(enabled: wanted)
+                            if wanted && !granted { showingPermissionHelp = true }
+                        }
+                    }
+                )) {
+                    Label("Shopping day", systemImage: "cart")
+                }
+
+                if store.groceryReminderEnabled {
+                    Picker(selection: $store.groceryReminderWeekday) {
+                        ForEach(Weekday.ordered()) { Text($0.name).tag($0) }
+                    } label: {
+                        Label("Day", systemImage: "calendar")
+                    }
+                    Picker(selection: Binding(
+                        get: { store.groceryReminderHour },
+                        set: { store.setGroceryReminderHour($0) }
+                    )) {
+                        ForEach(HourOption.all, id: \.self) { hour in
+                            Text(HourOption.label(hour)).tag(hour)
+                        }
+                    } label: {
+                        Label("Reminder time", systemImage: "clock")
+                    }
+                }
+            } header: {
+                Text("Shopping")
+            } footer: {
+                Text("At most one notification a day. On shopping day it also says what is for dinner, and on the last day of the week it says if next week is still empty.")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .appBackground()
+        .navigationTitle("Reminders")
+        .navigationBarTitleDisplayMode(.inline)
         .alert("Notifications are off", isPresented: $showingPermissionHelp) {
             Button("Open Settings") { openSystemSettings() }
             Button("Not now", role: .cancel) {}
         } message: {
             Text("Meal Shuffler needs permission to send reminders. You can turn it on in iOS Settings.")
-        }
-    }
-
-    private var reminderSection: some View {
-        Section {
-            Toggle(isOn: Binding(
-                get: { store.dinnerReminderEnabled },
-                set: { wanted in
-                    Task { @MainActor in
-                        let granted = await store.setDinnerReminder(enabled: wanted)
-                        if wanted && !granted { showingPermissionHelp = true }
-                    }
-                }
-            )) {
-                Label("What's for dinner", systemImage: "bell")
-            }
-
-            if store.dinnerReminderEnabled {
-                Picker(selection: Binding(
-                    get: { store.dinnerReminderHour },
-                    set: { store.setDinnerReminderHour($0) }
-                )) {
-                    ForEach(HourOption.all, id: \.self) { hour in
-                        Text(HourOption.label(hour)).tag(hour)
-                    }
-                } label: {
-                    Label("Reminder time", systemImage: "clock")
-                }
-
-                Picker("Dinner time", selection: $store.householdTools.dinnerHour) {
-                    ForEach(HourOption.all, id: \.self) { Text(HourOption.label($0)).tag($0) }
-                }
-                Toggle(isOn: $store.prepLeadReminderEnabled) {
-                    Label("Time to start cooking", systemImage: "timer")
-                }
-            }
-
-            Toggle(isOn: Binding(
-                get: { store.groceryReminderEnabled },
-                set: { wanted in
-                    Task { @MainActor in
-                        let granted = await store.setGroceryReminder(enabled: wanted)
-                        if wanted && !granted { showingPermissionHelp = true }
-                    }
-                }
-            )) {
-                Label("Shopping day", systemImage: "cart")
-            }
-
-            if store.groceryReminderEnabled {
-                Picker(selection: $store.groceryReminderWeekday) {
-                    ForEach(Weekday.ordered()) { Text($0.name).tag($0) }
-                } label: {
-                    Label("Shopping day", systemImage: "calendar")
-                }
-                Picker(selection: Binding(
-                    get: { store.groceryReminderHour },
-                    set: { store.setGroceryReminderHour($0) }
-                )) {
-                    ForEach(HourOption.all, id: \.self) { hour in
-                        Text(HourOption.label(hour)).tag(hour)
-                    }
-                } label: {
-                    Label("Reminder time", systemImage: "clock")
-                }
-            }
-        } header: {
-            Text("Reminders")
-        } footer: {
-            Text("At most one reminder a day, whichever is most useful. The dinner reminder tells you what tonight's meal is and follows the plan when you reshuffle a day; with start-cooking timing on, that one arrives instead. When next week is empty you get one nudge to plan it.")
         }
     }
 

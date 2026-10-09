@@ -38,12 +38,9 @@ struct FirstWeekStepView: View {
                         Task { await store.generateInBackground() }
                     } label: {
                         Label("Try another week", systemImage: "shuffle")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity).padding(.vertical, 13)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.secondaryFullWidth)
                     .disabled(store.isGenerating)
-                    .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
 
                     // The household's own rules, said the way they say them. Adding one
                     // re-plans the days it touches right here, so "taco Friday" visibly turns
@@ -60,10 +57,8 @@ struct FirstWeekStepView: View {
 
             Button(action: finished) {
                 Text("Start planning")
-                    .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 17)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
+            .buttonStyle(.primary)
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
             .padding(.top, 6)

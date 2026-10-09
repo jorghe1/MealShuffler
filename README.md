@@ -93,12 +93,18 @@ Hva som er utelatt med vilje, og hva som skal til for å ta det inn, står i
 
 ## Varsler
 
-Én daglig påminnelse om hva som er til middag, med knappene «Vi lagde denne» og
-«Noe annet» rett i varselet. Valgfritt også en påminnelse om når det er på tide å
-begynne å lage mat, og en ukentlig handledag. Når neste uke er tom, kommer én
-påminnelse om å planlegge den — ellers ville appen blitt taus fra mandagen etter.
+Høyst ett varsel om dagen, men det som ellers ville blitt et nytt varsel samme dag, står i det:
 
-Alt dette settes opp under Innstillinger.
+- **I kveld: <rett>**, med «Vi lagde den» og «Noe annet» på dager det lages mat. Takeaway og
+  rester har ingen knapper, siden det ikke er noe å registrere.
+- **På tide å begynne å lage mat**, når det er slått på.
+- **Handledag** sier hvor mange middager lista gjelder og hva som er til middag samme kveld.
+- Kvelden før en middag fra fryseren står det at den må tas ut.
+- Den siste dagen i uka står det om neste uke fortsatt er tom, med «Stokk neste uke».
+- En uke ingen har planlagt, får ett varsel den første kvelden.
+
+Bakgrunnsoppdatering snur uka og planlegger varslene på nytt når uka skifter, også om appen ikke
+åpnes. Trykk på et varsel åpner riktig sted. Oppsettet ligger under Familie → Påminnelser.
 
 ## Oppskriftsimport
 
@@ -127,10 +133,20 @@ tom, og appen blir da værende på egne parsere. Se [server/README.md](server/RE
 
 ## Fanene
 
-`Uke` · `Handle` · `Retter` · `Regler` · `Innstillinger`
+`Uke` · `Retter` · `Handle` · `Familie`
 
-Innstillinger samler familie, historikk, butikkrekkefølge, basisvarer, varsler og
-onboarding-omstart. Regler beholder sin egen fane: de er det appen handler om.
+I rekkefølgen uka går: planlegge, velge retter, handle, og familien reglene hører til.
+
+- **Uke** viser i kveld øverst, så sju kompakte dager (sveip for å låse eller trekke på nytt,
+  trykk for alt annet), og én knapp som stokker det som kan endres. Neste uke er en bryter
+  øverst, og de aktive reglene vises som merkelapper der de bestemmer uka.
+- **Retter** er et bildegitter med kategorier, «Lengst siden sist» (historikken) og fryseren.
+  «+» åpner fem kilder: lenke, lim inn tekst, skann sider, bilder og skriv selv.
+- **Handle** begynner med fremdrift og et felt for å legge til en vare. Kjøpt og «har hjemme»
+  legger seg sammenfoldet nederst; eksport, handleperiode, basisvarer og butikkrekkefølge
+  ligger i ⋯-menyen.
+- **Familie** samler husregler, hvem som spiser og hva hver enkelt liker, påminnelser og deling.
+  Innstillinger (sikkerhetskopi, oppskriftsimport, personvern) ligger bak tannhjulet.
 
 ## Kjøring
 

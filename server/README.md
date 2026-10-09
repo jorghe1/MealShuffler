@@ -1,7 +1,8 @@
 # Recipe extraction service
 
-One stateless Cloudflare Worker behind `POST /v1/recipes/extract`, plus the public share and
-Bring! pages described below. No accounts, no database, no stored user content.
+One stateless Cloudflare Worker behind `POST /v1/recipes/extract`, plus the public share,
+Bring!, privacy and support pages described below. No accounts, no database, no stored user
+content.
 
 It exists because the app's import paths were its weakest code: link import broke on
 character encoding, user-agent blocking and any page without schema.org markup, and photo
@@ -19,9 +20,16 @@ Store release, which matters for extraction quality far more than it sounds.
 
 The model call is the only thing here that costs money, so two things stand in front of it.
 
+**Only `application/json`.** Anything else is a 415 (`unsupported_media_type`) before the rate
+limiters, the budget or the body are touched. A browser sends a cross-site `text/plain` POST
+without a CORS preflight, so without this any web page could spend the shared daily budget from
+its visitors' browsers. A JSON POST needs a preflight, and this Worker answers none.
+
 **Rate limits, in order of how easy they are to dodge.** `X-Install-Id` is chosen by the
 caller, so it is a courtesy limit — a fresh UUID per request walks straight past it. The
-per-IP limiter is the one that holds. Both must pass.
+per-IP limiter is the one that holds. Both must pass. IPv6 callers are keyed by their /64
+(`rateLimitAddressKey`): a phone or home connection is usually handed a whole /64 and could
+otherwise rotate through it for fresh buckets. IPv4-mapped addresses count as the IPv4 address.
 
 **A fetch that will not go where it should not.** `POST {"url": ...}` makes this endpoint
 fetch an address somebody else picked, from our account. So: https only, no credentials in
@@ -32,9 +40,13 @@ entire trick. Redirects are followed manually and capped at four. The body is re
 cap rather than buffered whole, the content type must be HTML or plain text, and the whole
 fetch has a 10-second timeout.
 
-Page text is fenced inside a `<SOURCE>` block and the system prompt says it is data, not
-instructions. Structured output limits what a hostile page can do, but the extracted name and
-steps land in somebody's meal library and their Reminders export, so the fence is worth having.
+Page text is fenced inside a `<SOURCE-…>` block whose tag carries a fresh random suffix per
+block, and the system prompt says everything up to the matching closing tag is data, not
+instructions. Anything in the text shaped like a `SOURCE` tag (`</SOURCE>`, `< / source >`, an
+unterminated `</SOURCE`) is defanged to square brackets first, so a page cannot close the fence
+and continue as instructions. Structured output limits what a hostile page can do, but the
+extracted name and steps land in somebody's meal library and their Reminders export, so the
+fence is worth having.
 
 ## Deploy
 
@@ -83,11 +95,13 @@ npm run check        # tsc --noEmit, then the unit tests
 npm run test:bundle  # run share-page tests against a real local Wrangler bundle
 ```
 
-The 34 tests cover malformed and ambiguous requests, multi-page forwarding, null amounts,
-invalid output, rate limits, actual body limits, the address rules, the redirect and size caps, the JSON-LD preference and the
+The 46 tests cover malformed and ambiguous requests, the JSON-only content type, multi-page
+forwarding, null amounts, invalid output and output clipping, rate limits and IPv6 /64 keying,
+actual body limits, the address rules, the redirect and size caps, the JSON-LD preference and the
 source fence — the parts that can be got wrong quietly — plus the public pages below: payload
 decoding with a decompression-bomb cap, the landing page's script run against a minimal DOM
-(untrusted text stays text), and the Bring! list markup. They run on Node's built-in test
+(untrusted text stays text), and the Bring! list markup, and the privacy and support pages (language choice, contact line,
+no external resources). They run on Node's built-in test
 runner with runtime type stripping, so there is no build step and no test framework to
 install. CI also starts the bundled Worker and repeats the 13 public-page tests against
 the browser script it actually serves. Keep `keep_names = false`: serialized browser
@@ -96,7 +110,7 @@ functions must not depend on name-preservation helpers from the Worker bundle.
 
 ## Public pages
 
-Three stateless `GET` routes that never touch the model and never store anything.
+Stateless `GET` routes that never touch the model and never store anything.
 
 | Route | What it is |
 | --- | --- |
@@ -104,8 +118,14 @@ Three stateless `GET` routes that never touch the model and never store anything
 | `/s/app.js` | That page's script. It is built from the same `decodeSharePayload` and `renderShare` functions the tests run. |
 | `/v1/bring/list?d=…` | The week's shopping list as schema.org `Recipe` markup, for Bring! to import. Bring only imports from a URL its own servers fetch, so this list *does* pass through here: it is decoded, echoed back with `Cache-Control: no-store` and `X-Robots-Tag: noindex`, and forgotten. The access log records a fixed route label, never the URL. The app says so in a confirmation before sending. |
 
+| `/privacy`, `/support` | The privacy policy and support page, in English or Norwegian Bokmål: `?lang=en` / `?lang=nb`, otherwise from `Accept-Language` (`nb`, `no`, `nn` → Norwegian, else English). Static HTML, no script or external resources, `Cache-Control: public, max-age=3600` with `Vary: Accept-Language`, and indexable, since they carry no user content. The text is [`docs/PRIVACY.md`](../docs/PRIVACY.md), embedded in `src/info.ts`: change both together. Logged as `info_page`. |
+
 Set `APP_STORE_URL` (an `https://apps.apple.com/…` address) to show a download button on share
 pages to people without the app. Without it the page shows only "Open in Meal Shuffler".
+
+Set `SUPPORT_EMAIL` (a `[vars]` entry, empty by default) to show a contact address on
+`/privacy` and `/support`. Empty, or not a plausible address, and the pages say "Contact us
+through the App Store page for Meal Shuffler", linked when `APP_STORE_URL` is set.
 
 With the service unconfigured in the app, share links fall back to `mealshuffler://share/…`,
 which works between phones that have the app; the Bring! list item is hidden.
@@ -114,6 +134,7 @@ which works between phones that have the app; the Bring! list item is hidden.
 
 ```jsonc
 POST /v1/recipes/extract
+Content-Type: application/json
 X-Install-Id: <the app's DeviceIdentity UUID>
 
 // exactly one of:
@@ -153,7 +174,10 @@ The client always opens the result for review. Invalid output is rejected with H
 ```
 
 The shape is enforced by the model's structured output, so the client decodes a known type
-rather than parsing prose. `tags` matters more than it looks: imported recipes previously
+rather than parsing prose. Length caps on cosmetic fields (`subtitle` 200, `emoji` one emoji
+of at most 16 UTF-16 units, `unit` 24, `originalText` 500, `section` 120, `packageUnit` 24) are
+applied by clipping after parsing, not in the schema: the API does not enforce string length,
+and a schema cap would make the SDK reject an otherwise good, already paid-for extraction. `tags` matters more than it looks: imported recipes previously
 arrived untagged, so a rule like "fish on Tuesday" could never match one.
 
 ## Cost and tuning

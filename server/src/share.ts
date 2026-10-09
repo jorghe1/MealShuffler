@@ -49,13 +49,13 @@ const SECURITY_HEADERS = {
   "x-content-type-options": "nosniff",
 };
 
-function escapeHTML(value: string): string {
+export function escapeHTML(value: string): string {
   return value.replace(/[&<>"']/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
   })[character] as string);
 }
 
-const PAGE_STYLE = `
+export const PAGE_STYLE = `
 :root { color-scheme: light dark; --paper: #f7f2e6; --ink: #1f291f; --muted: #636b5c; --green: #1f6b47; --soft: #d1e6cc; --card: #fff; }
 @media (prefers-color-scheme: dark) { :root { --paper: #121412; --ink: #e8f0e8; --muted: #a1ad9e; --green: #70c794; --soft: #29402f; --card: #1f211f; } }
 * { box-sizing: border-box; }

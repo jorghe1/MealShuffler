@@ -105,10 +105,12 @@ enum DayScope: Hashable, Codable, Identifiable {
 enum MealMatcher: Codable, Hashable {
     case tag(MealTag)
     case exactMeal(UUID)
-    /// Substring match against ingredient names, case- and diacritic-insensitively.
+    /// A food, matched against ingredient names and the dish's own name.
     ///
     /// Allergies live here. A nut allergy is not a category, and no amount of tagging makes
-    /// "contains almonds" visible to a tag matcher.
+    /// "contains almonds" visible to a tag matcher. The stored word is what the household
+    /// typed; `IngredientVocabulary` decides what it finds, so "svinekjøtt" also catches bacon
+    /// and pølser, and a rule saved before the vocabulary grew gets better without being edited.
     case ingredient(String)
     /// A label the household invented: "kid-friendly", "cheap", "freezer", "grandma's".
     case customTag(String)
@@ -122,12 +124,13 @@ enum MealMatcher: Codable, Hashable {
         case .exactMeal(let id):
             return meal.id == id
         case .ingredient(let needle):
-            let target = Self.fold(needle)
-            guard !target.isEmpty else { return false }
-            return meal.ingredients.contains { Self.fold($0.name).contains(target) }
+            let needles = IngredientVocabulary.needles(for: needle)
+            guard !needles.isEmpty else { return false }
+            return meal.ingredients.contains { IngredientVocabulary.text($0.name, containsAnyOf: needles) }
+                || IngredientVocabulary.text(meal.name, containsAnyOf: needles)
         case .customTag(let label):
-            let target = Self.fold(label)
-            return meal.customTags.contains { Self.fold($0) == target }
+            let target = TextFolding.fold(label)
+            return meal.customTags.contains { TextFolding.fold($0) == target }
         case .dislikedBy(let memberID):
             return context.dislikes[memberID]?.contains(meal.id) ?? false
         }
@@ -147,21 +150,6 @@ enum MealMatcher: Codable, Hashable {
         }
 
         static let empty = MatchContext()
-    }
-
-    /// Diacritic folding cannot be relied on for the Nordic letters: æ, ø and å are letters
-    /// in their own right rather than accented vowels, so they are spelled out here. Without
-    /// it, "gulrotter" typed into an allergy rule misses "Gulrøtter" on the shelf.
-    private static let letterFolding: [(String, String)] = [
-        ("\u{00E6}", "ae"), ("\u{00F8}", "o"), ("\u{00E5}", "a"), ("\u{00F6}", "o"), ("\u{00E4}", "a")
-    ]
-
-    private static func fold(_ value: String) -> String {
-        var folded = value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        for (letter, ascii) in letterFolding {
-            folded = folded.replacingOccurrences(of: letter, with: ascii, options: .caseInsensitive)
-        }
-        return folded.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func sentenceLabel(meals: [Meal], context: MatchContext = .empty) -> String {

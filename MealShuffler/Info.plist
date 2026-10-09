@@ -30,6 +30,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Meal Shuffler uses the camera to scan a recipe from a page or a cookbook.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Meal Shuffler saves the picture of your week to your photo library when you choose Save Image.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Meal Shuffler needs access to export the grocery list you choose.</string>
 	<key>CFBundleURLTypes</key>
@@ -42,6 +44,14 @@
 				<string>mealshuffler</string>
 			</array>
 		</dict>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>no.mealshuffler.app.refresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

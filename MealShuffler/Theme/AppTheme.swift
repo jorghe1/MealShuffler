@@ -60,6 +60,35 @@ enum AppTheme {
     static let emojiTile: CGFloat = 56
     /// Emoji tile on a compact row.
     static let emojiTileCompact: CGFloat = 44
+    /// Picture on a compact list row: the week list, the shopping list's meal hints.
+    static let rowThumbnail: CGFloat = 40
+
+    /// Spacing scale. Screens used 147 literal spacings and 131 literal paddings, which is how
+    /// two cards on the same screen ended up 13 and 14 points apart.
+    enum Space {
+        static let xxs: CGFloat = 2
+        static let xs: CGFloat = 4
+        static let s: CGFloat = 8
+        static let m: CGFloat = 12
+        static let l: CGFloat = 16
+        static let xl: CGFloat = 24
+        static let xxl: CGFloat = 32
+        /// Side margin of a scrolling screen.
+        static let screen: CGFloat = 16
+    }
+
+    /// The few text roles the app uses. Every screen built its own heading in a slightly
+    /// different size and weight; these are the ones that remain.
+    enum Typography {
+        /// The one large heading on a screen that has no navigation large title.
+        static let display = Font.system(.largeTitle, design: .rounded, weight: .bold)
+        /// A card's main line: tonight's dinner, a sheet's heading.
+        static let title = Font.system(.title2, design: .rounded, weight: .bold)
+        /// Section headings inside a screen.
+        static let section = Font.system(.title3, design: .rounded, weight: .bold)
+        /// Small capitals above a value: "TONIGHT", "MON 6".
+        static let eyebrow = Font.caption.weight(.bold)
+    }
 
     private static func dynamic(
         light: (Double, Double, Double),
@@ -107,4 +136,84 @@ extension View {
         frame(width: AppTheme.tapTarget, height: AppTheme.tapTarget)
             .contentShape(Rectangle())
     }
+
+    /// Small capitals above a value, tracked so they read as a label rather than a word.
+    func eyebrowStyle(color: Color = AppTheme.accent) -> some View {
+        font(AppTheme.Typography.eyebrow)
+            .tracking(0.6)
+            .textCase(.uppercase)
+            .foregroundStyle(color)
+    }
+}
+
+// MARK: - Buttons
+//
+// Three kinds of button, by role. There were six for the same few jobs: a full-width filled
+// button, a filled circle, a raised circle, a soft capsule, plain blue text links inside cards,
+// and the system bordered style -- so nothing told a household which action on a screen mattered.
+
+/// The one main action of a screen or card.
+struct PrimaryButtonStyle: ButtonStyle {
+    var fullWidth = true
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: AppTheme.tapTarget + 6)
+            .padding(.horizontal, AppTheme.Space.l)
+            .background(AppTheme.accent.opacity(isEnabled ? 1 : 0.4))
+            .foregroundStyle(AppTheme.onAccent)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+/// An alternative to the primary action, or the main action of something less important.
+struct SecondaryButtonStyle: ButtonStyle {
+    var fullWidth = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: AppTheme.tapTarget)
+            .padding(.horizontal, AppTheme.Space.l)
+            .background(AppTheme.accentSoft)
+            .foregroundStyle(AppTheme.accent)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.45)
+    }
+}
+
+/// A round icon-only action on a card or in a header, at the minimum tap size.
+struct IconButtonStyle: ButtonStyle {
+    var prominent = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .frame(width: AppTheme.tapTarget, height: AppTheme.tapTarget)
+            .background(prominent ? AppTheme.accent : AppTheme.raised)
+            .foregroundStyle(prominent ? AppTheme.onAccent : AppTheme.ink)
+            .clipShape(Circle())
+            .contentShape(Circle())
+            .opacity(configuration.isPressed ? 0.75 : 1)
+    }
+}
+
+extension ButtonStyle where Self == PrimaryButtonStyle {
+    static var primary: PrimaryButtonStyle { PrimaryButtonStyle() }
+    static var primaryCompact: PrimaryButtonStyle { PrimaryButtonStyle(fullWidth: false) }
+}
+
+extension ButtonStyle where Self == SecondaryButtonStyle {
+    static var secondary: SecondaryButtonStyle { SecondaryButtonStyle() }
+    static var secondaryFullWidth: SecondaryButtonStyle { SecondaryButtonStyle(fullWidth: true) }
+}
+
+extension ButtonStyle where Self == IconButtonStyle {
+    static var icon: IconButtonStyle { IconButtonStyle() }
 }

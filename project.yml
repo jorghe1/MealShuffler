@@ -29,6 +29,11 @@ targets:
       - path: MealShuffler
         excludes:
           - Info.plist
+          - PrivacyInfo.xcprivacy
+      # Named explicitly so the manifest lands in Copy Bundle Resources whatever XcodeGen
+      # infers for the file type. App Store validation reads it from the bundle.
+      - path: MealShuffler/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - target: MealShufflerWidget
         embed: true
@@ -61,6 +66,10 @@ targets:
         excludes:
           - Info.plist
           - MealShufflerWidget.entitlements
+          - PrivacyInfo.xcprivacy
+      # Each extension needs its own privacy manifest; upload validation checks them one by one.
+      - path: MealShufflerWidget/PrivacyInfo.xcprivacy
+        buildPhase: resources
       - path: MealShuffler/Models
       - path: MealShuffler/Data
       - path: MealShuffler/Localization
@@ -99,6 +108,10 @@ targets:
         excludes:
           - Info.plist
           - MealShufflerShare.entitlements
+          - PrivacyInfo.xcprivacy
+      # Each extension needs its own privacy manifest; upload validation checks them one by one.
+      - path: MealShufflerShare/PrivacyInfo.xcprivacy
+        buildPhase: resources
       - path: MealShuffler/Models
       - path: MealShuffler/Data
       - path: MealShuffler/Localization

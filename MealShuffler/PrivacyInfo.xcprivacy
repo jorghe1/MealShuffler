@@ -3,14 +3,17 @@
 <!--
   Declares what leaves the device.
 
-  Recipe import is the only thing that sends anything anywhere, and only when
-  RecipeServiceBaseURL is configured in Info.plist. With it empty the app is entirely local
-  and the declarations below describe capability that is not exercised. They are stated
-  anyway: the manifest has to be accurate for the build that ships, and it is easier to
-  declare the intent than to remember to update it on the day the service goes live.
+  Three things can reach the Meal Shuffler service, and only when RecipeServiceBaseURL is
+  configured in Info.plist: online recipe reading (opt-in, off by default), the share page
+  for links sent to a friend, and the "Send to Bring!" list page. Online recipe reading also
+  sends a random per-install id (X-Install-Id) used only for rate limiting. With the URL
+  empty the app is entirely local and the declarations below describe capability that is not
+  exercised. They are stated anyway: the manifest has to be accurate for the build that
+  ships, and it is easier to declare the intent than to remember to update it on the day the
+  service goes live.
 
   Nothing is used for tracking, nothing is linked to an identity, and there is no advertising
-  or analytics SDK in the app.
+  or analytics SDK in the app. The widget and the share extension carry their own manifests.
 -->
 <plist version="1.0">
 <dict>
@@ -25,6 +28,20 @@
                  service and not tied to an account. -->
             <key>NSPrivacyCollectedDataType</key>
             <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- The random per-install id sent with online recipe reading, for rate limiting
+                 and abuse protection only. Not an advertising identifier. -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeDeviceID</string>
             <key>NSPrivacyCollectedDataTypeLinked</key>
             <false/>
             <key>NSPrivacyCollectedDataTypeTracking</key>
@@ -51,11 +68,14 @@
     <key>NSPrivacyAccessedAPITypes</key>
     <array>
         <dict>
+            <!-- CA92.1: the app's own defaults (settings, iCloud sharing state).
+                 1C8F.1: the App Group suite shared with the widget and the share extension. -->
             <key>NSPrivacyAccessedAPIType</key>
             <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
             <key>NSPrivacyAccessedAPITypeReasons</key>
             <array>
                 <string>CA92.1</string>
+                <string>1C8F.1</string>
             </array>
         </dict>
         <dict>

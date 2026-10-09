@@ -195,13 +195,33 @@ _theme_path = os.path.join(ROOT, 'MealShuffler', 'Theme', 'AppTheme.swift')
 if os.path.exists(_theme_path):
     _theme = io.open(_theme_path, encoding='utf-8').read()
     theme_members = set(re.findall(r'static\s+(?:let|var|func)\s+(\w+)', _theme))
+    # Nested token groups (AppTheme.Space.m, AppTheme.Typography.title) and their members.
+    nested = {}
+    for m in re.finditer(r'\benum\s+(\w+)\s*\{', _theme):
+        name = m.group(1)
+        if name == 'AppTheme':
+            continue
+        depth, i = 0, m.end() - 1
+        while i < len(_theme):
+            if _theme[i] == '{':
+                depth += 1
+            elif _theme[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    break
+            i += 1
+        nested[name] = set(re.findall(r'static\s+(?:let|var|func)\s+(\w+)', _theme[m.end():i]))
+    theme_members |= set(nested)
     for path in SRC:
         text = io.open(path, encoding='utf-8').read()
         rel = os.path.relpath(path, ROOT)
-        for m in re.finditer(r'AppTheme\.(\w+)', text):
+        for m in re.finditer(r'AppTheme\.(\w+)(?:\.(\w+))?', text):
             if m.group(1) not in theme_members:
                 problems.append("%s:%d unknown AppTheme.%s"
                                 % (rel, lineno(text, m.start()), m.group(1)))
+            elif m.group(1) in nested and m.group(2) and m.group(2) not in nested[m.group(1)]:
+                problems.append("%s:%d unknown AppTheme.%s.%s"
+                                % (rel, lineno(text, m.start()), m.group(1), m.group(2)))
 
 # 4. every generate(...) call uses the current label set
 def argument_list(text, open_index):

@@ -99,11 +99,114 @@ final class RuleSentenceParserTests: XCTestCase {
         XCTAssertEqual(constraint("no meat every day"), .maximumPerWeek(matcher: .tag(.meat), count: 0))
     }
 
-    /// Foods outside the categories are read as ingredients, singular so "nuts" finds "nut".
+    /// Foods outside the categories are kept as typed; the vocabulary decides what they find,
+    /// so "nuts" still finds a hazelnut and "laks" is never trimmed to "lak".
     func testUnknownFoodsBecomeIngredients() {
-        XCTAssertEqual(constraint("no nuts"), .excludedOn(day: .everyDay, matcher: .ingredient("nut")))
-        XCTAssertEqual(constraint("allergic to peanuts"), .excludedOn(day: .everyDay, matcher: .ingredient("peanut")))
+        XCTAssertEqual(constraint("no nuts"), .excludedOn(day: .everyDay, matcher: .ingredient("nuts")))
+        XCTAssertEqual(constraint("allergic to peanuts"), .excludedOn(day: .everyDay, matcher: .ingredient("peanuts")))
         XCTAssertEqual(constraint("salmon on monday"), .requiredOn(day: .day(.monday), matcher: .ingredient("salmon")))
+    }
+
+    // MARK: - Norwegian foods, clauses and negation scope
+
+    /// The reported bug: "laks" became "lak" through an English plural rule.
+    func testSalmonStaysSalmonAndOffersFishAsTheBroaderReading() throws {
+        let reading = RuleSentenceParser.read("laks på torsdag", meals: meals)
+        XCTAssertEqual(reading.rule?.constraint, .requiredOn(day: .day(.thursday), matcher: .ingredient("laks")))
+        XCTAssertEqual(reading.food?.word, "laks")
+        XCTAssertTrue(try XCTUnwrap(reading.food).alternatives.contains(.tag(.fish)))
+        XCTAssertEqual(constraint("laksen på torsdag"), .requiredOn(day: .day(.thursday), matcher: .ingredient("laks")))
+        XCTAssertTrue(reading.ignored.isEmpty)
+    }
+
+    func testInflectedAndMisspeltWordsAreRead() {
+        XCTAssertEqual(constraint("tacoen på fredag"), .requiredOn(day: .day(.friday), matcher: .tag(.taco)))
+        XCTAssertEqual(constraint("tako på fredag"), .requiredOn(day: .day(.friday), matcher: .tag(.taco)))
+        XCTAssertEqual(constraint("fisk på torsdg"), .requiredOn(day: .day(.thursday), matcher: .tag(.fish)))
+    }
+
+    /// "Men ikke på mandag" belongs to its own clause, and borrows the food from the first.
+    func testButNotScopesTheNegationToItsOwnClause() {
+        let readings = RuleSentenceParser.readAll("pizza på fredag men ikke på mandag", meals: meals)
+        XCTAssertEqual(readings.map { $0.reading.rule?.constraint }, [
+            .requiredOn(day: .day(.friday), matcher: .tag(.pizza)),
+            .excludedOn(day: .day(.monday), matcher: .tag(.pizza))
+        ])
+        XCTAssertEqual(
+            RuleSentenceParser.readAll("pizza på fredag, men ikke på mandag", meals: meals).compactMap { $0.reading.rule?.constraint }.count,
+            2, "The comma version means the same"
+        )
+    }
+
+    func testANegatedLimitIsALimitNotABan() {
+        XCTAssertEqual(constraint("ikke pasta mer enn to ganger i uka"), .maximumPerWeek(matcher: .tag(.pasta), count: 2))
+        XCTAssertEqual(constraint("more than 2 vegetarian a week"), .minimumPerWeek(matcher: .tag(.vegetarian), count: 3))
+    }
+
+    /// Two whole rules joined by "og" are two rules; "fish on Tuesday and Thursday" is one.
+    func testTwoRulesInOneSentenceAreBothKept() {
+        let readings = RuleSentenceParser.readAll("fisk på fredag og kylling på mandag", meals: meals)
+        XCTAssertEqual(readings.compactMap { $0.reading.rule?.constraint }, [
+            .requiredOn(day: .day(.friday), matcher: .tag(.fish)),
+            .requiredOn(day: .day(.monday), matcher: .tag(.chicken))
+        ])
+        XCTAssertEqual(RuleSentenceParser.readAll("fish on tuesday and thursday", meals: meals).count, 1)
+    }
+
+    /// A ban on several foods is each of them banned.
+    func testABanOnSeveralFoodsBecomesOneBanEach() {
+        let readings = RuleSentenceParser.readAll("no nuts or mushrooms", meals: meals)
+        XCTAssertEqual(readings.compactMap { $0.reading.rule?.constraint }, [
+            .excludedOn(day: .everyDay, matcher: .ingredient("nuts")),
+            .excludedOn(day: .everyDay, matcher: .ingredient("mushrooms"))
+        ])
+        XCTAssertTrue(readings.allSatisfy { $0.reading.additionalFoods.isEmpty })
+    }
+
+    /// Anything but a ban is about one food, and the composer is told what was left out.
+    func testAnExtraFoodInARequirementIsReportedNotDropped() {
+        let reading = RuleSentenceParser.read("fisk eller kylling på mandag", meals: meals)
+        XCTAssertEqual(reading.rule?.constraint, .requiredOn(day: .day(.monday), matcher: .tag(.fish)))
+        XCTAssertEqual(reading.additionalFoods.map(\.matcher), [.tag(.chicken)])
+    }
+
+    func testEveryNthWeekday() throws {
+        let rule = try XCTUnwrap(RuleSentenceParser.parse("taco hver 2. fredag", meals: meals).rule)
+        XCTAssertEqual(rule.constraint, .requiredOn(day: .day(.friday), matcher: .tag(.taco)))
+        XCTAssertEqual(rule.repeatEveryWeeks, 2)
+    }
+
+    /// "Glutenfri", "nøttefritt": a food with "-fri" glued on is a ban on that food.
+    func testFreeCompoundsAreBans() {
+        XCTAssertEqual(constraint("nøttefritt"), .excludedOn(day: .everyDay, matcher: .ingredient("nøtter")))
+        XCTAssertEqual(constraint("glutenfri på mandag"), .excludedOn(day: .day(.monday), matcher: .ingredient("gluten")))
+    }
+
+    /// A compound is named by its last part: "kyllingsuppe" is a soup, chicken the other reading.
+    func testCompoundFoodsReadAsOneFood() throws {
+        let reading = RuleSentenceParser.read("kyllingsuppe på mandag", meals: [])
+        XCTAssertEqual(reading.rule?.constraint, .requiredOn(day: .day(.monday), matcher: .tag(.soup)))
+        XCTAssertEqual(try XCTUnwrap(reading.food).alternatives, [.tag(.chicken)])
+        XCTAssertTrue(reading.additionalFoods.isEmpty)
+    }
+
+    func testAMemberWhoDislikesAFoodMakesASoftBan() throws {
+        let ola = HouseholdMember(displayName: "Ola")
+        let rule = try XCTUnwrap(RuleSentenceParser.parse("Ola liker ikke sopp", meals: meals, members: [ola]).rule)
+        XCTAssertEqual(rule.constraint, .excludedOn(day: .everyDay, matcher: .ingredient("sopp")))
+        XCTAssertEqual(rule.strength, .preferred)
+        let general = try XCTUnwrap(RuleSentenceParser.parse("Ola liker ikke", meals: meals, members: [ola]).rule)
+        XCTAssertEqual(general.constraint, .excludedOn(day: .everyDay, matcher: .dislikedBy(memberID: ola.id)))
+    }
+
+    /// The composer highlights what was read; every word gets a role.
+    func testTokensCarryTheRoleTheyWereReadIn() {
+        let tokens = RuleSentenceParser.read("maks 2 kylling i uka", meals: meals).tokens
+        XCTAssertEqual(tokens.map(\.text), ["maks", "2", "kylling", "i", "uka"])
+        XCTAssertEqual(tokens.first { $0.text == "kylling" }?.role, .food)
+        XCTAssertEqual(tokens.first { $0.text == "2" }?.role, .number)
+        let ignored = RuleSentenceParser.read("taco på fredag hurra", meals: meals).ignored
+        XCTAssertEqual(ignored, ["hurra"])
     }
 
     // MARK: - Dishes and labels

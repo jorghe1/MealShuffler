@@ -64,6 +64,37 @@ final class RuleVocabularyTests: XCTestCase {
         XCTAssertTrue(MealMatcher.ingredient("gulrotter").matches(meal))
     }
 
+    /// "Ingen svinekjøtt" used to protect nothing: no recipe lists "svinekjøtt".
+    func testIngredientWordsFindWhatTheyMeanOnTheShelf() {
+        func meal(_ name: String, _ ingredients: [String]) -> Meal {
+            Meal(name: name, subtitle: "", emoji: "🍽️", prepMinutes: 20, tags: [],
+                 ingredients: ingredients.map { .init(name: $0, quantity: 1, unit: "pcs", aisle: .pantry) })
+        }
+        let carbonara = meal("Carbonara", ["Spaghetti", "Bacon", "Egg"])
+        let salad = meal("Salat", ["Hasselnøtter", "Ruccola"])
+        let moussaka = meal("Moussaka", ["Eggplant", "Muskatnøtt", "Lammekjøtt"])
+        let oysters = meal("Østers", ["Østers", "Sitron"])
+        let salmon = meal("Laks i ovn", ["Laksefilet", "Poteter"])
+
+        XCTAssertTrue(MealMatcher.ingredient("svinekjøtt").matches(carbonara), "Bacon is pork")
+        XCTAssertTrue(MealMatcher.ingredient("pork").matches(carbonara))
+        XCTAssertTrue(MealMatcher.ingredient("nøtter").matches(salad), "Hazelnuts are nuts")
+        XCTAssertTrue(MealMatcher.ingredient("nuts").matches(salad))
+        XCTAssertTrue(MealMatcher.ingredient("laks").matches(salmon))
+        XCTAssertTrue(MealMatcher.ingredient("lam").matches(moussaka))
+        XCTAssertFalse(MealMatcher.ingredient("egg").matches(moussaka), "An aubergine is not an egg")
+        XCTAssertFalse(MealMatcher.ingredient("nøtter").matches(moussaka), "Nutmeg is not a nut")
+        XCTAssertFalse(MealMatcher.ingredient("ost").matches(oysters), "An oyster is not cheese")
+    }
+
+    /// The typed word is kept; stemming happens where it is matched.
+    func testUnknownWordsAreMatchedWithTheirEndingsOff() {
+        XCTAssertEqual(IngredientVocabulary.variants(of: "laks"), ["laks"], "Never trimmed to lak")
+        XCTAssertEqual(IngredientVocabulary.variants(of: "hummus"), ["hummus"])
+        XCTAssertTrue(IngredientVocabulary.variants(of: "gulrotter").contains("gulrott"))
+        XCTAssertTrue(IngredientVocabulary.variants(of: "tomatoes").contains("tomato"))
+    }
+
     func testCustomTagMatcherIsExactButForgiving() {
         let meal = Meal(
             name: "Test", subtitle: "", emoji: "🍽️", prepMinutes: 20, tags: [.quick],

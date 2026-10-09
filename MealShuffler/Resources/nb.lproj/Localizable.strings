@@ -1251,3 +1251,28 @@
 "This list is too large for Bring! Use Share remaining items instead." = "Listen er for stor for Bring! Bruk Del gjenværende varer i stedet.";
 
 "Notifications are unavailable. Keep this screen open to see when the timer finishes." = "Varsler er utilgjengelige. Hold denne skjermen åpen for å se når tiden er ute.";
+
+// MARK: - Privacy and online recipe reading (October 2026)
+"Read recipes online" = "Les oppskrifter på nett";
+"When this is on, the link, text or photos you import are sent to the Meal Shuffler recipe service, which uses Anthropic's Claude to read the recipe. Nothing is stored there. Turn it off to read recipes on this device only." = "Når dette er på, sendes lenken, teksten eller bildene du importerer til oppskriftstjenesten til Meal Shuffler, som bruker Claude fra Anthropic til å lese oppskriften. Ingenting lagres der. Slå det av for å lese oppskrifter bare på denne telefonen.";
+"Read recipes online?" = "Lese oppskrifter på nett?";
+"Turn on" = "Slå på";
+"The recipe you import is sent to the Meal Shuffler recipe service and to Anthropic, which reads it and sends the result back. Neither keeps it or uses it for training. You can turn this off at any time." = "Oppskriften du importerer sendes til oppskriftstjenesten til Meal Shuffler og til Anthropic, som leser den og sender resultatet tilbake. Ingen av dem tar vare på den eller bruker den til trening. Du kan slå dette av når som helst.";
+"Meal Shuffler keeps your meals, recipes, rules, plans, shopping lists and history on this phone. There is no account, no advertising and no analytics." = "Meal Shuffler lagrer retter, oppskrifter, regler, planer, handlelister og historikk på denne telefonen. Det finnes ingen konto, ingen reklame og ingen analyseverktøy.";
+"What can leave the phone" = "Dette kan forlate telefonen";
+"Reading recipes online" = "Lese oppskrifter på nett";
+"Off unless you turn it on. The link, text or photos you import are sent to the Meal Shuffler recipe service, which uses Anthropic's Claude to read the recipe and sends the result back. Neither keeps the recipe or uses it for training. A random install id and your IP address are used only to stop abuse." = "Av med mindre du slår det på. Lenken, teksten eller bildene du importerer sendes til oppskriftstjenesten til Meal Shuffler, som bruker Claude fra Anthropic til å lese oppskriften og sender resultatet tilbake. Ingen av dem tar vare på oppskriften eller bruker den til trening. En tilfeldig installasjons-ID og IP-adressen din brukes bare for å hindre misbruk.";
+"Importing from a website" = "Importere fra en nettside";
+"The phone contacts that website directly, the same way a browser would, and loads the recipe picture from it." = "Telefonen kontakter nettsiden direkte, slik en nettleser gjør, og henter bildet av oppskriften derfra.";
+"Sharing with a friend" = "Dele med en venn";
+"A shared recipe, rule list or week travels inside the link itself. The page that opens it stores nothing." = "En delt oppskrift, regelliste eller uke ligger inne i selve lenken. Siden som åpner den, lagrer ingenting.";
+"Send to Bring!" = "Send til Bring!";
+"The shopping list is put in a link that Bring! fetches to import it. Bring! then handles it under its own privacy policy." = "Handlelisten legges i en lenke som Bring! henter for å importere den. Deretter behandler Bring! den etter sine egne personvernregler.";
+"If you share your household through iCloud, it is stored in your own iCloud. The developer cannot read it." = "Hvis du deler husstanden gjennom iCloud, lagres den i din egen iCloud. Utvikleren kan ikke lese den.";
+"Reminders and widgets" = "Påminnelser og widgeter";
+"Reminders are scheduled on this phone, and the widget reads the plan on this phone. Nothing is sent to do either." = "Påminnelsene planlegges på denne telefonen, og widgeten leser planen på denne telefonen. Ingenting sendes for å få til noe av det.";
+"Deleting your data" = "Slette dataene dine";
+"Deleting the app deletes everything it stored. The recipe service keeps nothing, so there is nothing to delete there." = "Når du sletter appen, slettes alt den har lagret. Oppskriftstjenesten tar ikke vare på noe, så der er det ingenting å slette.";
+"Full privacy policy" = "Hele personvernerklæringen";
+"Privacy" = "Personvern";
+"No %@" = "Ingen %@";

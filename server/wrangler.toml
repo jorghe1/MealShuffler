@@ -30,6 +30,8 @@ simple = { limit = 40, period = 60 }
 
 [vars]
 DAILY_MODEL_CALL_LIMIT = "200"
+# Contact address on /privacy and /support. Empty: the pages say to use the App Store page.
+SUPPORT_EMAIL = ""
 
 [[durable_objects.bindings]]
 name = "MODEL_BUDGET"

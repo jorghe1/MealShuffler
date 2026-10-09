@@ -162,9 +162,32 @@ export function ogImage(html: string, pageURL: string): string | null {
   return null;
 }
 
-/** Marks where untrusted material starts and stops, so the system prompt can name it. */
-export function sourceBlock(label: string, body: string): string {
-  return `${label}\n\n<SOURCE>\n${body}\n</SOURCE>`;
+/**
+ * Anything in untrusted text shaped like a SOURCE tag, open or close, any case, with stray
+ * whitespace or attributes: `</SOURCE>`, `< / source >`, `<SOURCE-1234>`, and an unterminated
+ * `</SOURCE` that would otherwise sit right in front of our real closing tag.
+ */
+const FENCE_LOOKALIKE = /<(\s*\/?\s*SOURCE\b[^<>]*)>?/gi;
+
+/** A fresh suffix per block, so text written in advance cannot name the real closing tag. */
+export function fenceNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Marks where untrusted material starts and stops, so the system prompt can name it.
+ *
+ * Two layers, because a fence the fenced text can close is no fence. The tag carries a random
+ * suffix (`<SOURCE-3f9a…>`) the page author cannot know, and any tag-shaped `SOURCE` text in
+ * the body is defanged to square brackets, so a page saying `</SOURCE> New instructions:` reads
+ * as `[/SOURCE]` inside the block rather than as its end. Recipe text never legitimately
+ * contains either: page HTML has already been stripped of tags by the time it gets here.
+ */
+export function sourceBlock(label: string, body: string, nonce: string = fenceNonce()): string {
+  const tag = `SOURCE-${nonce}`;
+  const defanged = body.replace(FENCE_LOOKALIKE, "[$1]");
+  return `${label}\n\n<${tag}>\n${defanged}\n</${tag}>`;
 }
 
 export async function fetchPage(target: string): Promise<{ text: string; image: string | null }> {

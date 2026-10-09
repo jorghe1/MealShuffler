@@ -10,8 +10,13 @@ enum FeatureFlags {
     /// anyone can act as anyone.
     static let communityEnabled = false
 
-    /// The invitation link and code describe a sync that does not exist: following one opens
-    /// an alert saying so. The household model, tombstones and `updatedBy` stamps are all in
-    /// place for it -- turn this on with the backend that answers them.
+    /// iCloud household sharing (`CloudHouseholdSync`, `CloudSharingView`).
+    ///
+    /// Off for the first public release. The sync works, but it moves the whole household as
+    /// one JSON asset polled every 30 seconds, resolves conflicts for the whole household at
+    /// once -- two people ticking groceries in the shop get "choose a version" -- and has not
+    /// had its two-account acceptance run (docs/ICLOUD_SHARING.md). When this is false the
+    /// sharing screens are hidden, the 30-second poll does not run and an invitation that
+    /// arrives anyway is not acted on. Turn on together with per-entity records and push.
     static let householdSyncEnabled = false
 }

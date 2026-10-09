@@ -1,2 +1,4 @@
 "CFBundleDisplayName" = "Meal Shuffler";
 "NSRemindersFullAccessUsageDescription" = "Meal Shuffler needs access to export the grocery list you choose.";
+"NSCameraUsageDescription" = "Meal Shuffler uses the camera to scan a recipe from a page or a cookbook.";
+"NSPhotoLibraryAddUsageDescription" = "Meal Shuffler saves the picture of your week to your photo library when you choose Save Image.";

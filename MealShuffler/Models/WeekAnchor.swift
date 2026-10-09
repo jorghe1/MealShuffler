@@ -16,6 +16,15 @@ enum WeekAnchor {
         startOfWeek(containing: .now, calendar: calendar)
     }
 
+    /// Whether two week starts name the same week, give or take a time zone.
+    ///
+    /// A plan's start is stored as an instant -- midnight on the first day where it was made.
+    /// The same Monday in another time zone is up to 26 hours away from it, while the next
+    /// Monday is a week away, so anything closer than half a week is the same week.
+    static func isSameWeek(_ first: Date, _ second: Date) -> Bool {
+        abs(first.timeIntervalSince(second)) < 3.5 * 86_400
+    }
+
     static func startOfNextWeek(after start: Date, calendar: Calendar = .current) -> Date {
         calendar.date(byAdding: .weekOfYear, value: 1, to: start) ?? start.addingTimeInterval(7 * 86_400)
     }

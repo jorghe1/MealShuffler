@@ -181,6 +181,69 @@ final class BackgroundSurfaceTests: XCTestCase {
         XCTAssertTrue(harness.store.feedbackEvents.contains { $0.mealID == before && $0.kind == .skipped })
     }
 
+    /// Answered the morning after: say so, instead of silently doing nothing.
+    func testSomethingElseForAnEarlierDayExplainsItself() throws {
+        let harness = try makeHarness()
+        defer { harness.defaults.removePersistentDomain(forName: harness.suite) }
+        harness.store.completeOnboarding()
+
+        let mealID = try XCTUnwrap(harness.store.plan.meals.first?.mealID)
+        let yesterday = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: -1, to: .now))
+        harness.store.handleReminderAction(.somethingElse(mealID: mealID, day: .monday, date: yesterday))
+        XCTAssertNotNil(harness.store.actionNotice)
+    }
+
+    // MARK: - Calendar
+
+    /// Flying west moves local midnight Monday a few hours later. That is the same week, and
+    /// it used to be archived and reshuffled mid-week.
+    func testATimeZoneChangeKeepsTheWeek() throws {
+        let harness = try makeHarness()
+        defer { harness.defaults.removePersistentDomain(forName: harness.suite) }
+        harness.store.completeOnboarding()
+
+        let weekStart = harness.store.plan.startDate
+        let meals = harness.store.plan.meals.map(\.mealID)
+        let archived = harness.store.archivedWeeks.count
+        harness.store.plan = harness.store.plan.anchored(to: weekStart.addingTimeInterval(-6 * 3_600))
+
+        harness.store.rollOverIfNeeded()
+
+        XCTAssertEqual(harness.store.plan.startDate, weekStart, "Re-anchored to this calendar's week")
+        XCTAssertEqual(harness.store.plan.meals.map(\.mealID), meals, "Not reshuffled")
+        XCTAssertEqual(harness.store.archivedWeeks.count, archived, "Not archived")
+    }
+
+    // MARK: - Background shuffle
+
+    /// The background shuffle used a fresh system random source, so it could not be tested.
+    func testTheBackgroundShuffleIsReproducibleWithASeed() async throws {
+        let first = try makeHarness(seed: 99)
+        let second = try makeHarness(seed: 99)
+        defer {
+            first.defaults.removePersistentDomain(forName: first.suite)
+            second.defaults.removePersistentDomain(forName: second.suite)
+        }
+        first.store.completeOnboarding()
+        second.store.completeOnboarding()
+        await first.store.generateInBackground(nextWeek: true)
+        await second.store.generateInBackground(nextWeek: true)
+        XCTAssertNotNil(first.store.nextWeekPlan)
+        XCTAssertEqual(first.store.nextWeekPlan?.meals.map(\.mealID), second.store.nextWeekPlan?.meals.map(\.mealID))
+    }
+
+    /// Ticking a grocery item is not a change a shuffle could overwrite.
+    func testAGroceryTickDoesNotDiscardAShuffle() async throws {
+        let harness = try makeHarness()
+        defer { harness.defaults.removePersistentDomain(forName: harness.suite) }
+        harness.store.completeOnboarding()
+
+        let generation = Task { await harness.store.generateInBackground(nextWeek: true) }
+        if let item = harness.store.groceryItems.first { harness.store.toggleGroceryItem(item) }
+        await generation.value
+        XCTAssertNotNil(harness.store.nextWeekPlan, "The shuffled week arrived")
+    }
+
     // MARK: - Undo
 
     func testUndoRestoresTheWeekAfterAShuffle() throws {

@@ -47,7 +47,7 @@
 "Replace dinner" = "Bytt middag";
 "Move" = "Flytt";
 "Swap with another day" = "Bytt med en annen dag";
-"We cooked this" = "Vi laget denne";
+"We cooked this" = "Vi lagde den";
 "Not for today" = "Ikke aktuell i dag";
 "Remove family favorite" = "Fjern familiefavoritt";
 "Family favorite" = "Familiefavoritt";
@@ -1276,3 +1276,22 @@
 "Full privacy policy" = "Hele personvernerklæringen";
 "Privacy" = "Personvern";
 "No %@" = "Ingen %@";
+
+// MARK: - Reminders, merged per day (October 2026)
+"%@ takes about %ld min, so dinner is ready at %@." = "%@ tar ca. %ld min, så middagen er klar kl. %@.";
+"The list for 1 dinner is ready." = "Handlelisten for 1 middag er klar.";
+"The list for %ld dinners is ready." = "Handlelisten for %ld middager er klar.";
+"Tonight: %@." = "I kveld: %@.";
+"Take %@ out of the freezer" = "Ta %@ ut av fryseren";
+"It is tomorrow's dinner and needs the night in the fridge." = "Det er middagen i morgen, og den trenger natten i kjøleskapet.";
+"A new week" = "En ny uke";
+"Open Meal Shuffler to see this week's dinners." = "Åpne Meal Shuffler for å se middagene denne uka.";
+"Shuffle it now, it takes ten seconds." = "Stokk den nå. Det tar ti sekunder.";
+"Tomorrow: %@ from the freezer. Take it out tonight." = "I morgen: %@ fra fryseren. Ta den ut i kveld.";
+"Next week is still empty. Open the app to shuffle it." = "Neste uke er fortsatt tom. Åpne appen for å stokke den.";
+"No cooking tonight." = "Ingen matlaging i kveld.";
+"Nothing to cook tonight." = "Ingenting å lage i kveld.";
+"The recipe is in the app." = "Oppskriften ligger i appen.";
+"takeaway" = "takeaway";
+"leftovers" = "rester";
+"That reminder was for an earlier day. Choose a dinner for today in the week." = "Den påminnelsen gjaldt en tidligere dag. Velg middagen for i dag i uka.";

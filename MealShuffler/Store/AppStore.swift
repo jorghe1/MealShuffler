@@ -5,8 +5,8 @@ import Foundation
 final class AppStore: ObservableObject {
     @Published var hasCompletedOnboarding: Bool { didSet { save() } }
     @Published var memberPreferences: [UUID: [UUID: MealPreference]] { didSet { save() } }
-    @Published var rules: [PlanningRule] { didSet { save() } }
-    @Published var plan: WeeklyPlan { didSet { save() } }
+    @Published var rules: [PlanningRule] { didSet { planningRevision += 1; save() } }
+    @Published var plan: WeeklyPlan { didSet { planningRevision += 1; save() } }
     @Published var conflicts: [PlanConflict] = []
     @Published var checkedGroceryIDs: Set<String> { didSet { save() } }
     /// Items the household already has in. Kept apart from `checkedGroceryIDs` because
@@ -26,12 +26,12 @@ final class AppStore: ObservableObject {
     @Published var aisleOrder: [GroceryAisle] { didSet { save() } }
     @Published var customMeals: [Meal] { didSet { save() } }
     @Published var favoriteMealIDs: Set<UUID> { didSet { save() } }
-    @Published var dayContexts: [Weekday: DayPlanContext] { didSet { save() } }
+    @Published var dayContexts: [Weekday: DayPlanContext] { didSet { planningRevision += 1; save() } }
     @Published var feedbackEvents: [MealFeedbackEvent] { didSet { save() } }
     @Published var householdSize: Int { didSet { save() } }
     @Published var household: Household { didSet { save() } }
     @Published var archivedWeeks: [ArchivedWeek] { didSet { save() } }
-    @Published var nextWeekPlan: WeeklyPlan? { didSet { save() } }
+    @Published var nextWeekPlan: WeeklyPlan? { didSet { planningRevision += 1; save() } }
     @Published var dinnerReminderEnabled: Bool { didSet { save() } }
     @Published var dinnerReminderHour: Int { didSet { save() } }
     /// A second, earlier nudge timed off the recipe's own prep time.
@@ -47,9 +47,13 @@ final class AppStore: ObservableObject {
     @Published var persistenceError: String?
     @Published var actionNotice: String?
     @Published private(set) var isGenerating = false
+    /// Bumped by changes a background shuffle could overwrite: the plans, their day settings
+    /// and the rules. Not by every save -- a grocery tick, a reminder toggle or an iCloud poll
+    /// during a shuffle used to throw the shuffled week away, so the reels spun and landed on
+    /// the week that was already there.
     private var planningRevision = 0
     @Published var nextWeekConflicts: [PlanConflict] = []
-    @Published var nextWeekContexts: [Weekday: DayPlanContext] = [:] { didSet { save() } }
+    @Published var nextWeekContexts: [Weekday: DayPlanContext] = [:] { didSet { planningRevision += 1; save() } }
     @Published var householdTools = HouseholdTools() { didSet { save() } }
     private var shoppingAmounts: [String: Double] = [:]
     private var reminderTask: Task<Void, Never>?
@@ -175,6 +179,10 @@ final class AppStore: ObservableObject {
         pendingCaptures = RecipeInbox.all()
         rollOverIfNeeded()
         refreshConflicts()
+        // A rollover at launch changed the saved week. Write it before the widget is told to
+        // reload, because the widget reads the file: reloading first showed the old week, and
+        // the write that followed matched the recorded signature and skipped the reload.
+        if pendingSave != nil { flushPendingWrites() }
         // Unconditional: permission may have been granted in Settings.app since the last
         // launch, in which case nothing has changed here but nothing is scheduled either.
         refreshBackgroundSurfaces(force: true)
@@ -199,6 +207,14 @@ final class AppStore: ObservableObject {
 
     func rollOverIfNeeded(now: Date = .now, calendar: Calendar = .current) {
         let currentWeekStart = WeekAnchor.startOfWeek(containing: now, calendar: calendar)
+        // The stored week is an instant: midnight Monday where it was planned. Flying west
+        // makes local midnight Monday a later instant, which read as a new week and archived
+        // and reshuffled the plan mid-week. A few hours either way is the same week, moved
+        // to this time zone's calendar.
+        if WeekAnchor.isSameWeek(plan.startDate, currentWeekStart) {
+            if plan.startDate != currentWeekStart { reanchor(to: currentWeekStart, calendar: calendar) }
+            return
+        }
         guard plan.startDate < currentWeekStart else { return }
         householdTools.shoppingSessions[shoppingPeriodID] = ShoppingSession(checked: checkedGroceryIDs, stocked: stockedGroceryIDs, manual: manualGroceryItems, amounts: shoppingAmounts)
         let wasDefaultPeriod = householdTools.shoppingStart == nil || shoppingEnd < currentWeekStart
@@ -229,6 +245,14 @@ final class AppStore: ObservableObject {
             checkedGroceryIDs = session.checked; stockedGroceryIDs = session.stocked; manualGroceryItems = session.manual
         }
         refreshConflicts()
+    }
+
+    /// The same week, on this time zone's calendar.
+    private func reanchor(to weekStart: Date, calendar: Calendar) {
+        plan = plan.anchored(to: weekStart)
+        if let next = nextWeekPlan {
+            nextWeekPlan = next.anchored(to: WeekAnchor.startOfNextWeek(after: weekStart, calendar: calendar))
+        }
     }
 
     // MARK: - Next week
@@ -318,13 +342,22 @@ final class AppStore: ObservableObject {
         case .cooked(let mealID, let day, let date):
             guard let date else { return }
             let plans = [plan] + (nextWeekPlan.map { [$0] } ?? []) + archivedWeeks.map(\.plan)
-            guard let datedPlan = plans.first(where: { Calendar.current.isDate($0.date(for: day), inSameDayAs: date) && $0[day]?.mealID == mealID }) else { return }
+            // Only a cooking day: a leftovers day carries the meal it reuses, and recording that
+            // again as cooked would count one dinner twice.
+            guard let datedPlan = plans.first(where: {
+                Calendar.current.isDate($0.date(for: day), inSameDayAs: date) && $0[day]?.mealID == mealID && $0[day]?.kind == .meal
+            }) else { return }
             let archivedRecipe = archivedWeeks.first { Calendar.current.isDate($0.plan.date(for: day), inSameDayAs: date) }?.recipeSnapshots?.first { $0.id == mealID }
             guard let meal = datedPlan[day]?.freezerBatch?.recipe ?? archivedRecipe ?? meal(id: mealID) else { return }
             recordCooked(meal, on: day, date: date)
         case .somethingElse(let mealID, let day, let date):
-            guard let date, Calendar.current.isDate(plan.date(for: day), inSameDayAs: date),
-                  Calendar.current.isDateInToday(date), plan[day]?.mealID == mealID,
+            guard let date, Calendar.current.isDateInToday(date) else {
+                // A reminder answered the next day. Say so rather than doing nothing.
+                actionNotice = L10n.string("That reminder was for an earlier day. Choose a dinner for today in the week.")
+                return
+            }
+            guard Calendar.current.isDate(plan.date(for: day), inSameDayAs: date),
+                  plan[day]?.mealID == mealID, plan[day]?.kind == .meal,
                   let meal = meal(id: mealID), !isCompleted(on: day) else { return }
             markSkipped(meal, on: day)
         }
@@ -382,6 +415,18 @@ final class AppStore: ObservableObject {
             await previous?.value
             await service.reschedule(schedule)
         }
+    }
+
+    /// Re-derives the widget and the notification schedule from the plan as it stands.
+    ///
+    /// For the moments nothing in the plan changed but the world around it did: the app
+    /// coming back to the foreground (notification permission granted in Settings, a new
+    /// language), and a background refresh after the week turned. Returns the scheduling task
+    /// so a background caller can wait for it before telling iOS it is done.
+    @discardableResult
+    func refreshRemindersAndWidget() -> Task<Void, Never>? {
+        refreshBackgroundSurfaces(force: true)
+        return reminderTask
     }
 
     var preferredMeals: [Meal] {
@@ -823,8 +868,12 @@ final class AppStore: ObservableObject {
         }.map { item in var copy = item; copy.isLocked = true; return copy }
         let preferred = preferredMeals; let library = meals; let constraints = rules
         let contexts = contexts(forWeek: start); let profile = tasteForWeek(start); let match = matchContextForWeek(start)
+        // The store's own generator, so the injected random source drives this path too and a
+        // test can pin it. Nothing else draws from it while a generation runs: the UI is
+        // disabled until it finishes.
+        let generator = self.generator
         let worker = Task.detached(priority: .userInitiated) {
-            MealPlanGenerator().generate(preferredMeals: preferred, allMeals: library, rules: constraints,
+            generator.generate(preferredMeals: preferred, allMeals: library, rules: constraints,
                 contexts: contexts, taste: profile, existingPlan: WeeklyPlan(startDate: start, meals: pinned), matchContext: match)
         }
         let result = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
@@ -1523,7 +1572,6 @@ final class AppStore: ObservableObject {
     /// whole state, so a single shuffle used to write the entire blob several times over.
     private func save() {
         guard !isRestoring else { return }
-        planningRevision += 1
         pendingSave?.cancel()
         pendingSave = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(400))

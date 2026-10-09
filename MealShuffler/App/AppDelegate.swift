@@ -2,36 +2,21 @@ import UIKit
 import CloudKit
 import UserNotifications
 
-/// Receives notification actions and iCloud sharing invitations.
+/// Receives notification responses, background refresh and iCloud sharing invitations.
 ///
-/// Two things need a delegate set before the first notification is delivered. A reminder
-/// that fires while the app is frontmost is dropped by iOS unless `willPresent` says
-/// otherwise -- which meant the 16:00 reminder simply never appeared for anyone who happened
-/// to have the app open. And a notification action taps back into the app, which can only be
-/// answered by a delegate that already exists at launch.
+/// A delegate has to exist before the first notification is delivered. A reminder that fires
+/// while the app is frontmost is dropped by iOS unless `willPresent` says otherwise, and a
+/// notification response can launch the app straight into the background with no scene at
+/// all -- which is how a lock-screen "We cooked this" arrives.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    /// Set once the store exists. Actions that arrive before then are buffered rather than
-    /// dropped: launching *from* a notification action delivers the response before the
-    /// scene has built its store.
-    private var handler: (@MainActor (DinnerReminderAction) -> Void)?
-    private var buffered: [DinnerReminderAction] = []
-
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         DinnerReminderService().registerCategories()
+        BackgroundRefresh.register()
         return true
-    }
-
-    /// Wires the store in and drains anything that arrived before it existed.
-    @MainActor
-    func setActionHandler(_ handler: @escaping @MainActor (DinnerReminderAction) -> Void) {
-        self.handler = handler
-        let waiting = buffered
-        buffered = []
-        for action in waiting { handler(action) }
     }
 
     func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
@@ -42,7 +27,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     }
 
     func application(_ application: UIApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
-        CloudHouseholdSync.shared.received(metadata)
+        guard FeatureFlags.householdSyncEnabled else { return }
+        Task { @MainActor in CloudHouseholdSync.shared.received(metadata) }
     }
 
     // MARK: - UNUserNotificationCenterDelegate
@@ -55,30 +41,48 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         [.banner, .list, .sound]
     }
 
+    /// Answered against the shared store directly, and written before returning.
+    ///
+    /// The handler used to be attached by the scene, so an action that launched the app in the
+    /// background waited in a buffer for a scene that never came, and the save that followed
+    /// was debounced with nothing keeping the app alive long enough to make it. iOS keeps the
+    /// app running until this method returns.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        guard let action = DinnerReminderService.action(
-            forActionIdentifier: response.actionIdentifier,
-            userInfo: response.notification.request.content.userInfo
-        ) else { return }
+        let identifier = response.actionIdentifier
+        let userInfo = response.notification.request.content.userInfo
+        let action = DinnerReminderService.action(forActionIdentifier: identifier, userInfo: userInfo)
+        let destination = DinnerReminderService.destination(forActionIdentifier: identifier, userInfo: userInfo)
 
         await MainActor.run {
-            if let handler {
-                handler(action)
-            } else {
-                buffered.append(action)
+            let application = UIApplication.shared
+            let backgroundTask = application.beginBackgroundTask(withName: "Reminder response")
+            defer { if backgroundTask != .invalid { application.endBackgroundTask(backgroundTask) } }
+
+            let store = AppStoreHost.shared
+            store.rollOverIfNeeded()
+            if let action { store.handleReminderAction(action) }
+            if let destination {
+                AppRouter.shared.open(destination)
+                if identifier == DinnerReminderService.planNextWeekActionIdentifier, store.nextWeekPlan == nil {
+                    store.planNextWeek()
+                }
             }
+            store.flushPendingWrites()
         }
     }
 }
 
 final class SharingSceneDelegate: NSObject, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
-        if let metadata = options.cloudKitShareMetadata { CloudHouseholdSync.shared.received(metadata) }
+        guard FeatureFlags.householdSyncEnabled, let metadata = options.cloudKitShareMetadata else { return }
+        Task { @MainActor in CloudHouseholdSync.shared.received(metadata) }
     }
+
     func windowScene(_ windowScene: UIWindowScene, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
-        CloudHouseholdSync.shared.received(metadata)
+        guard FeatureFlags.householdSyncEnabled else { return }
+        Task { @MainActor in CloudHouseholdSync.shared.received(metadata) }
     }
 }

@@ -90,7 +90,7 @@ final class ReminderVolumeTests: XCTestCase {
             XCTAssertEqual(candidates.count, 1, "\(stamp) scheduled more than one reminder")
         }
         XCTAssertTrue(
-            both.allSatisfy { $0.kind == .prep || $0.kind == .planNextWeek },
+            both.allSatisfy { $0.kind == .prep || $0.kind == .planNextWeek || $0.kind == .newWeek },
             "With prep timing on, it should win over the fixed-hour reminder"
         )
     }
@@ -101,33 +101,89 @@ final class ReminderVolumeTests: XCTestCase {
         XCTAssertFalse(picked.contains { $0.kind == .prep })
     }
 
-    /// Shopping day is weekly and time-critical, so it keeps its day to itself.
-    func testShoppingDayIsNotDoubledUpWithADinnerReminder() throws {
+    /// Shopping day leads its day, and carries the evening's dinner instead of silencing it.
+    /// It used to drop that day's dinner reminder every week, even hours apart.
+    func testShoppingDayCarriesTheDinnerInsteadOfDroppingIt() throws {
         let schedule = makeSchedule(prep: true, grocery: true, groceryWeekday: .saturday)
         let saturday = schedule.plan.date(for: .saturday, calendar: calendar)
-        let saturdayStamp = String(
-            format: "%04d-%02d-%02d",
-            calendar.component(.year, from: saturday),
-            calendar.component(.month, from: saturday),
-            calendar.component(.day, from: saturday)
-        )
-        XCTAssertFalse(
-            days(chosen(schedule)).contains(saturdayStamp),
-            "The weekly grocery reminder already owns that day"
-        )
+        let picked = chosen(schedule).filter { calendar.isDate($0.fireDate, inSameDayAs: saturday) }
+        XCTAssertEqual(picked.count, 1, "Still one notification that day")
+        let lead = try XCTUnwrap(picked.first)
+        XCTAssertEqual(lead.kind, .grocery)
+        XCTAssertEqual(lead.item?.day, .saturday, "The shopping reminder knows what is for dinner")
+        let content = try XCTUnwrap(DinnerReminderService.content(for: lead, schedule: schedule, calendar: calendar))
+        XCTAssertTrue(content.body.contains("\n"), "A list line and a tonight line")
+        XCTAssertEqual(content.destination, .shop)
     }
 
-    func testTheNudgeNeverDisplacesAConcreteReminder() {
-        // No next week prepared, so the plan-next-week nudge is a candidate.
-        let picked = chosen(makeSchedule(prep: false))
+    /// The nudge never fired: it always lost to the last day's dinner reminder, and the old
+    /// test only checked it *if* it existed. It now rides on that reminder.
+    func testTheEmptyNextWeekNudgeIsAlwaysSaid() throws {
+        let schedule = makeSchedule(prep: false)
+        let picked = chosen(schedule)
+        let lastDay = try XCTUnwrap(Weekday.ordered(calendar: calendar).last)
+        let lastDate = schedule.plan.date(for: lastDay, calendar: calendar)
+        let lead = try XCTUnwrap(picked.first { calendar.isDate($0.fireDate, inSameDayAs: lastDate) })
+        XCTAssertEqual(lead.kind, .dinner, "The concrete reminder still leads")
+        XCTAssertTrue(lead.mentionsEmptyNextWeek, "The household hears that next week is empty")
+        let content = try XCTUnwrap(DinnerReminderService.content(for: lead, schedule: schedule, calendar: calendar))
+        XCTAssertGreaterThan(content.body.components(separatedBy: "\n").count, 1)
+        XCTAssertEqual(Set(days(picked)).count, days(picked).count, "And each day still carries exactly one thing")
+    }
 
-        if let nudge = picked.first(where: { $0.kind == .planNextWeek }) {
-            // Stamps are YYYY-MM-DD, so the lexicographic maximum is the latest day.
-            XCTAssertEqual(nudge.stamp, days(picked).max(),
-                           "The nudge belongs on the last day of the week")
+    func testAShoppingDayWithNothingToShopForSaysNothing() {
+        var schedule = makeSchedule(dinner: false, grocery: true, groceryWeekday: .saturday)
+        schedule.plan = WeeklyPlan(startDate: weekStart, meals: [])
+        let picked = chosen(schedule)
+        XCTAssertTrue(picked.allSatisfy { DinnerReminderService.content(for: $0, schedule: schedule, calendar: calendar) == nil })
+    }
+
+    /// Takeaway and leftovers have nothing for "We cooked this" to record.
+    func testOnlyCookingDaysCarryTheCookingButtons() throws {
+        var schedule = makeSchedule()
+        var friday = try XCTUnwrap(schedule.plan[.friday])
+        friday.kind = .takeaway
+        friday.mealID = nil
+        schedule.plan[.friday] = friday
+        for candidate in chosen(schedule) where candidate.kind == .dinner {
+            let content = try XCTUnwrap(DinnerReminderService.content(for: candidate, schedule: schedule, calendar: calendar))
+            if candidate.item?.day == .friday {
+                XCTAssertEqual(content.categoryIdentifier, DinnerReminderService.infoCategoryIdentifier)
+            } else if !candidate.mentionsEmptyNextWeek {
+                XCTAssertEqual(content.categoryIdentifier, DinnerReminderService.categoryIdentifier)
+            }
         }
-        XCTAssertEqual(Set(days(picked)).count, days(picked).count,
-                       "And that day still carries exactly one thing")
+    }
+
+    /// A freezer dinner gets the evening before to thaw, said on that evening's reminder.
+    func testAFreezerDinnerIsAnnouncedTheEveningBefore() throws {
+        var schedule = makeSchedule()
+        let recipe = try XCTUnwrap(schedule.meals.first)
+        var thursday = try XCTUnwrap(schedule.plan[.thursday])
+        thursday.kind = .leftovers(sourceDay: .monday)
+        thursday.freezerBatch = FreezerBatch(recipe: recipe, portions: 4, label: "")
+        schedule.plan[.thursday] = thursday
+        let wednesday = schedule.plan.date(for: .wednesday, calendar: calendar)
+        let lead = try XCTUnwrap(chosen(schedule).first { calendar.isDate($0.fireDate, inSameDayAs: wednesday) })
+        let content = try XCTUnwrap(DinnerReminderService.content(for: lead, schedule: schedule, calendar: calendar))
+        XCTAssertTrue(content.body.contains(recipe.name), "Wednesday says to take Thursday's dinner out")
+    }
+
+    /// A week nobody planned still gets one reminder on its first evening.
+    func testAnUnplannedWeekStillGetsItsFirstEvening() {
+        let picked = chosen(makeSchedule(nextWeek: false))
+        let nextMonday = calendar.date(byAdding: .weekOfYear, value: 1, to: weekStart)!
+        XCTAssertTrue(picked.contains { $0.kind == .newWeek && calendar.isDate($0.fireDate, inSameDayAs: nextMonday) })
+        XCTAssertFalse(chosen(makeSchedule(nextWeek: true)).contains { $0.kind == .newWeek })
+    }
+
+    func testOpeningAReminderGoesSomewhereUseful() {
+        XCTAssertEqual(DinnerReminderService.destination(forActionIdentifier: "com.apple.UNNotificationDefaultActionIdentifier",
+                                                         userInfo: ["destination": "shop"]), .shop)
+        XCTAssertEqual(DinnerReminderService.destination(forActionIdentifier: DinnerReminderService.planNextWeekActionIdentifier,
+                                                         userInfo: [:]), .nextWeek)
+        XCTAssertNil(DinnerReminderService.destination(forActionIdentifier: DinnerReminderService.cookedActionIdentifier,
+                                                       userInfo: [:]), "Handled without opening the app")
     }
 
     // MARK: - Nothing is scheduled when nothing was asked for

@@ -49,8 +49,12 @@ struct PlannedDinnerReader {
         calendar: Calendar
     ) -> WeeklyPlan? {
         let weekStart = WeekAnchor.startOfWeek(containing: date, calendar: calendar)
-        if snapshot.plan.startDate == weekStart { return snapshot.plan }
-        if let next = snapshot.nextWeekPlan, next.startDate == weekStart { return next }
+        // Give or take a time zone: a plan made in Oslo is still this week in New York, read
+        // on this calendar's days. An exact match showed "No plan yet" after a flight west.
+        if WeekAnchor.isSameWeek(snapshot.plan.startDate, weekStart) { return snapshot.plan.anchored(to: weekStart) }
+        if let next = snapshot.nextWeekPlan, WeekAnchor.isSameWeek(next.startDate, weekStart) {
+            return next.anchored(to: weekStart)
+        }
         // A plan the app has not yet rolled over. Showing a stale week would be worse
         // than showing the invitation.
         return snapshot.plan.startDate >= weekStart ? snapshot.plan : nil

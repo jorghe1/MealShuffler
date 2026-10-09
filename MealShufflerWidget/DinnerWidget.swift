@@ -31,21 +31,25 @@ struct DinnerProvider: TimelineProvider {
         completion(context.isPreview ? .placeholder : entry(for: .now))
     }
 
-    /// One entry per remaining day, so the widget rolls over at midnight on its own rather
-    /// than waiting for the system to grant a refresh.
+    /// An entry at every midnight until the week turns, planned or not, then a reload.
+    ///
+    /// Entries used to follow planned days only, and the reload came a day after the last
+    /// one -- or 24 hours after *now* when nothing was planned -- so Monday could show
+    /// Sunday's dinner, and a day with nothing planned kept the day before on screen.
     func getTimeline(in context: Context, completion: @escaping (Timeline<DinnerEntry>) -> Void) {
         let calendar = Calendar.current
-        let dinners = reader.upcoming()
-        var entries = [entry(for: .now)]
-
-        for dinner in dinners.dropFirst() {
-            let midnight = calendar.startOfDay(for: dinner.date)
-            if midnight > .now { entries.append(entry(for: midnight)) }
+        let now = Date.now
+        var entries = [entry(for: now)]
+        var midnight = calendar.startOfDay(for: now)
+        for _ in 0..<8 {
+            guard let next = calendar.date(byAdding: .day, value: 1, to: midnight) else { break }
+            midnight = next
+            entries.append(entry(for: midnight))
+            // The first midnight of a new week: reload there, when the app or a background
+            // refresh may have written the new week.
+            if WeekAnchor.startOfWeek(containing: midnight, calendar: calendar) == midnight { break }
         }
-
-        // Reload after the last planned day so a new week is picked up.
-        let reload = entries.last.map { calendar.date(byAdding: .day, value: 1, to: $0.date) ?? $0.date }
-            ?? calendar.date(byAdding: .hour, value: 6, to: .now) ?? .now
+        let reload = entries.last?.date ?? calendar.date(byAdding: .hour, value: 6, to: now) ?? now
         completion(Timeline(entries: entries, policy: .after(reload)))
     }
 
@@ -71,6 +75,8 @@ struct DinnerWidgetView: View {
             }
         }
         .containerBackground(AppTheme.background, for: .widget)
+        // Opens tonight's dinner rather than wherever the app was last left.
+        .widgetURL(URL(string: "mealshuffler://tonight"))
     }
 
     private func small(_ dinner: PlannedDinnerReader.Dinner) -> some View {

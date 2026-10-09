@@ -1080,9 +1080,11 @@ private enum RuleLexicon {
     /// Every word of every phrase the grammar reads. Never "corrected" into a food: "uten",
     /// "maks" and "bare" mean what they say.
     private static let lexiconWords: Set<String> = {
-        let phrases = everyDay + weekdays + weekend + everyOtherWeek + everyThirdWeek + everyFourthWeek
-            + takeaway + leftovers + away + halfHour + oneHour + atMost + atLeast + below + above
-            + negation + dislike + allergy + consecutive + repeats + weekly + preference + only + meatFree
+        // One flatMap over a typed array: a 24-term chain of + can exceed the type checker's budget.
+        let lists: [[String]] = [everyDay, weekdays, weekend, everyOtherWeek, everyThirdWeek, everyFourthWeek,
+                                 takeaway, leftovers, away, halfHour, oneHour, atMost, atLeast, below, above,
+                                 negation, dislike, allergy, consecutive, repeats, weekly, preference, only, meatFree]
+        let phrases = lists.flatMap { $0 }
         var words = knownWords.union(rangeConnectors).union(every).union(weekUnits).union(monthUnits)
             .union(minuteUnits).union(hourUnits).union(times).union(negationWords).union(dishNouns)
         for phrase in phrases {

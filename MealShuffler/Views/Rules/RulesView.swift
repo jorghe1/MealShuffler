@@ -143,7 +143,7 @@ private struct RuleWeekStrip: View {
     var body: some View {
         HStack(spacing: AppTheme.Space.xs) {
             ForEach(Weekday.ordered()) { day in
-                let marks = marks(for: day)
+                let marks = self.marks(for: day)
                 VStack(spacing: AppTheme.Space.xs) {
                     Text(Weekday.shortSymbol(for: day).uppercased())
                         .font(.caption2.weight(.bold)).foregroundStyle(AppTheme.muted)

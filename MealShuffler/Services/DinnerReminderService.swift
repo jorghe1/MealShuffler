@@ -279,7 +279,7 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
             for plan in plans {
                 for item in plan.meals {
                     let dayDate = plan.date(for: item.day, calendar: calendar)
-                    let stamp = stamp(for: dayDate, calendar: calendar)
+                    let stamp = Self.stamp(for: dayDate, calendar: calendar)
 
                     if reminderBody(for: item, meals: schedule.meals) != nil,
                        let dinnerDate = calendar.date(

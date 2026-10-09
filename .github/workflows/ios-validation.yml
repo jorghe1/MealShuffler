@@ -1,13 +1,13 @@
 name: iOS validation
 
-# The Swift build needs a macOS runner and paid minutes, so this runs on pull requests to
-# main, pushes to main and on demand -- not on every branch push. The free Linux checks in
-# checks.yml still run everywhere.
+# The Swift build needs a macOS runner, so this runs on pull requests to main, pushes to main
+# and to claude/** working branches (the only place those branches get compiled before a
+# Codemagic tag), and on demand. The free Linux checks in checks.yml still run everywhere.
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
   workflow_dispatch:
 
 concurrency:
@@ -40,16 +40,42 @@ jobs:
               handle.write('IOS_SIMULATOR_ID=' + devices[0]['udid'] + '\n')
           PY
       - name: Build app and embedded extensions, then run XCTest
-        run: >-
-          xcodebuild test -project MealShuffler.xcodeproj -scheme MealShuffler
-          -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID"
-          -resultBundlePath iOS-validation.xcresult CODE_SIGNING_ALLOWED=NO
+        run: |
+          set -o pipefail
+          xcodebuild test -project MealShuffler.xcodeproj -scheme MealShuffler -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -resultBundlePath iOS-validation.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee xcodebuild.log
+      # Compiler errors and failed assertions as annotations on the commit, readable without
+      # downloading the log.
+      - name: Report errors as annotations
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os, re
+          root = os.environ['GITHUB_WORKSPACE'].rstrip('/') + '/'
+          seen = set()
+          pattern = re.compile(r'^(/[^:]+\.swift):(\d+):(?:(\d+):)? error: (.*)$')
+          for line in open('xcodebuild.log', errors='replace'):
+              match = pattern.match(line.strip())
+              if not match:
+                  continue
+              path, row, _, message = match.groups()
+              key = (path, row, message)
+              if key in seen:
+                  continue
+              seen.add(key)
+              message = ' '.join(message.replace('%', '%25').split())
+              print(f"::error file={path.replace(root, '')},line={row}::{message[:900]}")
+          if not seen:
+              tail = open('xcodebuild.log', errors='replace').read()[-3000:]
+              print('::error::No file-level error found. Log tail: ' + ' | '.join(tail.replace('%', '%25').splitlines()))
+          PY
       - name: Preserve the build and test result
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-validation
-          path: iOS-validation.xcresult
+          path: |
+            iOS-validation.xcresult
+            xcodebuild.log
 
   # Drives the real app through onboarding, the week and every tab, attaching a screenshot at
   # each main screen. Informational only: a flaky simulator must never block a merge, so the

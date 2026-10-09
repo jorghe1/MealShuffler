@@ -54,7 +54,7 @@ import SwiftUI
     }
     private var baseline: AppStateSnapshot? {
         guard let data = try? Data(contentsOf: baselineURL) else { return nil }
-        return try? JSONDecoder().decode(AppStateSnapshot.self, from: data)
+        return try? AppStateSnapshot.decoding(data)
     }
     private func remember(_ state: AppStateSnapshot) throws {
         try FileManager.default.createDirectory(at: baselineURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -197,7 +197,7 @@ import SwiftUI
     private func decode(_ record: CKRecord) throws -> AppStateSnapshot {
         guard let asset = record["state"] as? CKAsset, let url = asset.fileURL,
               (try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? Int.max) <= 100_000_000 else { throw CocoaError(.fileReadCorruptFile) }
-        let snapshot = try JSONDecoder().decode(AppStateSnapshot.self, from: Data(contentsOf: url))
+        let snapshot = try AppStateSnapshot.decoding(Data(contentsOf: url))
         guard snapshot.customMeals.count <= 2000, snapshot.plan.meals.count <= 7 else { throw CocoaError(.fileReadCorruptFile) }
         return snapshot
     }
@@ -261,7 +261,7 @@ import SwiftUI
 }
 
 struct CloudSharingView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @ObservedObject private var sync = CloudHouseholdSync.shared
     var body: some View {
         List {

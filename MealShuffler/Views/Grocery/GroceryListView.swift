@@ -8,7 +8,7 @@ import SwiftUI
 /// items and things already at home fold away at the bottom, so the list gets shorter as you
 /// go, and everything that is about the list rather than on it sits behind one menu.
 struct GroceryListView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var isExporting = false
     @State private var exportMessage: String?
     @State private var showingAddItem = false
@@ -120,17 +120,17 @@ struct GroceryListView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { listMenu }
         }
-        .sheet(isPresented: $showingPeriod) { ShoppingPeriodView().environmentObject(store) }
+        .sheet(isPresented: $showingPeriod) { ShoppingPeriodView().environment(store) }
         .sheet(item: $editingItem) { item in
             AddGroceryItemView(existing: item) { name, quantity, unit, aisle in
                 store.updateGroceryItem(ManualGroceryItem(id: item.id, name: name, quantity: quantity, unit: unit, aisle: aisle))
             }
         }
         .sheet(isPresented: $showingAisleOrder) {
-            AisleOrderView().environmentObject(store)
+            AisleOrderView().environment(store)
         }
         .sheet(isPresented: $showingStaples) {
-            NavigationStack { PantryStaplesView().environmentObject(store) }
+            NavigationStack { PantryStaplesView().environment(store) }
         }
         .sheet(isPresented: $showingAddItem) {
             AddGroceryItemView(prefilledName: quickItem) { name, quantity, unit, aisle in
@@ -401,7 +401,7 @@ private struct AddGroceryItemView: View {
 }
 
 private struct ShoppingPeriodView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var start = Date.now
     @State private var end = Date.now

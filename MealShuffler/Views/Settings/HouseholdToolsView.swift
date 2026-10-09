@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FreezerView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var recipeID: UUID?
     @State private var portions = 4.0
     @State private var label = ""
@@ -42,7 +42,7 @@ struct FreezerView: View {
 }
 
 struct RecipeCollectionsView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var name = ""
     @State private var selectedMeal: Meal?
     @State private var shareTooLarge = false

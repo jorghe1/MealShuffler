@@ -113,6 +113,8 @@ enum RuleSentenceParser {
         guard sentence.hasContent else { return Reading(outcome: .notUnderstood) }
 
         let member = sentence.takeMember(members)
+        // "Bruk opp rømmen": something to finish this week, not a standing rule.
+        let useUp = sentence.takeAny(RuleLexicon.useUp) != nil
         // Before the plain negations: "liker ikke" is a dislike, not a ban on the whole sentence.
         let dislike = sentence.takeAny(RuleLexicon.dislike) != nil
         let preferred = sentence.takeAny(RuleLexicon.preference) != nil || dislike
@@ -203,6 +205,15 @@ enum RuleSentenceParser {
             let understood = scope != nil || consecutive || bound != nil || negated || allergy
                 || weekly || count != nil || only || interval != nil || member != nil
             return reading(understood ? .incomplete(hint: whatHint) : .notUnderstood)
+        }
+
+        if useUp {
+            // Soft and for this week only: it should help the week use what is in the fridge,
+            // never block it, and not linger once the cream is gone.
+            var rule = PlanningRule(title: title(for: titleText), strength: .preferred,
+                                    constraint: .minimumPerWeek(matcher: matcher, count: 1))
+            rule.expiresAfter = WeekAnchor.startOfWeek(containing: now, calendar: calendar)
+            return reading(.rule(rule))
         }
 
         if consecutive { return make(.notOnConsecutiveDays(matcher: matcher)) }
@@ -919,6 +930,8 @@ private enum RuleLexicon {
                                          "rett", "retter", "burger", "burgere", "filet", "fileter"]
 
     static let meatFree = ["meat free", "meat - free", "meatfree", "kjottfri", "kjottfritt", "kjottfrie"]
+    static let useUp = ["bruk opp", "bruke opp", "brukes opp", "bruk resten av", "use up", "using up", "finish up",
+                        "ma brukes", "must be used"]
     /// "-fri" glued onto a food: "glutenfri", "nøttefritt", "laktosefrie".
     static let freeSuffixes = ["fritt", "frie", "fri", "free"]
 
@@ -1083,7 +1096,7 @@ private enum RuleLexicon {
         // One flatMap over a typed array: a 24-term chain of + can exceed the type checker's budget.
         let lists: [[String]] = [everyDay, weekdays, weekend, everyOtherWeek, everyThirdWeek, everyFourthWeek,
                                  takeaway, leftovers, away, halfHour, oneHour, atMost, atLeast, below, above,
-                                 negation, dislike, allergy, consecutive, repeats, weekly, preference, only, meatFree]
+                                 negation, dislike, allergy, consecutive, repeats, weekly, preference, only, meatFree, useUp]
         let phrases = lists.flatMap { $0 }
         var words = knownWords.union(rangeConnectors).union(every).union(weekUnits).union(monthUnits)
             .union(minuteUnits).union(hourUnits).union(times).union(negationWords).union(dishNouns)

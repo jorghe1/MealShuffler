@@ -3,7 +3,12 @@
 import io, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-store_src = io.open(os.path.join(ROOT, 'MealShuffler', 'Store', 'AppStore.swift'), encoding='utf-8').read()
+# AppStore.swift and its extensions in the same folder (AppStore+Family.swift, ...).
+STORE_DIR = os.path.join(ROOT, 'MealShuffler', 'Store')
+store_src = chr(10).join(
+    io.open(os.path.join(STORE_DIR, f), encoding='utf-8').read()
+    for f in sorted(os.listdir(STORE_DIR))
+    if f == 'AppStore.swift' or (f.startswith('AppStore+') and f.endswith('.swift')))
 
 declared = set()
 declared |= set(re.findall(r'(?:@Published\s+)?(?:private\s+|static\s+)*(?:var|let)\s+(\w+)', store_src))

@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import UserNotifications
 
@@ -7,7 +8,7 @@ import UserNotifications
 /// on the counter while dinner is actually being made, which is also when marking a meal
 /// cooked costs nothing rather than being an admin task remembered later.
 struct CookModeView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     let meal: Meal
@@ -23,6 +24,8 @@ struct CookModeView: View {
     @State private var gathered: Set<String> = []
     @State private var didMarkCooked = false
     @State private var showGathered = false
+    /// The running timer on the lock screen and in the Dynamic Island.
+    @State private var liveActivity: Activity<CookingTimerAttributes>?
 
     private var scale: Double { servings / Double(max(meal.defaultServings, 1)) }
     private var hasSteps: Bool { !meal.instructions.isEmpty }
@@ -58,11 +61,85 @@ struct CookModeView: View {
             let saved = store.householdTools.cooking[progressKey] ?? CookingProgress()
             step = min(saved.step, max(0, meal.instructions.count - 1)); gathered = saved.gathered; timerEndsAt = saved.timerEndsAt
             didMarkCooked = store.isCompleted(on: day)
+            endLeftoverLiveActivities()
+            syncLiveActivity()
         }
-        .onChange(of: step) { _, _ in persist() }
+        .onChange(of: step) { _, _ in persist(); syncLiveActivity() }
         .onChange(of: gathered) { _, _ in persist() }
-        .onChange(of: timerEndsAt) { _, _ in persist() }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .onChange(of: timerEndsAt) { _, _ in persist(); syncLiveActivity() }
+        // Ends the lock-screen timer when it runs out while this screen is open.
+        .task(id: timerEndsAt) {
+            guard let end = timerEndsAt else { return }
+            let wait = end.timeIntervalSinceNow
+            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+            guard !Task.isCancelled, timerEndsAt == end else { return }
+            finishLiveActivity()
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            endLiveActivity()
+        }
+    }
+
+    // MARK: - Live Activity
+
+    private var currentStepText: String? {
+        guard hasSteps else { return nil }
+        let index = min(max(step, 0), meal.instructions.count - 1)
+        // Activity payloads are capped at 4 KB; a pasted recipe step can be very long.
+        let text = String(meal.instructions[index].prefix(160))
+        return L10n.string("Step %ld of %ld", index + 1, meal.instructions.count) + ": " + text
+    }
+
+    /// Starts, updates or ends the Live Activity to match the in-app timer.
+    private func syncLiveActivity() {
+        guard let end = timerEndsAt, end > .now else {
+            endLiveActivity()
+            return
+        }
+        let state = CookingTimerAttributes.ContentState(endsAt: end, stepText: currentStepText)
+        let content = ActivityContent(state: state, staleDate: end)
+        if let activity = liveActivity {
+            Task { await activity.update(content) }
+            return
+        }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let attributes = CookingTimerAttributes(mealName: meal.name, emoji: meal.emoji)
+        // Failing to start one only loses the lock-screen copy; the in-app timer and its
+        // notification still run.
+        liveActivity = try? Activity<CookingTimerAttributes>.request(
+            attributes: attributes,
+            content: content,
+            pushType: nil
+        )
+    }
+
+    private func endLiveActivity() {
+        guard let activity = liveActivity else { return }
+        liveActivity = nil
+        Task { await activity.end(nil, dismissalPolicy: .immediate) }
+    }
+
+    /// Leaves "Timer finished" on the lock screen briefly rather than vanishing.
+    private func finishLiveActivity() {
+        guard let activity = liveActivity, let end = timerEndsAt else { return }
+        liveActivity = nil
+        let state = CookingTimerAttributes.ContentState(endsAt: end, stepText: currentStepText)
+        let content = ActivityContent(state: state, staleDate: end)
+        Task { await activity.end(content, dismissalPolicy: .after(Date.now.addingTimeInterval(120))) }
+    }
+
+    /// Timers from an earlier run of the app -- quit or killed with a timer going -- that no
+    /// screen is managing any more.
+    private func endLeftoverLiveActivities() {
+        guard liveActivity == nil else { return }
+        let leftovers = Activity<CookingTimerAttributes>.activities
+        guard !leftovers.isEmpty else { return }
+        Task {
+            for activity in leftovers {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+        }
     }
 
     private var progressKey: String { store.cookingKey(meal: meal, day: day, date: plannedDate) }

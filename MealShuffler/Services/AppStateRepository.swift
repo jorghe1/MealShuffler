@@ -263,11 +263,11 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
 
     func load() -> AppStateSnapshot? {
         if let data = try? Data(contentsOf: fileURL),
-           let snapshot = try? JSONDecoder().decode(AppStateSnapshot.self, from: data) {
+           let snapshot = try? AppStateSnapshot.decoding(data) {
             return snapshot
         }
         if let data = try? Data(contentsOf: backupURL),
-           let snapshot = try? JSONDecoder().decode(AppStateSnapshot.self, from: data) { return snapshot }
+           let snapshot = try? AppStateSnapshot.decoding(data) { return snapshot }
         return adoptStateWrittenBeforeTheFileExisted()
     }
 
@@ -275,7 +275,7 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
 
     var recoveryNotice: String? {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
-        if let data = try? Data(contentsOf: fileURL), (try? JSONDecoder().decode(AppStateSnapshot.self, from: data)) != nil {
+        if let data = try? Data(contentsOf: fileURL), (try? AppStateSnapshot.decoding(data)) != nil {
             return nil
         }
         return L10n.string("The saved data could not be read. A backup was used if available. The original file will be preserved.")
@@ -294,7 +294,7 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
                let version = object["schemaVersion"] as? Int, version > AppStateSnapshot.currentVersion {
                 throw CocoaError(.fileWriteUnknown)
             }
-            if (try? JSONDecoder().decode(AppStateSnapshot.self, from: existing)) != nil {
+            if (try? AppStateSnapshot.decoding(existing)) != nil {
                 try existing.write(to: backupURL, options: .atomic)
             } else {
                 try existing.write(to: fileURL.appendingPathExtension("unreadable-\(UUID().uuidString)"), options: .atomic)
@@ -325,7 +325,7 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
     private func adoptStateWrittenBeforeTheFileExisted() -> AppStateSnapshot? {
         guard !FileManager.default.fileExists(atPath: fileURL.path), let legacyDefaults,
               let data = legacyDefaults.data(forKey: UserDefaultsStateRepository.storageKey),
-              let snapshot = try? JSONDecoder().decode(AppStateSnapshot.self, from: data)
+              let snapshot = try? AppStateSnapshot.decoding(data)
         else { return nil }
 
         if write(data), (try? Data(contentsOf: fileURL)) != nil {
@@ -363,7 +363,7 @@ struct UserDefaultsStateRepository: AppStateRepository, @unchecked Sendable {
 
     func load() -> AppStateSnapshot? {
         guard let data = defaults.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(AppStateSnapshot.self, from: data)
+        return try? AppStateSnapshot.decoding(data)
     }
 
     func save(_ snapshot: AppStateSnapshot) {

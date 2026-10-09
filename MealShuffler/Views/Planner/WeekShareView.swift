@@ -1,3 +1,4 @@
+import CoreImage.CIFilterBuiltins
 import SwiftUI
 
 /// The week as a picture, and the ways to send it on.
@@ -7,7 +8,7 @@ import SwiftUI
 /// the things another household can actually use -- this week's recipes and the rules that
 /// made the week -- packed inside the link itself, so nothing is uploaded anywhere.
 struct WeekShareView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var picture: Image?
 
@@ -58,6 +59,10 @@ struct WeekShareView: View {
 
     private var links: some View {
         VStack(spacing: 0) {
+            ShareLink(item: store.weekPoster.emojiSummary(link: AppLinks.appStoreURL)) {
+                Label("Share as emoji", systemImage: "face.smiling").shareRow()
+            }
+            Divider().padding(.leading, 52)
             ShareLink(item: PlanTextExporter.weeklyPlan(store.plan, meals: store.meals)) {
                 Label("Share as text", systemImage: "text.alignleft").shareRow()
             }
@@ -88,7 +93,8 @@ struct WeekShareView: View {
 
     /// Drawn at three times the point size: 1080 × 1920, a full-screen story.
     private func render() {
-        let poster = WeekPoster(content: store.weekPoster).environment(\.colorScheme, .light)
+        let poster = WeekPoster(content: store.weekPoster, appLink: AppLinks.appStoreURL)
+            .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: poster)
         renderer.scale = 3
         if let image = renderer.uiImage { picture = Image(uiImage: image) }
@@ -112,6 +118,8 @@ private extension View {
 /// same whichever appearance the phone that made it was in.
 struct WeekPoster: View {
     let content: WeekPosterContent
+    /// Where the QR code in the corner leads. Without one the corner keeps the wordmark only.
+    var appLink: URL? = nil
 
     private static let paper = Color(red: 0.97, green: 0.95, blue: 0.90)
     private static let ink = Color(red: 0.12, green: 0.16, blue: 0.12)
@@ -196,6 +204,29 @@ struct WeekPoster: View {
     }
 
     private var footer: some View {
+        HStack(alignment: .bottom, spacing: 12) {
+            footerText
+            Spacer(minLength: 0)
+            if let appLink, let code = QRCode.image(for: appLink) {
+                VStack(spacing: 3) {
+                    Image(uiImage: code)
+                        .interpolation(.none)
+                        .resizable()
+                        .frame(width: 58, height: 58)
+                        .padding(4)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    Text("Shuffle your own week")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(Self.green)
+                        .multilineTextAlignment(.center)
+                        .frame(width: 76)
+                }
+            }
+        }
+    }
+
+    private var footerText: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 10) {
                 if content.activeRuleCount > 0 {
@@ -207,9 +238,26 @@ struct WeekPoster: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Self.ink)
             }
+            if let kept = content.rulesKept, content.activeRuleCount > 0 {
+                Text(L10n.string("%ld of %ld house rules kept ✓", kept, content.activeRuleCount))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(Self.ink)
+            }
             Text("Shuffled with Meal Shuffler")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(Self.muted)
         }
+    }
+}
+
+/// A QR code for a link, drawn crisp at any size by scaling with `.interpolation(.none)`.
+enum QRCode {
+    static func image(for url: URL) -> UIImage? {
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(url.absoluteString.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
+              let cgImage = CIContext().createCGImage(output, from: output.extent) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 }

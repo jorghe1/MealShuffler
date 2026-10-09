@@ -143,6 +143,10 @@ struct Meal: Identifiable, Codable, Hashable {
     var servingsConfirmed: Bool?
     var activeMinutes: Int?
     var parentRecipeID: UUID?
+    /// The household's own photo of the dish, taken after cooking it. A file name in the
+    /// recipe image folder (`RecipeLibraryStorage`), never a path: the container moves when the
+    /// app is updated. Shown before anything else.
+    var photoName: String?
 
     init(
         id: UUID = UUID(),
@@ -184,6 +188,7 @@ struct Meal: Identifiable, Codable, Hashable {
         case id, name, subtitle, emoji, prepMinutes, tags, customTags, ingredients
         case defaultServings, estimatedCost, instructions, source, heroImageURL
         case updatedAt, updatedBy, deletedAt, sourceText, sourceImageNames, servingsConfirmed, activeMinutes, parentRecipeID
+        case photoName
         /// Pre-rename key, decoded only.
         case estimatedCostNOK
     }
@@ -214,6 +219,7 @@ struct Meal: Identifiable, Codable, Hashable {
         servingsConfirmed = try values.decodeIfPresent(Bool.self, forKey: .servingsConfirmed)
         activeMinutes = try values.decodeIfPresent(Int.self, forKey: .activeMinutes)
         parentRecipeID = try values.decodeIfPresent(UUID.self, forKey: .parentRecipeID)
+        photoName = try values.decodeIfPresent(String.self, forKey: .photoName)
     }
 
     // Written explicitly because the legacy cost key has no matching property, which would
@@ -241,6 +247,7 @@ struct Meal: Identifiable, Codable, Hashable {
         try container.encodeIfPresent(servingsConfirmed, forKey: .servingsConfirmed)
         try container.encodeIfPresent(activeMinutes, forKey: .activeMinutes)
         try container.encodeIfPresent(parentRecipeID, forKey: .parentRecipeID)
+        try container.encodeIfPresent(photoName, forKey: .photoName)
     }
 
     var isDeleted: Bool { deletedAt != nil }

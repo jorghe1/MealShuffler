@@ -6,16 +6,14 @@ struct MealShufflerApp: App {
     /// Handles notification responses, background refresh and iCloud invitations before the
     /// first scene appears.
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var store = AppStoreHost.shared
+    @State private var store = AppStoreHost.shared
     @StateObject private var router = AppRouter.shared
-    @StateObject private var communityStore = CommunityStore()
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environmentObject(store)
+                .environment(store)
                 .environmentObject(router)
-                .environmentObject(communityStore)
                 .tint(AppTheme.accent)
                 .task(id: scenePhase) {
                     // Off for the first release; see FeatureFlags.householdSyncEnabled.
@@ -32,6 +30,10 @@ struct MealShufflerApp: App {
                 // A plan left open across a week boundary is stale on return.
                 store.rollOverIfNeeded()
                 store.refreshPendingCaptures()
+                // Dinners ticked off on the widget while the app was closed.
+                store.drainWidgetActions()
+                // The calendar may have filled up while the app was away.
+                store.calendarChanged()
                 // Nothing in the plan may have changed while the app was away, but the
                 // notification permission or the language may have: schedule again from it.
                 store.refreshRemindersAndWidget()

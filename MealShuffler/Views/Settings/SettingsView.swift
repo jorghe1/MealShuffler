@@ -8,7 +8,7 @@ import UIKit
 /// staples (which belong to the shopping list, in its ⋯ menu), the family (its own tab), and
 /// reminders at the very bottom, under backups.
 struct SettingsView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var showingResetConfirmation = false
 
     private var appVersion: String {
@@ -22,6 +22,8 @@ struct SettingsView: View {
             Section {
                 NavigationLink { ReminderSettingsView() } label: { Label("Reminders", systemImage: "bell") }
             }
+
+            PlanningAidsSection()
 
             Section {
                 OnlineExtractionSettingsView()
@@ -61,7 +63,7 @@ struct SettingsView: View {
 
 /// When the app may interrupt the household. At most one notification a day.
 struct ReminderSettingsView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var showingPermissionHelp = false
 
     var body: some View {
@@ -91,11 +93,11 @@ struct ReminderSettingsView: View {
                         Label("Reminder time", systemImage: "clock")
                     }
 
-                    Toggle(isOn: $store.prepLeadReminderEnabled) {
+                    Toggle(isOn: Bindable(store).prepLeadReminderEnabled) {
                         Label("Time to start cooking", systemImage: "timer")
                     }
                     if store.prepLeadReminderEnabled {
-                        Picker(selection: $store.householdTools.dinnerHour) {
+                        Picker(selection: Bindable(store).householdTools.dinnerHour) {
                             ForEach(HourOption.all, id: \.self) { Text(HourOption.label($0)).tag($0) }
                         } label: {
                             Label("Dinner time", systemImage: "fork.knife")
@@ -122,7 +124,7 @@ struct ReminderSettingsView: View {
                 }
 
                 if store.groceryReminderEnabled {
-                    Picker(selection: $store.groceryReminderWeekday) {
+                    Picker(selection: Bindable(store).groceryReminderWeekday) {
                         ForEach(Weekday.ordered()) { Text($0.name).tag($0) }
                     } label: {
                         Label("Day", systemImage: "calendar")
@@ -176,5 +178,64 @@ enum HourOption {
             return String(format: "%02d:00", hour)
         }
         return date.formatted(date: .omitted, time: .shortened)
+    }
+}
+
+/// The calendar and the shuffle sound: things this phone does, not the household's state, so
+/// they live in this device's defaults rather than the synced plan.
+private struct PlanningAidsSection: View {
+    @Environment(AppStore.self) private var store
+    @AppStorage(CalendarBusyEvenings.enabledKey) private var calendarEnabled = false
+    @AppStorage(CalendarBusyEvenings.minutesKey) private var calendarMinutes = CalendarBusyEvenings.defaultMinutes
+    @AppStorage(ShuffleSound.enabledKey) private var soundEnabled = false
+    @State private var accessDenied = false
+
+    var body: some View {
+        Section {
+            Toggle(isOn: Binding(get: { calendarEnabled }, set: setCalendar)) {
+                Label("Quick dinners on busy evenings", systemImage: "calendar.badge.clock")
+            }
+            if calendarEnabled {
+                Stepper(value: $calendarMinutes, in: 10...60, step: 5) {
+                    LabeledContent("Time limit", value: L10n.string("%ld min", calendarMinutes))
+                }
+                .onChange(of: calendarMinutes) { _, _ in calendarChanged() }
+            }
+            Toggle(isOn: Binding(
+                get: { store.householdTools.sharesIngredients ?? false },
+                set: { store.householdTools.sharesIngredients = $0 }
+            )) {
+                Label("Fewer things to buy", systemImage: "cart")
+            }
+            Toggle(isOn: $soundEnabled) {
+                Label("Sound when shuffling", systemImage: "speaker.wave.2")
+            }
+        } header: {
+            Text("Planning")
+        } footer: {
+            if accessDenied {
+                Text("Meal Shuffler has no access to your calendar. Turn it on in the Settings app under Meal Shuffler → Calendars.")
+            } else {
+                Text("With the calendar on, an evening with something in it around dinner gets a dinner that is ready in time. The calendar is only read on this phone; nothing is changed or sent. Fewer things to buy prefers dinners that share ingredients.")
+            }
+        }
+    }
+
+    private func setCalendar(_ enabled: Bool) {
+        guard enabled else {
+            calendarEnabled = false
+            calendarChanged()
+            return
+        }
+        Task { @MainActor in
+            let granted = await CalendarBusyEvenings.requestAccess()
+            accessDenied = !granted
+            calendarEnabled = granted
+            calendarChanged()
+        }
+    }
+
+    private func calendarChanged() {
+        store.calendarChanged()
     }
 }

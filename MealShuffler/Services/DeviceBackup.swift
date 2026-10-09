@@ -24,7 +24,7 @@ struct DeviceBackupDocument: FileDocument {
         guard let children = wrapper.fileWrappers, children.count == 2,
               let data = children["state.json"]?.regularFileContents, data.count <= 100_000_000,
               let assets = children["files"]?.fileWrappers, assets.count <= 20_000 else { throw CocoaError(.fileReadCorruptFile) }
-        state = try JSONDecoder().decode(AppStateSnapshot.self, from: data)
+        state = try AppStateSnapshot.decoding(data)
         var restored: [String: Data] = [:]
         var total = data.count
         for (name, file) in assets {
@@ -119,12 +119,31 @@ struct DeviceBackupDocument: FileDocument {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let url = root.appendingPathComponent("before-restore-\(UUID()).mealbackup")
         try capture(state).wrapper().write(to: url, options: .atomic, originalContentsURL: nil)
+        pruneRecovery(in: root, keeping: recoveryKept)
         return url
+    }
+
+    /// Recovery packages hold every photo, and one is written per restore. Three is enough to
+    /// undo a mistake; more only fills the phone.
+    static let recoveryKept = 3
+
+    static func pruneRecovery(in root: URL, keeping count: Int) {
+        let keys: [URLResourceKey] = [.creationDateKey, .contentModificationDateKey]
+        let packages = ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: keys)) ?? [])
+            .filter { $0.pathExtension == "mealbackup" }
+            .map { url -> (url: URL, date: Date) in
+                let values = try? url.resourceValues(forKeys: Set(keys))
+                return (url: url, date: values?.creationDate ?? values?.contentModificationDate ?? .distantPast)
+            }
+            .sorted { $0.date > $1.date }
+        for package in packages.dropFirst(count) {
+            try? FileManager.default.removeItem(at: package.url)
+        }
     }
 }
 
 struct DeviceBackupView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var exporting = false
     @State private var importing = false
     @State private var document: DeviceBackupDocument?

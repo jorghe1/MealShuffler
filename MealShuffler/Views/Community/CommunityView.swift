@@ -1,8 +1,18 @@
 import SwiftUI
 
+/// Owns the community store for as long as Explore is open. It used to be created at launch
+/// for every user, with Explore switched off for all of them.
+struct CommunityHost: View {
+    @StateObject private var community = CommunityStore()
+
+    var body: some View {
+        CommunityView().environmentObject(community)
+    }
+}
+
 struct CommunityView: View {
     @EnvironmentObject private var community: CommunityStore
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var showingPublish = false
 
     var body: some View {
@@ -36,7 +46,7 @@ struct CommunityView: View {
             }
         }
         .task { if community.recipes.isEmpty { await community.load() } }
-        .sheet(isPresented: $showingPublish) { PublishRecipeView().environmentObject(store).environmentObject(community) }
+        .sheet(isPresented: $showingPublish) { PublishRecipeView().environment(store).environmentObject(community) }
         .alert("Community", isPresented: Binding(get: { community.errorMessage != nil }, set: { if !$0 { community.errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(community.errorMessage ?? L10n.string("Unknown error")) }
@@ -65,7 +75,7 @@ private struct CommunityRecipeCard: View {
 
 private struct CommunityRecipeDetail: View {
     @EnvironmentObject private var community: CommunityStore
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     let recipeID: UUID
     @State private var stars = 5
     @State private var wouldCookAgain = true
@@ -157,7 +167,7 @@ private struct CommunityRecipeDetail: View {
 }
 
 private struct PublishRecipeView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @EnvironmentObject private var community: CommunityStore
     @Environment(\.dismiss) private var dismiss
     @State private var selectedMealID: UUID?

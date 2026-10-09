@@ -149,6 +149,9 @@ struct DayPlanContext: Codable, Hashable {
     var attendingMemberIDs: Set<UUID>?
     var freezerBatchID: UUID?
     var portionScale: Double?
+    /// Who is cooking. Optional, like every field here: this type decodes with the synthesized
+    /// initializer, so a non-optional addition would fail to read every saved day.
+    var cookMemberID: UUID?
     var effectiveDiners: Double { Double(diners) * max(0.25, portionScale ?? 1) }
 
     var cookedServings: Int { max(diners + extraServings, 1) }

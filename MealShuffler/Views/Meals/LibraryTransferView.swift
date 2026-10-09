@@ -67,7 +67,7 @@ struct RecipeLibraryDocument: FileDocument {
 }
 
 struct LibraryTransferView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var exporting = false
     @State private var importing = false
     @State private var document: RecipeLibraryDocument?

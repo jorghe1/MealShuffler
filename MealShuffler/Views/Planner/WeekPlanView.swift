@@ -9,7 +9,7 @@ import SwiftUI
 /// days are rows now -- swipe to lock or reroll, tap for everything else -- so the week fits
 /// on one screen, and next week is a switch at the top rather than a link at the bottom.
 struct WeekPlanView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @EnvironmentObject private var router: AppRouter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -18,6 +18,7 @@ struct WeekPlanView: View {
     /// Bumped per day to spin that day's reel.
     @State private var spins: [Weekday: Int] = [:]
     @State private var nextSpins: [Weekday: Int] = [:]
+    @State private var lastCookedSession: CookingSession?
 
     /// Which meal is being cooked, and for which day, so the "we cooked this" at the end
     /// lands on the right entry.
@@ -37,6 +38,7 @@ struct WeekPlanView: View {
         case recipe(Meal, servings: Double)
         case share
         case rules
+        case photo(Meal)
 
         var id: String {
             switch self {
@@ -46,6 +48,7 @@ struct WeekPlanView: View {
             case .recipe(let meal, _): "recipe-\(meal.id)"
             case .share: "share"
             case .rules: "rules"
+            case .photo(let meal): "photo-\(meal.id)"
             }
         }
     }
@@ -77,9 +80,33 @@ struct WeekPlanView: View {
         .overlay(alignment: .bottom) { shuffleButton }
         .animation(reduceMotion ? nil : .snappy, value: router.showsNextWeek)
         .sheet(item: $sheet) { presented in sheetContent(presented) }
-        .fullScreenCover(item: $cooking) { session in
+        .fullScreenCover(item: $cooking, onDismiss: offerPhotoAfterCooking) { session in
             CookModeView(meal: session.meal, day: session.day, servings: session.servings, plannedDate: session.date)
-                .environmentObject(store)
+                .environment(store)
+        }
+        .onChange(of: router.openDay) { _, day in openRequestedDay(day) }
+        .onAppear { openRequestedDay(router.openDay) }
+        .onReceive(NotificationCenter.default.publisher(for: .deviceDidShake)) { _ in
+            // Only when the week is what is on screen: the other tabs stay alive behind it.
+            guard router.tab == .week, sheet == nil, cooking == nil, !store.isGenerating else { return }
+            shuffle()
+        }
+    }
+
+    /// The widget's "Change" opens that day's sheet.
+    private func openRequestedDay(_ day: Weekday?) {
+        guard let day else { return }
+        router.openDay = nil
+        router.showsNextWeek = false
+        sheet = .day(day, nextWeek: false)
+    }
+
+    /// The last session cooked, so the photo offer can follow the cook-mode cover.
+    private func offerPhotoAfterCooking() {
+        guard let session = lastCookedSession else { return }
+        lastCookedSession = nil
+        if store.isCompleted(on: session.day), store.meal(id: session.meal.id)?.photoName == nil {
+            sheet = .photo(session.meal)
         }
     }
 
@@ -102,6 +129,7 @@ struct WeekPlanView: View {
                 Text(store.nextWeekPlan == nil ? L10n.string("Next week · empty") : L10n.string("Next week")).tag(true)
             }
             .pickerStyle(.segmented)
+            .accessibilityIdentifier("week.weekPicker")
             if !router.showsNextWeek { ruleChips }
         }
     }
@@ -178,12 +206,15 @@ struct WeekPlanView: View {
                     item: today.item,
                     meal: today.meal,
                     badge: badge(for: today.day, item: today.item, meal: today.meal, plan: store.plan),
+                    cook: store.cook(for: today.day)?.displayName,
                     isCompleted: store.isCompleted(on: today.day),
                     openRecipe: { if let meal = today.meal { sheet = .recipe(meal, servings: today.item.effectiveServings) } },
-                    cook: {
+                    startCooking: {
                         if let meal = today.meal {
-                            cooking = CookingSession(meal: meal, day: today.day, servings: today.item.effectiveServings,
-                                                     date: store.plan.date(for: today.day))
+                            let session = CookingSession(meal: meal, day: today.day, servings: today.item.effectiveServings,
+                                                         date: store.plan.date(for: today.day))
+                            lastCookedSession = session
+                            cooking = session
                         }
                     },
                     change: { sheet = .day(today.day, nextWeek: false) }
@@ -273,6 +304,8 @@ struct WeekPlanView: View {
         let isCompleted = !nextWeek && store.isCompleted(on: day)
         let spin = nextWeek ? nextSpins[day, default: 0] : spins[day, default: 0]
         let position = Double(Weekday.position(of: day))
+        let cook = store.cook(for: day, nextWeek: nextWeek)?.displayName
+        let isBusy = store.busyDays(inWeekStarting: plan.startDate).contains(day)
         return Button {
             sheet = .day(day, nextWeek: nextWeek)
         } label: {
@@ -285,11 +318,14 @@ struct WeekPlanView: View {
                 isToday: !nextWeek && Calendar.current.isDateInToday(date),
                 isDimmed: isPast || isCompleted,
                 isCompleted: isCompleted,
+                cook: cook,
+                isBusy: isBusy,
                 spin: spin,
                 delay: position * 0.09
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("week.day.\(day.rawValue)")
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             if let item {
                 Button {
@@ -364,6 +400,7 @@ struct WeekPlanView: View {
             }
             .buttonStyle(.plain)
             .disabled(store.isGenerating)
+            .accessibilityIdentifier("week.shuffle")
             .padding(.bottom, AppTheme.Space.m)
             .accessibilityHint(L10n.string("Locked and finished days stay as they are"))
         }
@@ -375,6 +412,7 @@ struct WeekPlanView: View {
     /// immediate; the draw takes a fraction of the time the reels take to settle.
     private func shuffle() {
         Haptics.shuffle()
+        playShuffleRhythm()
         if router.showsNextWeek {
             for day in Weekday.ordered() where store.nextWeekPlan?[day]?.isLocked != true {
                 nextSpins[day, default: 0] += 1
@@ -391,16 +429,30 @@ struct WeekPlanView: View {
         }
     }
 
+    /// Light ticks while the reels roll, then a success when the last day has landed --
+    /// roughly the length of the longest reel. Every landing in between taps on its own.
+    private func playShuffleRhythm() {
+        guard !reduceMotion else { return }
+        Task { @MainActor in
+            for _ in 0..<9 {
+                Haptics.tick()
+                try? await Task.sleep(for: .milliseconds(115))
+            }
+            try? await Task.sleep(for: .milliseconds(120))
+            Haptics.success()
+        }
+    }
+
     // MARK: - Sheets
 
     @ViewBuilder private func sheetContent(_ presented: WeekSheet) -> some View {
         switch presented {
         case .day(let day, let nextWeek):
             DaySheet(day: day, nextWeek: nextWeek) { action in handle(action, day: day, nextWeek: nextWeek) }
-                .environmentObject(store)
+                .environment(store)
                 .presentationDetents([.medium, .large])
         case .picker(let day, let nextWeek):
-            MealPickerView(day: day, nextWeek: nextWeek).environmentObject(store)
+            MealPickerView(day: day, nextWeek: nextWeek).environment(store)
         case .context(let day, let nextWeek):
             DayContextEditor(
                 day: day,
@@ -409,12 +461,15 @@ struct WeekPlanView: View {
             ) { context in
                 if nextWeek { store.updateNextWeekContext(context, for: day) } else { store.updateContext(context, for: day) }
             }
-            .environmentObject(store)
+            .environment(store)
             .presentationDetents([.medium, .large])
         case .recipe(let meal, let servings):
             MealDetailView(meal: meal, initialServings: servings).presentationDetents([.medium, .large])
         case .share:
-            WeekShareView().environmentObject(store)
+            WeekShareView().environment(store)
+        case .photo(let meal):
+            DinnerPhotoSheet(meal: meal).environment(store)
+                .presentationDetents([.medium])
         case .rules:
             NavigationStack {
                 RulesView()
@@ -422,7 +477,7 @@ struct WeekPlanView: View {
                         ToolbarItem(placement: .confirmationAction) { Button("Done") { sheet = nil } }
                     }
             }
-            .environmentObject(store)
+            .environment(store)
         }
     }
 
@@ -436,7 +491,9 @@ struct WeekPlanView: View {
         case .cook:
             sheet = nil
             if let meal, let item {
-                cooking = CookingSession(meal: meal, day: day, servings: item.effectiveServings, date: store.plan.date(for: day))
+                let session = CookingSession(meal: meal, day: day, servings: item.effectiveServings, date: store.plan.date(for: day))
+                lastCookedSession = session
+                cooking = session
             }
         case .choose:
             sheet = .picker(day, nextWeek: nextWeek)
@@ -455,7 +512,12 @@ struct WeekPlanView: View {
         case .toggleFavorite:
             if let meal { store.toggleFavorite(meal) }
         case .markCooked:
-            if let meal { Haptics.success(); store.markCooked(meal, on: day) }
+            if let meal {
+                Haptics.success()
+                store.markCooked(meal, on: day)
+                // The cheapest moment to get a real picture of the family's own dinner.
+                if store.meal(id: meal.id)?.photoName == nil { sheet = .photo(meal) }
+            }
         case .clearCooked:
             store.clearCompletion(on: day)
         case .notToday:
@@ -476,9 +538,10 @@ private struct TonightCard: View {
     let item: PlannedMeal
     let meal: Meal?
     let badge: String?
+    let cook: String?
     let isCompleted: Bool
     let openRecipe: () -> Void
-    let cook: () -> Void
+    let startCooking: () -> Void
     let change: () -> Void
 
     var body: some View {
@@ -503,7 +566,8 @@ private struct TonightCard: View {
                     VStack(alignment: .leading, spacing: AppTheme.Space.xs) {
                         Text(DayRow.title(for: item, meal: meal))
                             .font(AppTheme.Typography.title).foregroundStyle(AppTheme.ink)
-                        Text(DayRow.metadata(for: item, meal: meal))
+                        Text([DayRow.metadata(for: item, meal: meal), cook.map { L10n.string("%@ cooks", $0) }]
+                                .compactMap { $0 }.joined(separator: " · "))
                             .font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
                     Spacer(minLength: AppTheme.Space.s)
@@ -515,7 +579,7 @@ private struct TonightCard: View {
                             .font(.headline).foregroundStyle(AppTheme.accent)
                             .frame(maxWidth: .infinity, minHeight: AppTheme.tapTarget, alignment: .leading)
                     } else if item.kind == .meal, meal != nil {
-                        Button(action: cook) { Label("Start cooking", systemImage: "flame") }
+                        Button(action: startCooking) { Label("Start cooking", systemImage: "flame") }
                             .buttonStyle(.primary)
                     }
                     Button(action: change) { Text("Change") }
@@ -540,8 +604,11 @@ struct DayRow: View {
     let isToday: Bool
     let isDimmed: Bool
     let isCompleted: Bool
+    var cook: String? = nil
+    var isBusy = false
     let spin: Int
     let delay: Double
+    @ScaledMetric(relativeTo: .title3) private var dateColumn: CGFloat = 38
 
     var body: some View {
         HStack(spacing: AppTheme.Space.m) {
@@ -553,7 +620,7 @@ struct DayRow: View {
                     .font(.system(.title3, design: .rounded, weight: .bold))
                     .foregroundStyle(isToday ? AppTheme.accent : AppTheme.ink)
             }
-            .frame(minWidth: 38)
+            .frame(minWidth: dateColumn)
 
             ReelThumbnail(
                 meal: item?.kind == .meal ? meal : nil,
@@ -575,9 +642,15 @@ struct DayRow: View {
                             .id(badge + (meal?.id.uuidString ?? ""))
                             .transition(.scale(scale: 1.6).combined(with: .opacity))
                     } else if let item {
-                        Text(Self.metadata(for: item, meal: meal))
+                        Text([Self.metadata(for: item, meal: meal), cook.map { L10n.string("%@ cooks", $0) }]
+                                .compactMap { $0 }.joined(separator: " · "))
                             .font(.caption).foregroundStyle(AppTheme.muted)
                             .lineLimit(1)
+                    }
+                    if isBusy {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.caption2).foregroundStyle(AppTheme.muted)
+                            .accessibilityLabel(L10n.string("Busy evening in your calendar"))
                     }
                 }
             }
@@ -657,10 +730,11 @@ private struct ReelThumbnail: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var face: String?
     @State private var rolling: Task<Void, Never>?
+    @ScaledMetric(relativeTo: .body) private var size: CGFloat = AppTheme.rowThumbnail
 
     var body: some View {
         ZStack {
-            MealThumbnail(meal: meal, fallbackEmoji: fallbackEmoji, size: AppTheme.rowThumbnail)
+            MealThumbnail(meal: meal, fallbackEmoji: fallbackEmoji, size: size)
                 .opacity(face == nil ? 1 : 0)
                 .scaleEffect(face == nil ? 1 : 0.85)
             if let face {
@@ -670,7 +744,7 @@ private struct ReelThumbnail: View {
                     .transition(.asymmetric(insertion: .move(edge: .top), removal: .move(edge: .bottom)))
             }
         }
-        .frame(width: AppTheme.rowThumbnail, height: AppTheme.rowThumbnail)
+        .frame(width: size, height: size)
         .background(face == nil ? Color.clear : AppTheme.artworkPaper)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.chipRadius, style: .continuous))
         .onChange(of: spin) { _, _ in roll() }
@@ -714,7 +788,7 @@ struct DaySheet: View {
         case swap(Weekday)
     }
 
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let day: Weekday
     let nextWeek: Bool
@@ -773,6 +847,22 @@ struct DaySheet: View {
                     }
                 }
 
+                if item?.kind == .meal, store.household.members.count > 1 || store.cook(for: day, nextWeek: nextWeek) != nil {
+                    Section {
+                        Picker(selection: Binding(
+                            get: { store.cook(for: day, nextWeek: nextWeek)?.id },
+                            set: { store.setCook($0, for: day, nextWeek: nextWeek) }
+                        )) {
+                            Text("Not decided").tag(nil as UUID?)
+                            ForEach(store.household.members) { member in
+                                Text(member.displayName).tag(member.id as UUID?)
+                            }
+                        } label: {
+                            Label("Who cooks", systemImage: "frying.pan")
+                        }
+                    }
+                }
+
                 Section {
                     Button { perform(.planDay) } label: { Label("Plan this day", systemImage: "person.2") }
                     if let item {
@@ -811,7 +901,9 @@ struct DaySheet: View {
             .navigationTitle(day.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }.accessibilityIdentifier("daySheet.done")
+                }
             }
         }
     }
@@ -821,7 +913,7 @@ struct DaySheet: View {
 }
 
 struct DayContextEditor: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let day: Weekday
     /// Set when a rule already decides this day's plan, so the picker can say why it will
@@ -951,6 +1043,7 @@ struct MealDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let meal: Meal
     @State private var servings: Double
+    @ScaledMetric(relativeTo: .caption) private var stepCircle: CGFloat = 26
 
     init(meal: Meal, initialServings: Double? = nil) {
         self.meal = meal
@@ -990,7 +1083,7 @@ struct MealDetailView: View {
                             ForEach(Array(meal.instructions.enumerated()), id: \.offset) { index, instruction in
                                 HStack(alignment: .top, spacing: 10) {
                                     Text("\(index + 1)").font(.caption.bold())
-                                        .frame(width: 26, height: 26)
+                                        .frame(width: stepCircle, height: stepCircle)
                                         .background(AppTheme.accentSoft).clipShape(Circle())
                                     Text(instruction)
                                 }

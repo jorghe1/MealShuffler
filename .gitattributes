@@ -1,0 +1,4 @@
+# Branding images go through Git LFS from now on. Images committed before this line stay in
+# normal history; no `git lfs migrate` was run. App assets under MealShuffler/ are not affected.
+Branding/**/*.png filter=lfs diff=lfs merge=lfs -text
+Branding/**/*.jpg filter=lfs diff=lfs merge=lfs -text

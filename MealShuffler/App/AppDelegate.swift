@@ -63,6 +63,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
             let store = AppStoreHost.shared
             store.rollOverIfNeeded()
+            store.drainWidgetActions()
             if let action { store.handleReminderAction(action) }
             if let destination {
                 AppRouter.shared.open(destination)

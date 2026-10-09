@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @EnvironmentObject private var router: AppRouter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var cloud = CloudHouseholdSync.shared
@@ -35,16 +35,16 @@ struct RootView: View {
             }
         }
         .sheet(isPresented: $showingCloud) {
-            NavigationStack { CloudSharingView().environmentObject(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingCloud = false } } } }
+            NavigationStack { CloudSharingView().environment(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingCloud = false } } } }
         }
-        .sheet(isPresented: $showingBackup) { NavigationStack { DeviceBackupView().environmentObject(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingBackup = false } } } } }
+        .sheet(isPresented: $showingBackup) { NavigationStack { DeviceBackupView().environment(store).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { showingBackup = false } } } } }
         .onOpenURL { url in
             // The widget's and notifications' own links move the app; anything else is a
             // shared recipe, rule list or week.
             if !router.open(url) { store.handleIncomingURL(url) }
         }
-        .sheet(item: $store.incomingShare) { share in
-            IncomingShareView(share: share).environmentObject(store)
+        .sheet(item: Bindable(store).incomingShare) { share in
+            IncomingShareView(share: share).environment(store)
         }
         .alert("Meal plan", isPresented: Binding(get: { store.actionNotice != nil }, set: { if !$0 { store.actionNotice = nil } })) {
             Button("OK", role: .cancel) {}

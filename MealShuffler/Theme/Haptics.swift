@@ -1,3 +1,4 @@
+import AudioToolbox
 import UIKit
 
 /// Touch feedback for the app's few genuinely physical moments.
@@ -11,10 +12,16 @@ enum Haptics {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
-    /// One day's reel settling on its dinner after a shuffle. Light, because seven of them
-    /// land in a row: together they should feel like a slot machine, not an alarm.
+    /// The reels rolling: a light, quick tick, like a wheel passing its pegs.
+    static func tick() {
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    /// One day's reel settling on its dinner after a shuffle. Firmer than the ticks, so the
+    /// landing is felt as the week falls into place, day by day.
     static func land() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.8)
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.9)
+        ShuffleSound.land()
     }
 
     /// Ticking something off in the shop.
@@ -22,8 +29,37 @@ enum Haptics {
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
-    /// A meal finished and recorded.
+    /// A meal finished and recorded, or a whole week drawn.
     static func success() {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+}
+
+/// An optional soft click as each day lands. Off by default; follows the silent switch,
+/// because system sounds do.
+enum ShuffleSound {
+    static let enabledKey = "shuffle-sound-enabled"
+
+    static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
+
+    static func land() {
+        guard isEnabled else { return }
+        // The keyboard "tock": short, wooden, and already familiar.
+        AudioServicesPlaySystemSound(1104)
+    }
+}
+
+extension Notification.Name {
+    /// The phone was shaken. Posted by `UIWindow`; the Week screen shuffles on it.
+    static let deviceDidShake = Notification.Name("no.mealshuffler.deviceDidShake")
+}
+
+extension UIWindow {
+    /// Shaking the phone is the natural gesture for "shuffle", and children love it.
+    open override func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
+        super.motionEnded(motion, with: event)
+        if motion == .motionShake {
+            NotificationCenter.default.post(name: .deviceDidShake, object: nil)
+        }
     }
 }

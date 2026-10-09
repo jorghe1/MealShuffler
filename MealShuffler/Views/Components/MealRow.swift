@@ -36,12 +36,9 @@ struct MealRow: View {
         HStack(spacing: 13) {
             MealThumbnail(meal: meal)
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(meal.name).font(.headline).lineLimit(2)
-                    if !meal.isBuiltIn {
-                        Text("MINE").font(.caption2.bold()).foregroundStyle(AppTheme.accent)
-                    }
-                }
+                // No "MINE" tag: the Mine filter already says whose recipe it is, and a shouting
+                // label on every row of a library that is mostly the household's own was noise.
+                Text(meal.name).font(.headline).lineLimit(2)
                 Text(L10n.string("%ld min · %ld servings", meal.prepMinutes, meal.defaultServings))
                     .font(.caption).foregroundStyle(AppTheme.muted)
                 if let note {

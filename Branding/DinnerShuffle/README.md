@@ -22,4 +22,4 @@ The generated master and the 60/32-pixel exports were visually inspected. At 60 
 
 This is generated raster artwork, not an editable vector master. Generated colors have slight tonal variation around the requested forest/cream palette. The installed iOS mask, asset compilation, and home-screen appearance still need an Xcode/device check.
 
-The previous v5 icon remains intact in `Branding/LogoArchive`, and all earlier explorations are preserved. [App review](../../docs/APP_REVIEW_2026-09-29.md).
+The previous v5 icon remains intact in `Branding/LogoArchive`, and all earlier explorations are preserved. [App review](../../docs/history/APP_REVIEW_2026-09-29.md).

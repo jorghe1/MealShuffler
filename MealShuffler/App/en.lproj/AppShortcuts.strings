@@ -1,0 +1,12 @@
+/*
+  Siri and Spotlight phrases for MealShufflerShortcuts (App/DinnerIntents.swift).
+
+  Keys are the phrases exactly as written in code, with \(.applicationName) spelled
+  ${applicationName}. Every value must contain ${applicationName} exactly once, or the
+  App Intents build step rejects the file. Nothing else belongs here: titles such as
+  shortTitle are LocalizedStringResource keys and live in Localizable.strings.
+*/
+
+"What's for dinner in ${applicationName}" = "What's for dinner in ${applicationName}";
+"Ask ${applicationName} what's for dinner" = "Ask ${applicationName} what's for dinner";
+"${applicationName} dinner" = "${applicationName} dinner";

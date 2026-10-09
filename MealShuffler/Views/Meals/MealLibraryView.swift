@@ -42,7 +42,7 @@ struct MealLibraryView: View {
     /// picker cannot be presented over a sheet that is still dismissing.
     private enum AfterDismiss { case scan, photos }
 
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
 
     @State private var searchText = ""
     @State private var filter: MealFilter = .all
@@ -130,6 +130,7 @@ struct MealLibraryView: View {
                     }
                     .disabled(isImportingPhoto)
                     .accessibilityLabel("Add recipe")
+                    .accessibilityIdentifier("meals.add")
                 }
             }
             .sheet(item: $sheet, onDismiss: {
@@ -458,7 +459,7 @@ struct MealLibraryView: View {
                 sheet = .editor(existing: nil, draft: draft)
             } cancel: { sheet = nil }
         case .editor(let existing, let draft):
-            RecipeEditorView(existingMeal: existing, draft: draft).environmentObject(store)
+            RecipeEditorView(existingMeal: existing, draft: draft).environment(store)
         case .linkImport:
             RecipeLinkImportView { draft in sheet = .editor(existing: nil, draft: draft) }
         case .paste(let draft):
@@ -691,7 +692,7 @@ struct AddRecipeSheet: View {
             .navigationTitle("Add recipe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("addRecipe.cancel") }
             }
         }
     }

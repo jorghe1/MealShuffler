@@ -38,6 +38,7 @@ enum BackgroundRefresh {
         let work = Task { @MainActor in
             let store = AppStoreHost.shared
             store.rollOverIfNeeded()
+            store.drainWidgetActions()
             store.flushPendingWrites()
             await store.refreshRemindersAndWidget()?.value
             schedule(for: store)

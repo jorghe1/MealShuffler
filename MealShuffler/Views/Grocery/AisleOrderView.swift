@@ -5,7 +5,7 @@ import SwiftUI
 /// The list is grouped by aisle so it can be walked rather than hunted through, which only
 /// works if the grouping matches the walk. A fixed order is right in exactly one supermarket.
 struct AisleOrderView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {

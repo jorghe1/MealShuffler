@@ -1,0 +1,10 @@
+/*
+  Siri and Spotlight phrases for MealShufflerShortcuts (App/DinnerIntents.swift).
+
+  Keys are the English phrases exactly as written in code, with \(.applicationName)
+  spelled ${applicationName}. Every value must contain ${applicationName} exactly once.
+*/
+
+"What's for dinner in ${applicationName}" = "Hva er til middag i ${applicationName}";
+"Ask ${applicationName} what's for dinner" = "Spør ${applicationName} hva som er til middag";
+"${applicationName} dinner" = "${applicationName} middag";

@@ -14,6 +14,12 @@ struct PlannedDinnerReader {
         /// Prep time in minutes, when a meal is actually being cooked.
         let prepMinutes: Int?
         let isCooking: Bool
+        /// Display name of whoever the day names as cook. Only set on a cooking day, and only
+        /// while that member is still in the household.
+        var cook: String? = nil
+        /// The recipe being cooked, for marking it cooked from the widget. Nil on any day that
+        /// is not cooking a known recipe.
+        var mealID: UUID? = nil
     }
 
     private let repository: any AppStateRepository
@@ -28,36 +34,45 @@ struct PlannedDinnerReader {
     /// own invitation rather than as an error.
     func upcoming(from date: Date = .now, calendar: Calendar = .current) -> [Dinner] {
         guard let snapshot = repository.load() else { return [] }
-        let plan = activePlan(in: snapshot, on: date, calendar: calendar)
-        guard let plan else { return [] }
+        guard let active = activePlan(in: snapshot, on: date, calendar: calendar) else { return [] }
+        let plan = active.plan
+        let contexts = active.contexts
 
         let meals = MealCatalog.resolve(custom: snapshot.customMeals)
+        let members = snapshot.household.members
         let today = calendar.startOfDay(for: date)
 
         return Weekday.ordered(calendar: calendar).compactMap { day -> Dinner? in
             let dayDate = plan.date(for: day, calendar: calendar)
             guard calendar.startOfDay(for: dayDate) >= today, let item = plan[day] else { return nil }
-            return dinner(for: item, on: day, date: dayDate, meals: meals)
+            var result = dinner(for: item, on: day, date: dayDate, meals: meals)
+            if result.isCooking, let cookID = contexts[day]?.cookMemberID {
+                result.cook = members.first(where: { $0.id == cookID })?.displayName
+            }
+            return result
         }
     }
 
     /// The plan covering `date`: this week's, or next week's if it has already been prepared
-    /// and the current one has run out.
+    /// and the current one has run out -- with the day settings that belong to that plan.
     private func activePlan(
         in snapshot: AppStateSnapshot,
         on date: Date,
         calendar: Calendar
-    ) -> WeeklyPlan? {
+    ) -> (plan: WeeklyPlan, contexts: [Weekday: DayPlanContext])? {
         let weekStart = WeekAnchor.startOfWeek(containing: date, calendar: calendar)
         // Give or take a time zone: a plan made in Oslo is still this week in New York, read
         // on this calendar's days. An exact match showed "No plan yet" after a flight west.
-        if WeekAnchor.isSameWeek(snapshot.plan.startDate, weekStart) { return snapshot.plan.anchored(to: weekStart) }
+        if WeekAnchor.isSameWeek(snapshot.plan.startDate, weekStart) {
+            return (plan: snapshot.plan.anchored(to: weekStart), contexts: snapshot.dayContexts)
+        }
         if let next = snapshot.nextWeekPlan, WeekAnchor.isSameWeek(next.startDate, weekStart) {
-            return next.anchored(to: weekStart)
+            return (plan: next.anchored(to: weekStart), contexts: snapshot.nextWeekContexts)
         }
         // A plan the app has not yet rolled over. Showing a stale week would be worse
         // than showing the invitation.
-        return snapshot.plan.startDate >= weekStart ? snapshot.plan : nil
+        guard snapshot.plan.startDate >= weekStart else { return nil }
+        return (plan: snapshot.plan, contexts: snapshot.dayContexts)
     }
 
     private func dinner(
@@ -84,7 +99,8 @@ struct PlannedDinnerReader {
                               emoji: "🍽️", prepMinutes: nil, isCooking: false)
             }
             return Dinner(day: day, date: date, title: meal.name,
-                          emoji: meal.emoji, prepMinutes: meal.prepMinutes, isCooking: true)
+                          emoji: meal.emoji, prepMinutes: meal.prepMinutes, isCooking: true,
+                          mealID: meal.id)
         }
     }
 }

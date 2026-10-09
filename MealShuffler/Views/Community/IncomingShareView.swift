@@ -6,7 +6,7 @@ import SwiftUI
 /// happened -- including the rules that were left out because this household already has
 /// them, or has one that says the opposite. A friend's list never overrides your own.
 struct IncomingShareView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let share: IncomingShare
     @State private var excluded: Set<Int> = []

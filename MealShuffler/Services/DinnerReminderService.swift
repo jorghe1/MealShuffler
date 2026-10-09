@@ -17,6 +17,8 @@ struct ReminderSchedule: Sendable, Equatable {
     var groceryEnabled: Bool
     var groceryWeekday: Weekday
     var groceryHour: Int
+    /// Who cooks, by yyyy-MM-dd day stamp.
+    var cooks: [String: String] = [:]
 
     static let empty = ReminderSchedule(
         plan: .empty,
@@ -381,7 +383,11 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
         case .dinner:
             guard let item = candidate.item, let body = reminderBody(for: item, meals: schedule.meals) else { return nil }
             title = tonightTitle(for: item, meals: schedule.meals)
-            lines.append(body)
+            if item.kind == .meal, let cook = schedule.cooks[candidate.stamp] {
+                lines.append(body + " · " + L10n.string("%@ cooks", cook))
+            } else {
+                lines.append(body)
+            }
             category = item.kind == .meal ? categoryIdentifier : infoCategoryIdentifier
 
         case .prep:
@@ -389,7 +395,8 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
                   let meal = meal(for: item, meals: schedule.meals),
                   let targetDate = calendar.date(bySettingHour: schedule.targetDinnerHour, minute: 0, second: 0, of: dayDate)
             else { return nil }
-            title = L10n.string("Time to start cooking")
+            title = schedule.cooks[candidate.stamp].map { L10n.string("Time to start cooking, %@", $0) }
+                ?? L10n.string("Time to start cooking")
             lines.append(L10n.string(
                 "%@ takes about %ld min, so dinner is ready at %@.",
                 meal.name, meal.prepMinutes, targetDate.formatted(date: .omitted, time: .shortened)

@@ -25,6 +25,23 @@ struct WeekPosterContent: Equatable {
     let activeRuleCount: Int
     /// Emoji and count per kind of dinner, most first.
     let mix: [String]
+    /// Active rules the week keeps. Set by the store, which knows the conflicts; nil leaves
+    /// the claim off rather than guessing.
+    var rulesKept: Int? = nil
+
+    /// The week in one line of emoji, for a chat where a picture is too much:
+    ///
+    ///     Uke 41 🐟🌮🥦🍗♻️🍕🥘
+    ///     5 av 5 husregler holdt ✓
+    ///     https://apps.apple.com/…
+    func emojiSummary(link: URL?) -> String {
+        var lines = ["\(weekLabel) \(days.map(\.emoji).filter { $0 != "·" }.joined())"]
+        if activeRuleCount > 0, let rulesKept {
+            lines.append(L10n.string("%ld of %ld house rules kept ✓", rulesKept, activeRuleCount))
+        }
+        if let link { lines.append(link.absoluteString) }
+        return lines.joined(separator: "\n")
+    }
 
     static func make(
         plan: WeeklyPlan,

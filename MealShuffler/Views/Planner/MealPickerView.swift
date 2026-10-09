@@ -7,7 +7,7 @@ import SwiftUI
 /// them says "Thursday is lasagne", which is the first thing a household wants from a
 /// planner. Picking here locks the day, so the choice survives the next shuffle.
 struct MealPickerView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     let day: Weekday

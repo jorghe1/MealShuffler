@@ -20,6 +20,9 @@ struct TasteProfile {
     /// What `noRepeatWithin` and `requiredEvery` are measured against. Absent means the meal
     /// has not been planned within the window the store looked back over.
     var weeksSinceLastPlanned: [UUID: Int] = [:]
+    /// Lean towards dinners that reuse what the week already buys: half a bunch of coriander
+    /// on Tuesday, the rest on Thursday.
+    var sharesIngredients = false
 
     static let empty = TasteProfile()
 }
@@ -540,9 +543,38 @@ struct MealPlanGenerator {
             ))
             if intent == .quicker { score += Double(max(0, 90 - meal.prepMinutes)) }
             if intent == .cheaper { score += Double(max(0, 220 - meal.planningCost)) }
+            if taste.sharesIngredients {
+                score += Double(min(Self.sharedIngredientCount(meal, with: selected.values), 3)) * Self.sharedIngredientBonus
+            }
             return (meal, score)
         }
         return sample(from: scored)
+    }
+
+    /// Per shared ingredient, up to three. Below the repeat penalty and a required rule, so it
+    /// tips a choice between otherwise equal dinners and never overrides what the household
+    /// asked for -- about a 1.3x nudge each at the current temperature.
+    static let sharedIngredientBonus = 8.0
+
+    /// Things nearly every recipe uses; sharing them saves nothing at the shop.
+    private static let commonIngredients: Set<String> = [
+        "salt", "pepper", "olje", "oil", "olivenolje", "olive oil", "vann", "water", "smor", "butter",
+        "sukker", "sugar", "hvetemel", "mel", "flour"
+    ]
+
+    /// Ingredients this dinner has in common with the ones already chosen, by canonical name.
+    static func sharedIngredientCount<S: Sequence>(_ meal: Meal, with selected: S) -> Int where S.Element == Meal {
+        let others = Set(selected.filter { $0.id != meal.id }.flatMap { ingredientKeys($0) })
+        guard !others.isEmpty else { return 0 }
+        return ingredientKeys(meal).intersection(others).count
+    }
+
+    static func ingredientKeys(_ meal: Meal) -> Set<String> {
+        Set(meal.ingredients.compactMap { ingredient -> String? in
+            let key = IngredientVocabulary.entry(for: ingredient.name).map { TextFolding.fold($0.canonical) }
+                ?? TextFolding.fold(ingredient.name)
+            return key.isEmpty || commonIngredients.contains(key) ? nil : key
+        })
     }
 
     /// Softmax sample. Shifts by the maximum score before exponentiating, so a wide score

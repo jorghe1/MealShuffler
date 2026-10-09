@@ -1,69 +1,86 @@
-import Combine
 import Foundation
+import Observation
 
+/// The single write funnel for the app's state.
+///
+/// `@Observable` rather than `ObservableObject`: a view now redraws when a property it read
+/// changes, not when any of 34 published properties does. Ticking a grocery item no longer
+/// re-renders the week. Caches and bookkeeping are `@ObservationIgnored`, both because no
+/// view reads them and because `meals` fills its cache while a view is reading it.
 @MainActor
-final class AppStore: ObservableObject {
-    @Published var hasCompletedOnboarding: Bool { didSet { save() } }
-    @Published var memberPreferences: [UUID: [UUID: MealPreference]] { didSet { save() } }
-    @Published var rules: [PlanningRule] { didSet { planningRevision += 1; save() } }
-    @Published var plan: WeeklyPlan { didSet { planningRevision += 1; save() } }
-    @Published var conflicts: [PlanConflict] = []
-    @Published var checkedGroceryIDs: Set<String> { didSet { save() } }
+@Observable
+final class AppStore {
+    var hasCompletedOnboarding: Bool { didSet { save() } }
+    var memberPreferences: [UUID: [UUID: MealPreference]] { didSet { save() } }
+    var rules: [PlanningRule] { didSet { planningRevision += 1; save() } }
+    var plan: WeeklyPlan { didSet { planningRevision += 1; groceryCache = nil; save() } }
+    var conflicts: [PlanConflict] = []
+    var checkedGroceryIDs: Set<String> { didSet { save() } }
     /// Items the household already has in. Kept apart from `checkedGroceryIDs` because
     /// "we own this" and "I picked this up just now" are different facts with different
     /// lifetimes -- one survives the shop, the other is the shop.
-    @Published var stockedGroceryIDs: Set<String> { didSet { save() } }
-    @Published var manualGroceryItems: [ManualGroceryItem] { didSet { save() } }
+    var stockedGroceryIDs: Set<String> { didSet { save() } }
+    var manualGroceryItems: [ManualGroceryItem] { didSet { groceryCache = nil; save() } }
     /// Things the household always has in: salt, oil, rice.
     ///
     /// Distinct from `stockedGroceryIDs`, which is "we happen to have this right now" and is
     /// meant to be put back. A staple is a standing fact, so it never reaches the list at all.
-    @Published var pantryStaples: Set<String> { didSet { save() } }
+    var pantryStaples: Set<String> { didSet { save() } }
     /// The order aisles appear in the shopping list.
     ///
     /// A fixed order is wrong in every shop but one, and the walk through a supermarket is
     /// the whole reason the list is grouped at all.
-    @Published var aisleOrder: [GroceryAisle] { didSet { save() } }
-    @Published var customMeals: [Meal] { didSet { save() } }
-    @Published var favoriteMealIDs: Set<UUID> { didSet { save() } }
-    @Published var dayContexts: [Weekday: DayPlanContext] { didSet { planningRevision += 1; save() } }
-    @Published var feedbackEvents: [MealFeedbackEvent] { didSet { save() } }
-    @Published var householdSize: Int { didSet { save() } }
-    @Published var household: Household { didSet { save() } }
-    @Published var archivedWeeks: [ArchivedWeek] { didSet { save() } }
-    @Published var nextWeekPlan: WeeklyPlan? { didSet { planningRevision += 1; save() } }
-    @Published var dinnerReminderEnabled: Bool { didSet { save() } }
-    @Published var dinnerReminderHour: Int { didSet { save() } }
+    var aisleOrder: [GroceryAisle] { didSet { save() } }
+    var customMeals: [Meal] { didSet { mealsCache = nil; groceryCache = nil; save() } }
+    var favoriteMealIDs: Set<UUID> { didSet { save() } }
+    var dayContexts: [Weekday: DayPlanContext] { didSet { planningRevision += 1; save() } }
+    var feedbackEvents: [MealFeedbackEvent] { didSet { save() } }
+    var householdSize: Int { didSet { save() } }
+    var household: Household { didSet { save() } }
+    var archivedWeeks: [ArchivedWeek] { didSet { groceryCache = nil; save() } }
+    var nextWeekPlan: WeeklyPlan? { didSet { planningRevision += 1; groceryCache = nil; save() } }
+    var dinnerReminderEnabled: Bool { didSet { save() } }
+    var dinnerReminderHour: Int { didSet { save() } }
     /// A second, earlier nudge timed off the recipe's own prep time.
-    @Published var prepLeadReminderEnabled: Bool { didSet { save() } }
-    @Published var groceryReminderEnabled: Bool { didSet { save() } }
-    @Published var groceryReminderWeekday: Weekday { didSet { save() } }
-    @Published var groceryReminderHour: Int { didSet { save() } }
-    @Published var inviteNotice: String?
+    var prepLeadReminderEnabled: Bool { didSet { save() } }
+    var groceryReminderEnabled: Bool { didSet { save() } }
+    var groceryReminderWeekday: Weekday { didSet { save() } }
+    var groceryReminderHour: Int { didSet { save() } }
+    var inviteNotice: String?
     /// Rules or recipes another household sent by link, waiting to be looked at.
-    @Published var incomingShare: IncomingShare?
+    var incomingShare: IncomingShare?
     /// Recipes shared in from other apps, waiting to be turned into meals.
-    @Published var pendingCaptures: [CapturedRecipe] = []
-    @Published var persistenceError: String?
-    @Published var actionNotice: String?
-    @Published private(set) var isGenerating = false
+    var pendingCaptures: [CapturedRecipe] = []
+    var persistenceError: String?
+    var actionNotice: String?
+    private(set) var isGenerating = false
     /// Bumped by changes a background shuffle could overwrite: the plans, their day settings
     /// and the rules. Not by every save -- a grocery tick, a reminder toggle or an iCloud poll
     /// during a shuffle used to throw the shuffled week away, so the reels spun and landed on
     /// the week that was already there.
-    private var planningRevision = 0
-    @Published var nextWeekConflicts: [PlanConflict] = []
-    @Published var nextWeekContexts: [Weekday: DayPlanContext] = [:] { didSet { planningRevision += 1; save() } }
-    @Published var householdTools = HouseholdTools() { didSet { save() } }
-    private var shoppingAmounts: [String: Double] = [:]
-    private var reminderTask: Task<Void, Never>?
+    @ObservationIgnored private var planningRevision = 0
+    var nextWeekConflicts: [PlanConflict] = []
+    var nextWeekContexts: [Weekday: DayPlanContext] = [:] { didSet { planningRevision += 1; save() } }
+    var householdTools = HouseholdTools() { didSet { groceryCache = nil; save() } }
+    @ObservationIgnored private var shoppingAmounts: [String: Double] = [:]
+    /// Derived lists, rebuilt only when what they are built from changes. `meals` was
+    /// resolved on every read (94 reads in the store alone) and the shopping list rebuilt
+    /// about ten times for each render of the shopping screen.
+    @ObservationIgnored private var mealsCache: [Meal]?
+    @ObservationIgnored private var groceryCache: [GroceryItem]?
+    /// Where state is written, one write at a time, so a background write can never land
+    /// after a newer synchronous one.
+    private let writeQueue = DispatchQueue(label: "no.mealshuffler.state-writes", qos: .utility)
+    /// Evenings the calendar says are busy. Replaceable in tests.
+    @ObservationIgnored var busyEvenings: any BusyEveningProviding = CalendarBusyEvenings()
+    @ObservationIgnored private var reminderTask: Task<Void, Never>?
 
     /// The plan as it stood before the last change, so the signature action is reversible.
     ///
     /// Shuffle threw the previous week away with nothing to put it back, which is a hard
     /// thing to ship in an app named after shuffling. Session-only on purpose: an undo the
     /// user last saw a week ago is not an undo.
-    @Published private var undoCheckpoint: PlanCheckpoint?
+    private var undoCheckpoint: PlanCheckpoint?
 
     private struct PlanCheckpoint {
         let plan: WeeklyPlan
@@ -76,14 +93,14 @@ final class AppStore: ObservableObject {
     }
 
     private let generator: MealPlanGenerator
-    private var isRestoring = true
+    @ObservationIgnored private var isRestoring = true
     private let repository: any AppStateRepository
     private let widgetRefresher: any WidgetRefreshing
     private let reminderService: any ReminderScheduling
     /// Hash of everything the widget and the notification schedule are derived from, so a
     /// grocery tick does not reschedule seven notifications.
-    private var lastBackgroundSignature: Int?
-    private var pendingSave: Task<Void, Never>?
+    @ObservationIgnored private var lastBackgroundSignature: Int?
+    @ObservationIgnored private var pendingSave: Task<Void, Never>?
     private static let feedbackRetentionDays = 400
     private static let feedbackEventLimit = 2_000
     private static let archiveLimit = 26
@@ -96,7 +113,12 @@ final class AppStore: ObservableObject {
     /// Built-ins, with any customised version substituted in, followed by the user's own.
     ///
     /// Resolution lives in `MealCatalog` so the widget resolves the library identically.
-    var meals: [Meal] { MealCatalog.resolve(custom: customMeals) }
+    var meals: [Meal] {
+        if let mealsCache { return mealsCache }
+        let resolved = MealCatalog.resolve(custom: customMeals)
+        mealsCache = resolved
+        return resolved
+    }
 
     /// Test seam: a disposable defaults suite instead of the shared container.
     convenience init(defaults: UserDefaults, random: RandomSource = SystemRandomSource()) {
@@ -173,7 +195,7 @@ final class AppStore: ObservableObject {
         rules.removeAll { rule in if case .dislikedBy(let id)? = rule.constraint.matcher { return !memberIDs.contains(id) }; return false }
         isRestoring = false
         persistenceError = repository.recoveryNotice
-        shoppingAmounts = Dictionary(GroceryListBuilder.build(plan: shoppingPlan, meals: meals, manualItems: manualGroceryItems)
+        shoppingAmounts = Dictionary(builtGroceryItems
             .map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
         inviteNotice = nil
         pendingCaptures = RecipeInbox.all()
@@ -375,8 +397,23 @@ final class AppStore: ObservableObject {
             prepLeadEnabled: prepLeadReminderEnabled,
             groceryEnabled: groceryReminderEnabled,
             groceryWeekday: groceryReminderWeekday,
-            groceryHour: groceryReminderHour
+            groceryHour: groceryReminderHour,
+            cooks: cookNamesByDay
         )
+    }
+
+    /// Who cooks, by calendar day, for the reminders to say.
+    private var cookNamesByDay: [String: String] {
+        var names: [String: String] = [:]
+        for (week, isNext) in [(Optional(plan), false), (nextWeekPlan, true)] {
+            guard let week else { continue }
+            for day in Weekday.allCases {
+                if let cook = cook(for: day, nextWeek: isNext) {
+                    names[WidgetSummary.stamp(for: week.date(for: day))] = cook.displayName
+                }
+            }
+        }
+        return names
     }
 
     private var backgroundSignature: Int {
@@ -391,6 +428,10 @@ final class AppStore: ObservableObject {
         hasher.combine(groceryReminderEnabled)
         hasher.combine(groceryReminderWeekday)
         hasher.combine(groceryReminderHour)
+        hasher.combine(dayContexts)
+        hasher.combine(nextWeekContexts)
+        // Cooked days show a tick on the widget.
+        hasher.combine(feedbackEvents.filter { $0.kind == .cooked }.count)
         return hasher.finalize()
     }
 
@@ -437,10 +478,18 @@ final class AppStore: ObservableObject {
         return accepted.isEmpty ? meals : accepted
     }
 
+    /// Everything the plan calls for and anything typed in, before anything is set aside.
+    private var builtGroceryItems: [GroceryItem] {
+        if let groceryCache { return groceryCache }
+        let built = GroceryListBuilder.build(plan: shoppingPlan, meals: meals, manualItems: manualGroceryItems)
+        groceryCache = built
+        return built
+    }
+
     /// Everything the plan calls for, plus anything typed in, minus the staples the
     /// household always has and anything set aside as already in.
     var groceryItems: [GroceryItem] {
-        GroceryListBuilder.build(plan: shoppingPlan, meals: meals, manualItems: manualGroceryItems)
+        builtGroceryItems
             .filter { !stockedGroceryIDs.contains($0.id) && !isStaple($0) }
     }
 
@@ -465,7 +514,7 @@ final class AppStore: ObservableObject {
         householdTools.shoppingEnd = Calendar.current.startOfDay(for: max(start, end))
         let session = householdTools.shoppingSessions[shoppingPeriodID] ?? ShoppingSession()
         checkedGroceryIDs = session.checked; stockedGroceryIDs = session.stocked; manualGroceryItems = session.manual
-        shoppingAmounts = session.amounts ?? Dictionary(GroceryListBuilder.build(plan: shoppingPlan, meals: meals, manualItems: manualGroceryItems).map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
+        shoppingAmounts = session.amounts ?? Dictionary(builtGroceryItems.map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
         reconcileGroceryChecks()
     }
 
@@ -525,7 +574,7 @@ final class AppStore: ObservableObject {
 
     /// Items set aside as already owned. Surfaced so they can be put back.
     var stockedItems: [GroceryItem] {
-        GroceryListBuilder.build(plan: shoppingPlan, meals: meals, manualItems: manualGroceryItems)
+        builtGroceryItems
             .filter { stockedGroceryIDs.contains($0.id) }
     }
 
@@ -584,13 +633,16 @@ final class AppStore: ObservableObject {
 
     /// The week as the shareable picture tells it.
     var weekPoster: WeekPosterContent {
-        WeekPosterContent.make(
+        var content = WeekPosterContent.make(
             plan: plan,
             meals: meals,
             rules: rules,
             household: household.name,
             context: matchContext
         )
+        let broken = Set(blockingConflicts.compactMap(\.ruleID))
+        content.rulesKept = rules.filter { $0.isActive(inWeek: plan.startDate) && !broken.contains($0.id) }.count
+        return content
     }
 
     /// The dinners actually being cooked this week, for sending the recipes along.
@@ -613,7 +665,8 @@ final class AppStore: ObservableObject {
             dislikedMealIDs: Set(preferences.filter { $0.value == .disliked }.keys),
             learnedScores: learnedMealScores,
             recentlyCookedMealIDs: recentlyCookedMealIDs,
-            weeksSinceLastPlanned: weeksSinceLastPlanned
+            weeksSinceLastPlanned: weeksSinceLastPlanned,
+            sharesIngredients: householdTools.sharesIngredients ?? false
         )
     }
 
@@ -674,7 +727,7 @@ final class AppStore: ObservableObject {
 
     func context(for day: Weekday, nextWeek: Bool = false) -> DayPlanContext {
         let start = nextWeek ? WeekAnchor.startOfNextWeek(after: plan.startDate) : plan.startDate
-        return contexts(forWeek: start)[day] ?? DayPlanContext(diners: householdSize)
+        return contexts(forWeek: start, includingCalendar: false)[day] ?? DayPlanContext(diners: householdSize)
     }
 
     func updateNextWeekContext(_ context: DayPlanContext, for day: Weekday) {
@@ -1048,6 +1101,8 @@ final class AppStore: ObservableObject {
         case duplicate(existingTitle: String)
         /// An enabled rule says the opposite, so one of them can never hold.
         case contradiction(existingTitle: String)
+        /// Together with the rules already here, no week can satisfy it. Says why.
+        case impossible(reason: String)
     }
 
     /// Adds a rule unless the rule list already answers it.
@@ -1069,12 +1124,85 @@ final class AppStore: ObservableObject {
         }) {
             return .contradiction(existingTitle: existing.summary(meals: meals, context: matchContext))
         }
+        if rule.isEnabled, rule.strength == .required,
+           let reason = impossibility(of: rule, alongside: rules.filter { $0.id != replacingID }) {
+            return .impossible(reason: reason)
+        }
         let previous = rules.first { $0.id == replacingID }
         if let index = rules.firstIndex(where: { $0.id == replacingID }) { rules[index] = rule }
         else { rules.append(rule) }
         regenerate(days: rule.constraint.affectedDays.union(previous?.constraint.affectedDays ?? []))
         return .added
     }
+
+    /// Why a required rule cannot hold alongside the others, when that is plain from the
+    /// library alone: two kinds of dinner required on the same evening that no dish is both,
+    /// a time limit no fitting dish meets, or weekly minimums of different proteins that add
+    /// up to more evenings than are cooked.
+    ///
+    /// The generator still reports anything subtler as a conflict; these are the ones a
+    /// household writes by accident and should hear about before the week is built.
+    func impossibility(of rule: PlanningRule, alongside others: [PlanningRule]) -> String? {
+        let required = others.filter { $0.isEnabled && $0.strength == .required && ($0.repeatEveryWeeks ?? 1) == 1 }
+        let library = meals
+
+        switch rule.constraint {
+        case .requiredOn(let scope, let matcher):
+            for other in required {
+                switch other.constraint {
+                case .requiredOn(let otherScope, let otherMatcher) where otherMatcher != matcher:
+                    guard !scope.days().isDisjoint(with: otherScope.days()) else { continue }
+                    if !library.contains(where: { matcher.matches($0, context: matchContext) && otherMatcher.matches($0, context: matchContext) }) {
+                        return L10n.string("No dinner in your library is both %@ and %@.",
+                                           matcher.sentenceLabel(meals: library, context: matchContext),
+                                           otherMatcher.sentenceLabel(meals: library, context: matchContext))
+                    }
+                case .maximumPrepTime(let otherScope, let minutes):
+                    guard !scope.days().isDisjoint(with: otherScope.days()) else { continue }
+                    if !library.contains(where: { matcher.matches($0, context: matchContext) && $0.prepMinutes > 0 && $0.prepMinutes <= minutes }) {
+                        return L10n.string("None of your %@ is ready in %ld minutes.",
+                                           matcher.sentenceLabel(meals: library, context: matchContext), minutes)
+                    }
+                default:
+                    continue
+                }
+            }
+        case .maximumPrepTime(let scope, let minutes):
+            for other in required {
+                guard case .requiredOn(let otherScope, let matcher) = other.constraint,
+                      !scope.days().isDisjoint(with: otherScope.days()) else { continue }
+                if !library.contains(where: { matcher.matches($0, context: matchContext) && $0.prepMinutes > 0 && $0.prepMinutes <= minutes }) {
+                    return L10n.string("None of your %@ is ready in %ld minutes.",
+                                       matcher.sentenceLabel(meals: library, context: matchContext), minutes)
+                }
+            }
+        case .minimumPerWeek(.tag(let tag), let count) where Self.proteins.contains(tag):
+            // Different proteins cannot share an evening, so their minimums add up.
+            var total = count
+            var seen: Set<MealTag> = [tag]
+            for other in required {
+                if case .minimumPerWeek(.tag(let otherTag), let otherCount) = other.constraint,
+                   Self.proteins.contains(otherTag), seen.insert(otherTag).inserted {
+                    total += otherCount
+                }
+            }
+            let cookedEvenings = Weekday.allCases.filter { day in
+                !required.contains { other in
+                    if case .dinnerMode(let scope, let mode) = other.constraint { return scope.covers(day) && mode != .cook }
+                    return false
+                }
+            }.count
+            if total > cookedEvenings {
+                return L10n.string("Together your rules ask for %ld dinners a week of different kinds, but only %ld evenings are cooked.",
+                                   total, cookedEvenings)
+            }
+        default:
+            break
+        }
+        return nil
+    }
+
+    private static let proteins: Set<MealTag> = [.fish, .chicken, .meat, .vegetarian]
 
     /// What happened to a batch of rules another household sent.
     struct SharedRulesOutcome: Equatable {
@@ -1094,7 +1222,7 @@ final class AppStore: ObservableObject {
             switch addRule(rule) {
             case .added: outcome.added += 1
             case .duplicate: outcome.duplicates += 1
-            case .contradiction: outcome.conflicts += 1
+            case .contradiction, .impossible: outcome.conflicts += 1
             }
         }
         return outcome
@@ -1411,6 +1539,9 @@ final class AppStore: ObservableObject {
         if context(for: day).maximumPrepMinutes != nil {
             return L10n.string("Fits the time limit you set for %@.", day.name.lowercased())
         }
+        if busyDays(inWeekStarting: plan.startDate).contains(day) {
+            return L10n.string("Your calendar has something on this evening, so this one is quick.")
+        }
         return favoriteMealIDs.contains(meal.id)
             ? L10n.string("One of the family's favorites.")
             : L10n.string("Adds variety to the rest of the week.")
@@ -1474,7 +1605,25 @@ final class AppStore: ObservableObject {
         contexts(forWeek: plan.startDate)
     }
 
-    private func contexts(forWeek start: Date) -> [Weekday: DayPlanContext] {
+    /// Days the calendar says are busy around dinner, when the household turned that on.
+    func busyDays(inWeekStarting start: Date) -> Set<Weekday> {
+        // Read so a view showing busy evenings redraws when the calendar setting changes.
+        _ = calendarRevision
+        return busyEvenings.busyDays(inWeekStarting: start, dinnerHour: householdTools.dinnerHour)
+    }
+
+    /// Bumped when the calendar setting changes or the app returns, so busy evenings are
+    /// read again.
+    private(set) var calendarRevision = 0
+
+    func calendarChanged() {
+        (busyEvenings as? CalendarBusyEvenings)?.invalidate()
+        calendarRevision += 1
+    }
+
+    /// - Parameter includingCalendar: false for what "Plan this day" shows and stores, so a
+    ///   calendar event never becomes a saved time limit that outlives it.
+    private func contexts(forWeek start: Date, includingCalendar: Bool = true) -> [Weekday: DayPlanContext] {
         let stored = start == plan.startDate ? dayContexts : nextWeekContexts
         var contexts = Dictionary(uniqueKeysWithValues: Weekday.allCases.map { ($0, stored[$0] ?? DayPlanContext(diners: householdSize)) })
         for rule in rules where rule.isActive(inWeek: start) && rule.strength == .required {
@@ -1482,6 +1631,13 @@ final class AppStore: ObservableObject {
             for day in scope.days() where contexts[day]?.overridesDinnerMode != true {
                 contexts[day]?.mode = mode
                 if mode != .leftovers { contexts[day]?.leftoverSourceDay = nil }
+            }
+        }
+        if includingCalendar {
+            // A busy evening is a quick dinner, unless the day already has its own limit.
+            for day in busyDays(inWeekStarting: start)
+            where contexts[day]?.mode == .cook && contexts[day]?.maximumPrepMinutes == nil {
+                contexts[day]?.maximumPrepMinutes = CalendarBusyEvenings.minutes
             }
         }
         return contexts
@@ -1558,7 +1714,7 @@ final class AppStore: ObservableObject {
     private func reconcileGroceryChecks() {
         // Built from the unfiltered list: an item set aside as already owned is still a
         // real item, and its tick should not be discarded for being hidden.
-        let amounts = Dictionary(GroceryListBuilder.build(plan: shoppingPlan, meals: meals, manualItems: manualGroceryItems)
+        let amounts = Dictionary(builtGroceryItems
             .map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
         let liveIDs = Set(amounts.keys.filter { amounts[$0, default: 0] <= shoppingAmounts[$0, default: 0] })
         let reconciled = checkedGroceryIDs.intersection(liveIDs)
@@ -1576,7 +1732,56 @@ final class AppStore: ObservableObject {
         pendingSave = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
-            self?.writeState()
+            self?.writeStateInBackground()
+        }
+    }
+
+    /// The debounced path: the snapshot is taken here, encoding and writing happen on the
+    /// write queue. Every edit used to encode the whole state, re-read and re-decode the old
+    /// file, and write two files on the main thread.
+    private func writeStateInBackground() {
+        reconcileGroceryChecks()
+        let snapshot = makeSnapshot()
+        let repository = self.repository
+        writeQueue.async {
+            // A `let`: a captured `var` in the main-actor task is a concurrency error.
+            let failure: String?
+            do { try repository.saveOrThrow(snapshot); failure = nil } catch { failure = error.localizedDescription }
+            Task { @MainActor [weak self] in self?.finishWrite(failure: failure) }
+        }
+    }
+
+    private func finishWrite(failure: String?) {
+        if let failure {
+            persistenceError = failure
+            return
+        }
+        persistenceError = nil
+        // After the write, never before: the widget reads the saved blob in another process.
+        refreshBackgroundSurfaces()
+        publishWidgetSummary()
+    }
+
+    /// What the widget shows but cannot compute: the shopping list, and which days are cooked.
+    func publishWidgetSummary() {
+        let remaining = groceryItems.filter { !checkedGroceryIDs.contains($0.id) }
+        let ordered = aisleOrder.flatMap { aisle in remaining.filter { $0.aisle == aisle } }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -8, to: .now) ?? .distantPast
+        let cooked = Set(feedbackEvents.compactMap { event -> String? in
+            guard event.kind == .cooked, let date = event.plannedDate, date >= cutoff else { return nil }
+            return WidgetSummary.stamp(for: date)
+        })
+        let summary = WidgetSummary(groceryRemaining: remaining.count,
+                                    groceryPreview: ordered.prefix(4).map(\.name),
+                                    cookedStamps: cooked)
+        guard summary != WidgetSummary.load() else { return }
+        summary.save()
+    }
+
+    /// Records dinners marked cooked from the widget, which cannot reach the store itself.
+    func drainWidgetActions() {
+        for note in WidgetActionInbox.drain() {
+            handleReminderAction(.cooked(mealID: note.mealID, day: note.day, date: note.date))
         }
     }
 
@@ -1650,7 +1855,7 @@ final class AppStore: ObservableObject {
         }
         applyFields(state)
         undoCheckpoint = nil
-        shoppingAmounts = Dictionary(GroceryListBuilder.build(plan: shoppingPlan, meals: meals, manualItems: manualGroceryItems).map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
+        shoppingAmounts = Dictionary(builtGroceryItems.map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
         refreshConflicts()
         do { try repository.saveOrThrow(makeSnapshot()) }
         catch {
@@ -1670,7 +1875,10 @@ final class AppStore: ObservableObject {
         let previousAmounts = shoppingAmounts
         reconcileGroceryChecks()
         let snapshot = makeSnapshot()
-        do { try repository.saveOrThrow(snapshot) }
+        let repository = self.repository
+        // Through the write queue, so it waits for any background write still in flight and
+        // nothing older can land after it.
+        do { try writeQueue.sync { try repository.saveOrThrow(snapshot) } }
         catch {
             checkedGroceryIDs = previousChecks
             stockedGroceryIDs = previousStock
@@ -1682,6 +1890,7 @@ final class AppStore: ObservableObject {
         persistenceError = nil
         // After the write, never before: the widget reads the saved blob in another process.
         refreshBackgroundSurfaces()
+        publishWidgetSummary()
         return true
     }
 }

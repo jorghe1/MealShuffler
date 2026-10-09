@@ -1,31 +1,25 @@
 # Meal Shuffler
 
-En native SwiftUI-app for enkel, regelstyrt middagsplanlegging.
+En native SwiftUI-app for enkel, regelstyrt middagsplanlegging. Versjon 0.6.0.
 
-Implementeringsstatus etter gjennomgangen 10. september 2026 finnes i
-[docs/IMPLEMENTATION_STATUS_2026-09-10.md](docs/IMPLEMENTATION_STATUS_2026-09-10.md).
-Den skiller mellom implementerte endringer, verifisering og gjenstående arbeid.
+Hva som er levert, hva som kommer i neste versjon og hva som venter, står samlet i
+[docs/ROADMAP.md](docs/ROADMAP.md). Eldre gjennomganger og statusrapporter ligger i
+[docs/history/](docs/history/).
 
-## Nytt 24. september 2026
+## Dokumentasjon
 
-- **Regler med egne ord.** Skriv «fredagstaco», «fisk to ganger i uka», «maks 30 minutter på
-  hverdager», «ingen nøtter» eller «pizza annenhver lørdag» — på norsk eller engelsk — og
-  regelen vises som setning før den legges til. Flere regler kan skrives på én linje, skilt med
-  komma. Finnes i Regler-fanen og i onboarding, der uka planlegges om mens du skriver.
-- **Sunn** som egen kategori, satt på 13 av de innebygde rettene, slik at «bare sunn mat på
-  hverdager» er en regel appen kan følge.
-- **Stokkingen som et øyeblikk.** Ukestripen snurrer som en spilleautomat og lander dag for dag
-  med et lite trykk i hånden; planleggeren viser hvor mange uker reglene tillater
-  («1 av 2,3 mill. mulige uker»).
-- **Del uka som bilde.** Et 9:16-bilde med uka, husstandens egne regler ved dagene de avgjorde
-  («✓ Fredagstaco») og antallet mulige uker. Tilbys noen sekunder etter en stokking.
-- **Venn-til-venn-deling uten konto.** Husregler, én oppskrift, en hel samling eller ukas
-  oppskrifter sendes som en lenke som bærer innholdet selv etter `#`. Mottakeren ser hva som
-  kom og velger hva som skal legges til; egne regler overstyres aldri. Med tjenesten satt opp
-  åpner lenken en side som også fungerer uten appen.
-- **Hele handlelisten til Bring!** når tjenesten er satt opp, med én tydelig bekreftelse først.
-
-Gjennomgangen og hva som gjenstår står i [docs/APP_REVIEW_2026-09-24.md](docs/APP_REVIEW_2026-09-24.md).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — mål, mappestruktur, tilstandsflyt, planmotor,
+  varsler, utvidelser, import, deling, lokalisering og CI.
+- [DESIGN.md](DESIGN.md) — designsystemet (`AppTheme`), fanene, knappestiler, bildepolicy og
+  arbeidsflytkontrakten.
+- [docs/ROADMAP.md](docs/ROADMAP.md) — status og backlog.
+- [docs/APP_STORE.md](docs/APP_STORE.md) — forslag til App Store-tekster, skjermbilder,
+  personvernsvar og notater til App Review.
+- [docs/PRIVACY.md](docs/PRIVACY.md) — personvernerklæringen (norsk og engelsk).
+- [docs/CODEMAGIC.md](docs/CODEMAGIC.md) — byggene i Codemagic og TestFlight.
+- [docs/IPHONE_TESTING.md](docs/IPHONE_TESTING.md) — første test på fysisk iPhone.
+- [docs/ICLOUD_SHARING.md](docs/ICLOUD_SHARING.md) — iCloud-deling (av i 0.6.0).
+- [docs/history/](docs/history/) — daterte gjennomganger og statusrapporter.
 
 ## Dette er med
 
@@ -76,12 +70,11 @@ familiemedlem ikke liker. Dager kan navngis enkeltvis eller som «hverdager»,
 «helgen» og «hver dag». Appen nekter å lagre en regel som sier det samme som en
 regel som allerede finnes, eller som motsier den, og forteller hvilken.
 
-Community-fanen er slått av bak `FeatureFlags.communityEnabled` til
-innlogging og moderering er på plass. Husholdningsdeling bruker nå private iCloud-invitasjoner;
-den gamle invitasjonskoden er fortsatt deaktivert. Apple-oppsett og testing på to enheter
-gjenstår: se [docs/ICLOUD_SHARING.md](docs/ICLOUD_SHARING.md).
-Hva som er utelatt med vilje, og hva som skal til for å ta det inn, står i
-[docs/ROADMAP.md](docs/ROADMAP.md).
+Community er slått av bak `FeatureFlags.communityEnabled` til innlogging og moderering er på
+plass. iCloud-deling i husstanden er slått av bak `FeatureFlags.householdSyncEnabled` i 0.6.0
+og erstattes av synkronisering per enhet i neste versjon; se
+[docs/ICLOUD_SHARING.md](docs/ICLOUD_SHARING.md). Hva som er utelatt med vilje, og hva som
+skal til for å ta det inn, står i [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Nye arbeidsflyter
 
@@ -89,7 +82,9 @@ Hva som er utelatt med vilje, og hva som skal til for å ta det inn, står i
 - Porsjonsstørrelser, fryseporsjoner på tvers av uker, oppskriftssamlinger og kjøkkentimer.
 - Full sikkerhetskopi med gjenopprettingskopi, utkast, bilder og tidligere oppskriftsversjoner.
 - Redigering av regler, konflikthjelp og samme middagskort i begge ukevisninger.
-- Valgfri iCloud-deling. Synkronisering skjer mens appen er åpen, og samtidige endringer krever et synlig valg.
+- Venn-til-venn-deling uten konto: husregler, én oppskrift, en samling eller ukas oppskrifter
+  sendes som en lenke som bærer innholdet selv etter `#`. Egne regler overstyres aldri.
+- Uka som 9:16-bilde, med husstandens regler ved dagene de avgjorde.
 
 ## Varsler
 
@@ -148,6 +143,23 @@ I rekkefølgen uka går: planlegge, velge retter, handle, og familien reglene h�
 - **Familie** samler husregler, hvem som spiser og hva hver enkelt liker, påminnelser og deling.
   Innstillinger (sikkerhetskopi, oppskriftsimport, personvern) ligger bak tannhjulet.
 
+## Familien rundt uka (0.6.0)
+
+- **Hvem lager** velges per dag i dagsarket og vises i kveld-kortet, på dagene, i widgeten,
+  på kjøkkentavla og i påminnelsene.
+- **Barnevisning** (Familie → Sammen): kveldens middag, noe barnet kan hjelpe til med, uka som
+  bilder, tommel opp/ned på retter og ett ønske til neste uke. Ut krever telefonens kode.
+  Ønskene dukker opp under Familie, der en voksen setter dem på en dag eller sier nei takk.
+- **Kjøkkenmodus** på iPad: sju kolonner, handleliste og ønsker, skjermen sovner ikke.
+- **Widgeter** i alle størrelser og på låseskjermen, med «Vi lagde den» rett fra widgeten, og
+  en Live Activity for koketimeren.
+- **Bilde etter middag**: etter «Vi lagde den» kan dere ta et bilde som erstatter tegningen.
+- **Middagsåret**: året i tall med et kort som kan deles (Historikk eller Familie).
+- **Travle kvelder** fra kalenderen, **«bruk opp rømme»** som regel for denne uka, regler som
+  ikke kan holde avvises med forklaring, og **færre ting å kjøpe** som valg (Innstillinger →
+  Planlegging).
+- Rister du telefonen på Uke-fanen, stokkes uka.
+
 ## Kjøring
 
 Prosjektet krever Xcode 26.4 eller nyere og iOS 17 eller nyere. Fra en Mac:
@@ -175,6 +187,8 @@ Bokmål ligger i `nb.lproj`. Dynamisk tekst fra planmotor, eksport og feilmeldin
 går gjennom samme lokaliseringslag som SwiftUI-visningene.
 
 ## Arkitektur og videre backend
+
+Den fullstendige beskrivelsen står i [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Kort:
 
 Planleggingen er domenelogikk uten UI- eller nettverksavhengigheter.
 `MealPlanGenerator` tar en injisert `RandomSource`, slik at trekningen er

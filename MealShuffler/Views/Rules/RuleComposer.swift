@@ -10,7 +10,7 @@ import SwiftUI
 /// with one tap rather than guessing, and a requirement no dinner in the library can meet is
 /// refused instead of leaving a day empty.
 struct RuleComposer: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var text = ""
     /// The reading the household picked for a sentence, by its position in the batch.
@@ -37,6 +37,7 @@ struct RuleComposer: View {
         VStack(alignment: .leading, spacing: AppTheme.Space.m) {
             Text("Write a rule").font(.headline).foregroundStyle(AppTheme.ink)
             TextField("Taco Friday, fish twice a week…", text: $text)
+                .accessibilityIdentifier("rules.composerField")
                 .textFieldStyle(.roundedBorder)
                 .submitLabel(.done)
                 .autocorrectionDisabled()
@@ -312,6 +313,9 @@ struct RuleComposer: View {
             case .contradiction(let existing):
                 remaining.append(entry.text)
                 problems.append(L10n.string("This cannot hold alongside “%@”.", existing))
+            case .impossible(let reason):
+                remaining.append(entry.text)
+                problems.append(reason)
             }
         }
         guard !added.isEmpty || !problems.isEmpty else { return }

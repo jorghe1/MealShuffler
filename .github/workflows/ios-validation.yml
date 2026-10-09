@@ -1,11 +1,22 @@
 name: iOS validation
 
-# Explicitly dispatched: the default checks remain inexpensive Linux jobs.
+# The Swift build needs a macOS runner and paid minutes, so this runs on pull requests to
+# main, pushes to main and on demand -- not on every branch push. The free Linux checks in
+# checks.yml still run everywhere.
 on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ios-validation-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ios:
+    name: Build and unit tests
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -39,3 +50,79 @@ jobs:
         with:
           name: ios-validation
           path: iOS-validation.xcresult
+
+  # Drives the real app through onboarding, the week and every tab, attaching a screenshot at
+  # each main screen. Informational only: a flaky simulator must never block a merge, so the
+  # job is allowed to fail. Its own scheme keeps it out of the MealShuffler scheme that
+  # Codemagic runs before signing a TestFlight build.
+  ui-smoke:
+    name: UI smoke tests and screenshots
+    runs-on: macos-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Select an available iPhone simulator
+        run: |
+          xcrun simctl list devices available --json > /tmp/meal-shuffler-devices.json
+          python3 - <<'PY'
+          import json, os
+          with open('/tmp/meal-shuffler-devices.json') as handle:
+              runtimes = json.load(handle)['devices']
+          devices = [device for runtime, entries in runtimes.items() if 'iOS' in runtime
+                     for device in entries if device['isAvailable'] and 'iPhone' in device['name']]
+          if not devices:
+              raise SystemExit('No available iPhone simulator')
+          with open(os.environ['GITHUB_ENV'], 'a') as handle:
+              handle.write('IOS_SIMULATOR_ID=' + devices[0]['udid'] + '\n')
+          PY
+      - name: Run the UI smoke tests
+        run: >-
+          xcodebuild test -project MealShuffler.xcodeproj -scheme MealShufflerUITests
+          -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID"
+          -resultBundlePath UITests.xcresult CODE_SIGNING_ALLOWED=NO
+      - name: Export screenshots from the result bundle
+        if: always()
+        run: |
+          mkdir -p screenshots
+          if [ ! -d UITests.xcresult ]; then
+            echo "::warning::No UITests.xcresult was produced; the build probably failed before testing."
+            exit 0
+          fi
+          # Xcode 16+ syntax. Older xcresulttool has no `export attachments`; the xcresult
+          # itself is uploaded either way and opens in Xcode with every screenshot.
+          if ! xcrun xcresulttool export attachments --path UITests.xcresult --output-path screenshots; then
+            echo "::warning::Could not export attachments; download UITests.xcresult and open it in Xcode instead."
+            exit 0
+          fi
+          # Exported files are named by UUID. Copy each to a readable name from the manifest,
+          # grouped by test, so the artifact can be browsed without Xcode. Best effort.
+          python3 - <<'PY' || echo "::warning::Could not rename exported screenshots; see screenshots/manifest.json."
+          import json, os, re, shutil
+          root = 'screenshots'
+          with open(os.path.join(root, 'manifest.json')) as handle:
+              manifest = json.load(handle)
+          for test in manifest:
+              folder = re.sub(r'[^A-Za-z0-9._-]+', '_', test.get('testIdentifier', 'unknown')).strip('_')
+              os.makedirs(os.path.join(root, 'by-test', folder), exist_ok=True)
+              for attachment in test.get('attachments', []):
+                  source = os.path.join(root, attachment['exportedFileName'])
+                  name = attachment.get('suggestedHumanReadableName') or attachment['exportedFileName']
+                  name = re.sub(r'[^A-Za-z0-9._-]+', '_', name)
+                  if os.path.exists(source):
+                      shutil.copyfile(source, os.path.join(root, 'by-test', folder, name))
+          PY
+          find screenshots -type f | sort
+      - name: Upload screenshots and the result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-smoke-screenshots
+          path: |
+            screenshots
+            UITests.xcresult
+          if-no-files-found: warn

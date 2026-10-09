@@ -1,4 +1,6 @@
 "CFBundleDisplayName" = "Meal Shuffler";
 "NSRemindersFullAccessUsageDescription" = "Meal Shuffler trenger tilgang for å eksportere handlelisten du velger.";
-"NSCameraUsageDescription" = "Meal Shuffler bruker kameraet til å skanne en oppskrift fra et ark eller en kokebok.";
 "NSPhotoLibraryAddUsageDescription" = "Meal Shuffler lagrer bildet av uka di i bildebiblioteket når du velger Lagre bilde.";
+"NSCameraUsageDescription" = "Meal Shuffler bruker kameraet til å skanne en oppskrift fra et ark eller en kokebok, og til å ta bilde av en middag dere har laget.";
+"NSCalendarsFullAccessUsageDescription" = "Meal Shuffler ser i kalenderen din rundt middagstid, så travle kvelder får raske middager. Ingenting endres eller sendes noe sted.";
+"NSFaceIDUsageDescription" = "Meal Shuffler bruker Face ID slik at bare en voksen kan gå ut av barnevisningen.";

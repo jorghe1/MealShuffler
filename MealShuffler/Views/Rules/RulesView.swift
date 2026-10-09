@@ -9,9 +9,31 @@ import SwiftUI
 /// and a switch. A rule now reads as what was typed, with what the app understood under it;
 /// tap to edit, swipe to delete.
 struct RulesView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var showingBuilder = false
     @State private var editingRule: PlanningRule?
+
+    /// Days the required rules leave almost no dinners for. Without this, every shuffle
+    /// landing on the same dish looks like the app is broken when it is the rules.
+    @ViewBuilder private var tightDaysWarning: some View {
+        let tight = store.tightDays()
+        if !tight.isEmpty {
+            Section {
+                ForEach(tight, id: \.day) { entry in
+                    Label {
+                        Text(entry.count == 0
+                             ? L10n.string("%@: no dinner in your library fits the rules.", entry.day.name)
+                             : L10n.string("%@: only %ld dinners fit the rules, so shuffling repeats them.", entry.day.name, entry.count))
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(AppTheme.warning)
+                    }
+                    .font(.subheadline)
+                }
+            } footer: {
+                Text("Loosen a rule to \"preferred\", or add dinners that fit.")
+            }
+        }
+    }
 
     var body: some View {
         List {
@@ -20,6 +42,8 @@ struct RulesView: View {
             } footer: {
                 Text("Days your rules already decide.")
             }
+
+            tightDaysWarning
 
             Section {
                 RuleComposer()
@@ -67,8 +91,8 @@ struct RulesView: View {
                 .accessibilityLabel("Share our house rules")
             }
         }
-        .sheet(isPresented: $showingBuilder) { AddRuleView().environmentObject(store) }
-        .sheet(item: $editingRule) { AddRuleView(editing: $0).environmentObject(store) }
+        .sheet(isPresented: $showingBuilder) { AddRuleView().environment(store) }
+        .sheet(item: $editingRule) { AddRuleView(editing: $0).environment(store) }
     }
 }
 
@@ -97,7 +121,7 @@ private enum RuleGroup: CaseIterable, Identifiable {
 
 /// One rule: the words, what they mean, and the switch.
 private struct RuleRow: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     let rule: PlanningRule
     let edit: () -> Void
 
@@ -138,7 +162,7 @@ private struct RuleRow: View {
 
 /// The week as the rules see it: which days are already decided, and by what.
 private struct RuleWeekStrip: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
 
     var body: some View {
         HStack(spacing: AppTheme.Space.xs) {
@@ -202,7 +226,7 @@ private struct RuleWeekStrip: View {
 }
 
 struct AddRuleView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var mode: RuleMode = .requiredDay
@@ -298,6 +322,8 @@ struct AddRuleView: View {
                             rejection = L10n.string("You already have this rule: %@", existing)
                         case .contradiction(let existing):
                             rejection = L10n.string("This cannot hold alongside “%@”.", existing)
+                        case .impossible(let reason):
+                            rejection = reason
                         }
                     } label: {
                         Text(editing == nil ? L10n.string("Add rule") : L10n.string("Save"))

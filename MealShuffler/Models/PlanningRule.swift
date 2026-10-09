@@ -318,6 +318,8 @@ struct PlanningRule: Identifiable, Codable, Hashable {
     var constraint: RuleConstraint
     var repeatEveryWeeks: Int?
     var firstWeek: Date?
+    /// The last week a rule applies, for a rule meant for one week only: "bruk opp rømmen".
+    var expiresAfter: Date?
 
     var supportsPreference: Bool {
         if case .dinnerMode = constraint { return false }
@@ -326,6 +328,10 @@ struct PlanningRule: Identifiable, Codable, Hashable {
 
     func isActive(inWeek date: Date, calendar: Calendar = .current) -> Bool {
         guard isEnabled else { return false }
+        if let expiresAfter,
+           WeekAnchor.startOfWeek(containing: date, calendar: calendar) > WeekAnchor.startOfWeek(containing: expiresAfter, calendar: calendar) {
+            return false
+        }
         guard let firstWeek else { return true }
         let start = WeekAnchor.startOfWeek(containing: firstWeek, calendar: calendar)
         let target = WeekAnchor.startOfWeek(containing: date, calendar: calendar)
@@ -356,7 +362,7 @@ struct PlanningRule: Identifiable, Codable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, isEnabled, strength, constraint, repeatEveryWeeks, firstWeek
+        case id, title, isEnabled, strength, constraint, repeatEveryWeeks, firstWeek, expiresAfter
     }
 
     init(
@@ -383,6 +389,7 @@ struct PlanningRule: Identifiable, Codable, Hashable {
         constraint = try values.decode(RuleConstraint.self, forKey: .constraint)
         repeatEveryWeeks = try values.decodeIfPresent(Int.self, forKey: .repeatEveryWeeks)
         firstWeek = try values.decodeIfPresent(Date.self, forKey: .firstWeek)
+        expiresAfter = try values.decodeIfPresent(Date.self, forKey: .expiresAfter)
         if !supportsPreference { strength = .required }
     }
 

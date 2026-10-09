@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct OnboardingFlowView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var step = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -45,6 +45,7 @@ struct OnboardingFlowView: View {
 
 private struct WelcomeStepView: View {
     let next: () -> Void
+    @ScaledMetric(relativeTo: .largeTitle) private var heroSize: CGFloat = 112
 
     var body: some View {
         ScrollView {
@@ -54,7 +55,7 @@ private struct WelcomeStepView: View {
             ZStack {
                 Circle()
                     .fill(AppTheme.accentSoft)
-                    .frame(width: 112, height: 112)
+                    .frame(width: heroSize, height: heroSize)
                 Image(systemName: "shuffle")
                     .font(.system(.largeTitle, design: .default, weight: .semibold))
                     .foregroundStyle(AppTheme.accent)
@@ -76,6 +77,7 @@ private struct WelcomeStepView: View {
                 Text("Get started")
             }
             .buttonStyle(.primary)
+            .accessibilityIdentifier("onboarding.getStarted")
         }
         .padding(24)
         }
@@ -83,7 +85,7 @@ private struct WelcomeStepView: View {
 }
 
 private struct TasteSwipeView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var index = 0
     @State private var offset: CGSize = .zero
     /// Fixed once, so the deck does not reshuffle underneath the person swiping it.
@@ -150,6 +152,7 @@ private struct TasteSwipeView: View {
                 Button("Neutral") { choose(.neutral) }.disabled(isAdvancing)
                 Spacer()
                 Button("Skip remaining") { guard !isAdvancing else { return }; isAdvancing = true; finished() }
+                    .accessibilityIdentifier("onboarding.skipRemaining")
             }.padding(.horizontal, 24)
 
             // One mis-swipe used to be permanent, on a screen whose entire purpose is
@@ -274,13 +277,14 @@ private struct ChoiceButton: View {
     let label: String
     let color: Color
     let action: () -> Void
+    @ScaledMetric(relativeTo: .title2) private var buttonSize: CGFloat = 62
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 7) {
                 Image(systemName: symbol)
                     .font(.title2.bold())
-                    .frame(width: 62, height: 62)
+                    .frame(width: buttonSize, height: buttonSize)
                     .background(AppTheme.raised)
                     .clipShape(Circle())
                     .shadow(color: AppTheme.ink.opacity(0.1), radius: 10, y: 5)

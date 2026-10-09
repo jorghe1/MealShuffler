@@ -7,7 +7,7 @@ import SwiftUI
 /// makes the rules something you adjust because you can see why, rather than a form to fill
 /// in before you know what the app does.
 struct FirstWeekStepView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let finished: () -> Void
 
@@ -59,6 +59,7 @@ struct FirstWeekStepView: View {
                 Text("Start planning")
             }
             .buttonStyle(.primary)
+            .accessibilityIdentifier("onboarding.startPlanning")
             .padding(.horizontal, 24)
             .padding(.bottom, 20)
             .padding(.top, 6)

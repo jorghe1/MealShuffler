@@ -98,12 +98,12 @@ enum RecipeLibraryStorage {
         let recipes = state.customMeals + state.archivedWeeks.flatMap { $0.recipeSnapshots ?? [] }
             + state.feedbackEvents.compactMap(\.recipeSnapshot) + state.tools.freezer.map(\.recipe)
             + (state.plan.meals + (state.nextWeekPlan?.meals ?? []) + state.archivedWeeks.flatMap { $0.plan.meals }).compactMap { $0.freezerBatch?.recipe }
-        var retained = Set(recipes.flatMap { $0.sourceImageNames ?? [] })
+        var retained = Set(recipes.flatMap { ($0.sourceImageNames ?? []) + ($0.photoName.map { [$0] } ?? []) })
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
         for url in files where url.lastPathComponent.hasPrefix("revisions-") {
             // Unreadable metadata is a reason to keep images, never a reason to delete them.
             let history = try JSONDecoder().decode([Meal].self, from: Data(contentsOf: url))
-            retained.formUnion(history.flatMap { $0.sourceImageNames ?? [] })
+            retained.formUnion(history.flatMap { ($0.sourceImageNames ?? []) + ($0.photoName.map { [$0] } ?? []) })
         }
         for url in files where url.lastPathComponent.hasPrefix("draft-") {
             let draft = try JSONDecoder().decode(ImportedRecipeDraft.self, from: Data(contentsOf: url))

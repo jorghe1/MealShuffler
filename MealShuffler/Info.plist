@@ -29,7 +29,15 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Meal Shuffler uses the camera to scan a recipe from a page or a cookbook.</string>
+	<string>Meal Shuffler uses the camera to scan a recipe from a page or a cookbook, and to take a picture of a dinner you cooked.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Meal Shuffler uses Face ID so only a grown-up can leave the kids view.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Meal Shuffler looks at your calendar around dinner time, so busy evenings get quick dinners. Nothing is changed or sent anywhere.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>AppStoreURL</key>
+	<string>$(APP_STORE_URL)</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Meal Shuffler saves the picture of your week to your photo library when you choose Save Image.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
@@ -66,6 +74,13 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>CKSharingSupported</key>
 	<true/>

@@ -12,14 +12,19 @@ settings:
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "0.5.0"
+    MARKETING_VERSION: "0.6.0"
     CURRENT_PROJECT_VERSION: "1"
     VERSIONING_SYSTEM: apple-generic
     # Deployed URL of server/. Override per build:
     #   xcodebuild ... RECIPE_SERVICE_BASE_URL=https://your-worker.workers.dev
     # Empty leaves the app on its on-device parsers.
     RECIPE_SERVICE_BASE_URL: ""
+    # The App Store page, once there is one: the share card's QR code and link. Empty leaves
+    # them off.
+    APP_STORE_URL: ""
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+    # Still Swift 5 mode, so these are warnings, not errors: a map of what Swift 6 will reject.
+    SWIFT_STRICT_CONCURRENCY: complete
 
 targets:
   MealShuffler:
@@ -45,7 +50,8 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: MealShuffler/Info.plist
         CODE_SIGN_ENTITLEMENTS: MealShuffler/MealShuffler.entitlements
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone and iPad: the iPad is the kitchen board on the fridge or the counter.
+        TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -77,8 +83,12 @@ targets:
       - path: MealShuffler/Resources
       - path: MealShuffler/App/AppGroup.swift
       - path: MealShuffler/Services/AppStateRepository.swift
+      - path: MealShuffler/Services/StateMigrations.swift
       - path: MealShuffler/Services/IngredientUnits.swift
       - path: MealShuffler/Services/PlannedDinnerReader.swift
+      # The interactive "We cooked this" intent and the cooking timer's Live Activity
+      # attributes, which the app and the widget must agree on.
+      - path: MealShuffler/Shared
     info:
       path: MealShufflerWidget/Info.plist
       properties:
@@ -95,7 +105,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.app.widget
         CODE_SIGN_ENTITLEMENTS: MealShufflerWidget/MealShufflerWidget.entitlements
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         SKIP_INSTALL: YES
 
   # Captures what was shared and returns immediately. Extraction is a network round trip and
@@ -119,6 +129,7 @@ targets:
       - path: MealShuffler/Resources
       - path: MealShuffler/App/AppGroup.swift
       - path: MealShuffler/Services/AppStateRepository.swift
+      - path: MealShuffler/Services/StateMigrations.swift
       - path: MealShuffler/Services/IngredientUnits.swift
       - path: MealShuffler/Services/PlannedDinnerReader.swift
       - path: MealShuffler/Services/RecipeInbox.swift
@@ -144,7 +155,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.app.share
         CODE_SIGN_ENTITLEMENTS: MealShufflerShare/MealShufflerShare.entitlements
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         SKIP_INSTALL: YES
 
   MealShufflerTests:
@@ -158,3 +169,34 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.tests
         GENERATE_INFOPLIST_FILE: YES
+
+  # Screenshot smoke flows that drive the real app on a simulator. Deliberately left out of
+  # the MealShuffler scheme above: ci/test-ios.sh runs that scheme before every TestFlight
+  # build, and a flaky UI test must never block a release. They run from their own scheme,
+  # MealShufflerUITests, defined under `schemes:` at the end of this file.
+  MealShufflerUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MealShufflerUITests
+    dependencies:
+      - target: MealShuffler
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: no.mealshuffler.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: MealShuffler
+        TARGETED_DEVICE_FAMILY: "1"
+
+schemes:
+  # Run with: xcodebuild test -scheme MealShufflerUITests -destination 'platform=iOS Simulator,name=iPhone 16'
+  MealShufflerUITests:
+    build:
+      targets:
+        MealShuffler: all
+        MealShufflerUITests: [test]
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - MealShufflerUITests

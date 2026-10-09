@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PlanConflictView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     let conflicts: [PlanConflict]
     var nextWeek = false
     @State private var editingDay: Weekday?
@@ -35,13 +35,13 @@ struct PlanConflictView: View {
             Label(conflicts.count == 1 ? L10n.string("%ld rule conflict", 1) : L10n.string("%ld rule conflicts", conflicts.count), systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(AppTheme.warning)
         }.padding(14).background(AppTheme.warning.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 16))
-        .sheet(item: $pickingDay) { MealPickerView(day: $0, nextWeek: nextWeek).environmentObject(store) }
-        .sheet(item: $editingRule) { AddRuleView(editing: $0).environmentObject(store) }
+        .sheet(item: $pickingDay) { MealPickerView(day: $0, nextWeek: nextWeek).environment(store) }
+        .sheet(item: $editingRule) { AddRuleView(editing: $0).environment(store) }
         .sheet(item: $editingDay) { day in
             DayContextEditor(day: day, initialContext: store.context(for: day, nextWeek: nextWeek),
                 governingRule: store.dinnerModeRule(for: day, nextWeek: nextWeek)?.summary(meals: store.meals, context: store.matchContext)) {
                     if nextWeek { store.updateNextWeekContext($0, for: day) } else { store.updateContext($0, for: day) }
-                }.environmentObject(store)
+                }.environment(store)
         }
     }
 }

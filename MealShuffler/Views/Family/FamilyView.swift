@@ -9,12 +9,14 @@ import SwiftUI
 /// backups, recipe reading, privacy -- is a gear here now, because it is opened a few times a
 /// year.
 struct FamilyView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var showingAddMember = false
     @State private var newMemberName = ""
     @State private var renaming = false
     @State private var householdName = ""
     @State private var showingShare = false
+    @State private var kidsMember: HouseholdMember?
+    @State private var showingBoard = false
 
     private var enabledRules: [PlanningRule] { store.rules.filter(\.isEnabled) }
 
@@ -49,6 +51,7 @@ struct FamilyView: View {
                     )
                     .foregroundStyle(AppTheme.accent)
                 }
+                .accessibilityIdentifier("family.allRules")
             } header: {
                 Text("House rules")
             } footer: {
@@ -78,6 +81,35 @@ struct FamilyView: View {
                 }
             }
 
+            wishesSection
+
+            Section {
+                if store.household.members.count == 1, let only = store.household.members.first {
+                    Button { kidsMember = only } label: {
+                        Label("Kids view", systemImage: "face.smiling")
+                    }
+                } else {
+                    Menu {
+                        ForEach(store.household.members) { member in
+                            Button(member.displayName) { kidsMember = member }
+                        }
+                    } label: {
+                        Label("Kids view", systemImage: "face.smiling")
+                    }
+                }
+                Button { showingBoard = true } label: {
+                    Label("Kitchen board", systemImage: "rectangle.split.3x1")
+                }
+                NavigationLink { YearSummaryView() } label: {
+                    Label(L10n.string("Dinner year %@", String(Calendar.current.component(.year, from: .now))),
+                          systemImage: "sparkles")
+                }
+            } header: {
+                Text("Together")
+            } footer: {
+                Text("The kids view lets a child see the week, vote on dishes and wish for one. Leaving it needs the phone's code. The kitchen board keeps the week on screen on an iPad.")
+            }
+
             Section {
                 NavigationLink {
                     ReminderSettingsView()
@@ -105,7 +137,7 @@ struct FamilyView: View {
                     NavigationLink { CloudSharingView() } label: { Label("iCloud sharing", systemImage: "icloud") }
                 }
                 if FeatureFlags.communityEnabled {
-                    NavigationLink { CommunityView() } label: { Label("Explore", systemImage: "person.3") }
+                    NavigationLink { CommunityHost() } label: { Label("Explore", systemImage: "person.3") }
                 }
             }
         }
@@ -116,9 +148,16 @@ struct FamilyView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink { SettingsView() } label: { Image(systemName: "gearshape") }
                     .accessibilityLabel("Settings")
+                    .accessibilityIdentifier("family.settings")
             }
         }
-        .sheet(isPresented: $showingShare) { WeekShareView().environmentObject(store) }
+        .sheet(isPresented: $showingShare) { WeekShareView().environment(store) }
+        .fullScreenCover(item: $kidsMember) { member in
+            KidsView(member: member).environment(store)
+        }
+        .fullScreenCover(isPresented: $showingBoard) {
+            KitchenBoardView().environment(store)
+        }
         .alert("New family member", isPresented: $showingAddMember) {
             TextField("Name", text: $newMemberName)
             Button("Add") { store.addHouseholdMember(named: newMemberName); newMemberName = "" }
@@ -128,6 +167,46 @@ struct FamilyView: View {
             TextField("Name", text: $householdName)
             Button("Save") { commitName() }
             Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    /// What the kids asked for in their view. A grown-up puts it on a day of next week or lets
+    /// it go; either way the child sees it was heard the next time a wish is made.
+    @ViewBuilder private var wishesSection: some View {
+        let wishes = store.pendingWishes.compactMap { wish -> (wish: MealWish, member: HouseholdMember, meal: Meal)? in
+            guard let member = store.household.members.first(where: { $0.id == wish.memberID }),
+                  let meal = store.meal(id: wish.mealID) else { return nil }
+            return (wish: wish, member: member, meal: meal)
+        }
+        if !wishes.isEmpty {
+            Section {
+                ForEach(wishes, id: \.wish.id) { entry in
+                    HStack(spacing: AppTheme.Space.m) {
+                        MealThumbnail(meal: entry.meal, size: AppTheme.rowThumbnail)
+                        Text(L10n.string("%@ wishes for %@", entry.member.displayName, entry.meal.name))
+                            .foregroundStyle(AppTheme.ink)
+                        Spacer(minLength: 0)
+                        Menu {
+                            Section("Put on next week") {
+                                ForEach(Weekday.ordered()) { day in
+                                    Button(day.name) {
+                                        Haptics.success()
+                                        store.resolveWish(entry.wish, plannedOn: day)
+                                    }
+                                }
+                            }
+                            Button("Not this time", role: .destructive) {
+                                store.resolveWish(entry.wish, plannedOn: nil)
+                            }
+                        } label: {
+                            Image(systemName: "calendar.badge.plus").iconButtonFrame()
+                        }
+                        .accessibilityLabel("Answer the wish")
+                    }
+                }
+            } header: {
+                Text("Wishes")
+            }
         }
     }
 
@@ -195,7 +274,7 @@ struct FamilyView: View {
 
 /// A rule in a list: the household's own words, what the app understood, and the switch.
 struct RuleSummaryRow: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     let rule: PlanningRule
 
     var body: some View {
@@ -256,7 +335,7 @@ struct MemberAvatar: View {
 
 /// One person's tastes, and the rule that keeps their dislikes off the table when they eat.
 struct MemberTasteView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     let member: HouseholdMember
     @State private var search = ""
     @State private var filter = 0
@@ -283,6 +362,7 @@ struct MemberTasteView: View {
                     case .added: store.actionNotice = L10n.string("Rule added.")
                     case .duplicate(let title): store.actionNotice = L10n.string("This rule already exists: %@", title)
                     case .contradiction(let title): store.actionNotice = L10n.string("This conflicts with: %@", title)
+                    case .impossible(let reason): store.actionNotice = reason
                     }
                 }
             } footer: {

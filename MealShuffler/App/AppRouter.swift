@@ -21,6 +21,9 @@ final class AppRouter: ObservableObject {
     @Published var tab: AppTab = .week
     /// The Week tab shows next week rather than this one.
     @Published var showsNextWeek = false
+    /// A day of this week to open, from the widget's "Change" button. The Week screen opens
+    /// that day's sheet and clears it.
+    @Published var openDay: Weekday?
 
     func open(_ destination: ReminderDestination) {
         switch destination {
@@ -35,14 +38,19 @@ final class AppRouter: ObservableObject {
         }
     }
 
-    /// `mealshuffler://week`, `mealshuffler://next-week`, `mealshuffler://shop` -- what the
-    /// widget links to. Returns false for any other URL, which the caller handles.
+    /// `mealshuffler://week`, `mealshuffler://next-week`, `mealshuffler://shop` and
+    /// `mealshuffler://day/<weekday>` -- what the widget links to. Returns false for any other
+    /// URL, which the caller handles.
     func open(_ url: URL) -> Bool {
         guard url.scheme == "mealshuffler" else { return false }
         switch url.host {
         case "week", "tonight": open(.tonight)
         case "next-week": open(.nextWeek)
         case "shop": open(.shop)
+        case "day":
+            guard let raw = url.pathComponents.last, let day = Weekday(rawValue: raw) else { return false }
+            open(.tonight)
+            openDay = day
         default: return false
         }
         return true
@@ -57,5 +65,18 @@ final class AppRouter: ObservableObject {
 /// over each other.
 @MainActor
 enum AppStoreHost {
-    static let shared = AppStore()
+    static let shared: AppStore = UITestSupport.isUITesting ? UITestSupport.makeStore() : AppStore()
+}
+
+/// Links that leave the app.
+enum AppLinks {
+    /// The App Store page, once the app has one: `APP_STORE_URL` in project.yml, written into
+    /// Info.plist. Empty until then, and the share card then leaves its link off rather than
+    /// pointing somewhere that does not exist.
+    static var appStoreURL: URL? {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: "AppStoreURL") as? String,
+              !raw.trimmingCharacters(in: .whitespaces).isEmpty,
+              let url = URL(string: raw), url.scheme == "https" else { return nil }
+        return url
+    }
 }

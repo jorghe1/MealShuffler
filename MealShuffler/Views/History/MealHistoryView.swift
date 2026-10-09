@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MealHistoryView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var showingClear = false
     @State private var selectedMeal: Meal?
 
@@ -83,6 +83,13 @@ struct MealHistoryView: View {
                 }
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+            }
+
+            Section {
+                NavigationLink { YearSummaryView() } label: {
+                    Label(L10n.string("Dinner year %@", String(Calendar.current.component(.year, from: .now))),
+                          systemImage: "sparkles")
+                }
             }
 
             Section {

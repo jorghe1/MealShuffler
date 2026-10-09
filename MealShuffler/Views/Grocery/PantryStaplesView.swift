@@ -6,7 +6,7 @@ import SwiftUI
 /// is meant to be undone. Salt, oil and rice are a standing fact, and a list that keeps
 /// offering them is a list people stop reading.
 struct PantryStaplesView: View {
-    @EnvironmentObject private var store: AppStore
+    @Environment(AppStore.self) private var store
     @State private var newStaple = ""
 
     var body: some View {

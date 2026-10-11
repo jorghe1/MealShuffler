@@ -7,6 +7,8 @@ import SwiftUI
 struct MealRow: View {
     let meal: Meal
     var isFavorite = false
+    /// Off for the library's "names only" view.
+    var showsThumbnail = true
     var note: String?
     var openMeal: (() -> Void)?
     var toggleFavorite: (() -> Void)?
@@ -30,16 +32,24 @@ struct MealRow: View {
                 )
             }
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, showsThumbnail ? 12 : 6)
+    }
+
+    /// "0 min" read as instant; an unknown time says so, as it does on the library cards.
+    private var metadata: String {
+        meal.prepMinutes > 0
+            ? L10n.string("%ld min · %ld servings", meal.prepMinutes, meal.defaultServings)
+            : L10n.string("Time not specified · %ld servings", meal.defaultServings)
     }
     private var mealContent: some View {
         HStack(spacing: 13) {
-            MealThumbnail(meal: meal)
-            VStack(alignment: .leading, spacing: 4) {
+            if showsThumbnail { MealThumbnail(meal: meal) }
+            VStack(alignment: .leading, spacing: showsThumbnail ? 4 : 2) {
                 // No "MINE" tag: the Mine filter already says whose recipe it is, and a shouting
                 // label on every row of a library that is mostly the household's own was noise.
                 Text(meal.name).font(.headline).lineLimit(2)
-                Text(L10n.string("%ld min · %ld servings", meal.prepMinutes, meal.defaultServings))
+                Text(metadata)
                     .font(.caption).foregroundStyle(AppTheme.muted)
                 if let note {
                     Text(note).font(.caption2.weight(.semibold)).foregroundStyle(AppTheme.warning)

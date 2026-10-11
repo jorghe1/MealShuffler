@@ -54,6 +54,17 @@ struct GroceryListView: View {
                     }
                 }
                 .frame(minHeight: AppTheme.tapTarget)
+                // On the list rather than three levels into a menu: for most Norwegian
+                // households Bring! is where the shopping actually happens.
+                if !remaining.isEmpty, let link = bringListLink {
+                    Button { pendingBringList = link } label: {
+                        Label("Send the list to Bring!", systemImage: "cart.fill.badge.plus")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(maxWidth: .infinity, minHeight: AppTheme.tapTarget, alignment: .leading)
+                    }
+                    .accessibilityIdentifier("grocery.bring")
+                }
             } footer: {
                 if hasDinnersWithoutIngredients {
                     Label("Some dinners have no ingredients saved. Check their recipes before shopping.", systemImage: "exclamationmark.triangle")
@@ -118,7 +129,10 @@ struct GroceryListView: View {
         .appBackground()
         .navigationTitle("Shopping list")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { listMenu }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                exportMenu
+                optionsMenu
+            }
         }
         .sheet(isPresented: $showingPeriod) { ShoppingPeriodView().environment(store) }
         .sheet(item: $editingItem) { item in
@@ -283,14 +297,20 @@ struct GroceryListView: View {
     /// Bring! reads a recipe off its own page, so only dinners that came from a link can
     /// go across. Hidden entirely rather than shown empty: a menu item that never works is
     /// worse than one that is not there.
+    /// Read from the shopping period, like the list itself, rather than the calendar week.
     private var bringDinners: [BringExport.Dinner] {
-        BringExport.exportableDinners(plan: store.plan, meals: store.meals)
+        BringExport.exportableDinners(plan: store.shoppingPlan, meals: store.meals)
     }
 
-    private var listMenu: some View {
+    private var bringListLink: URL? {
+        BringExport.listLink(items: remainingItems, title: WeekAnchor.label(forWeekStarting: store.shoppingStart))
+    }
+
+    /// Where the list goes: its own button, apart from the settings that shape it.
+    private var exportMenu: some View {
         Menu {
             Section {
-                if let link = BringExport.listLink(items: remainingItems, title: WeekAnchor.label(forWeekStarting: store.shoppingStart)) {
+                if let link = bringListLink {
                     Button { pendingBringList = link } label: {
                         Label("Send the list to Bring!", systemImage: "cart.fill.badge.plus")
                     }
@@ -317,17 +337,26 @@ struct GroceryListView: View {
                     Label("Share all items", systemImage: "list.bullet")
                 }
             }
+        } label: {
+            if isExporting {
+                ProgressView()
+            } else {
+                Image(systemName: "square.and.arrow.up")
+            }
+        }
+        .accessibilityLabel(L10n.string("Send or share the list"))
+        .accessibilityIdentifier("grocery.export")
+    }
+
+    private var optionsMenu: some View {
+        Menu {
             Section {
                 Button { showingPeriod = true } label: { Label("Shopping period", systemImage: "calendar") }
                 Button { showingStaples = true } label: { Label("Pantry staples", systemImage: "cabinet") }
                 Button { showingAisleOrder = true } label: { Label("Shop order", systemImage: "arrow.up.arrow.down") }
             }
         } label: {
-            if isExporting {
-                ProgressView()
-            } else {
-                Image(systemName: "ellipsis.circle")
-            }
+            Image(systemName: "ellipsis.circle")
         }
         .accessibilityLabel(L10n.string("Shopping list options"))
     }

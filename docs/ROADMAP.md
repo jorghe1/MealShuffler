@@ -47,7 +47,7 @@ backend required, recipe service and iCloud sharing off.
 ### Phase 3 — four tabs and redesign (0a0bd35)
 
 - Tabs **Uke · Retter · Handle · Familie**, bound to the router.
-- Week: tonight card, seven compact rows (swipe to lock or redraw), rule chips, this/next
+- Week: tonight card, seven compact rows (one-tap lock, swipe to redraw), rule chips, this/next
   week switch, one "Stokk N dager" button with the rows spinning and landing.
 - Husregler: what the rules decide as a week strip, the composer that highlights what it
   understood and asks about ambiguous foods, rules grouped by kind with Må/Helst.
@@ -55,6 +55,30 @@ backend required, recipe service and iCloud sharing off.
 - Handle: progress, quick add with aisle guessing, folded bought/at-home items, one ⋯ menu.
 - Familie: household, portions, tastes, reminders and sharing; settings behind a gear.
 - Design tokens and three button styles in `AppTheme` (see [DESIGN.md](../DESIGN.md)).
+
+## Fixed in 0.6.1
+
+From the first TestFlight round of 0.6.0 (build 29).
+
+- **One-tap lock is back.** Every day still to come has a lock button on its row and on
+  tonight's card (open when unlocked, filled when locked). The swipe and the day sheet still
+  work; the swipe no longer toggles on a full swipe. When every dinner left is locked, the
+  shuffle button says so instead of disappearing.
+- **"Plan this day" keeps the dinner.** More guests, portion size and extra servings rescale
+  the planned dinner instead of drawing a new one -- also on a locked day and in next week.
+  Only a change of evening (takeaway, away, leftovers), a time limit the dish breaks or seating
+  someone who dislikes it picks a new dinner, and the last two say so.
+- **Seating a member moves the count by one.** It used to set the count to the number of
+  members, wiping added guests.
+- **Tonight's card is compact.** The picture sits beside the dinner, about half the height.
+- **Recipe: "Legg i uka".** The bottom of a recipe no longer hides behind the bar. The day
+  picker covers this and next week, skips days gone or cooked, shows what each day has, and
+  confirms with a short message that fades by itself.
+- **Library views.** Pictures, list, or names only; remembered. Unknown time reads "Tid ikke
+  oppgitt" instead of "0 min".
+- **Shopping list.** "Send listen til Bring!" sits on the list when the service is configured;
+  sending and sharing have their own button, apart from the list settings. Single dinners for
+  Bring! follow the shopping period.
 
 ## Added in 0.6.0
 

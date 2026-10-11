@@ -66,4 +66,16 @@ final class BringExportTests: XCTestCase {
         XCTAssertEqual(try query(try XCTUnwrap(dinners.first?.link))["requestedQuantity"], "5",
                        "The day's own servings, not the recipe's")
     }
+
+    /// A shopping period across two weeks can hold the same dinner twice; the menu lists it once.
+    func testADinnerPlannedTwiceInTheShoppingPeriodIsOfferedOnce() throws {
+        let source = try XCTUnwrap(URL(string: "https://example.com/oppskrift"))
+        let imported = meal(source: .web(source))
+        let plan = WeeklyPlan(meals: [
+            PlannedMeal(day: .monday, mealID: imported.id, isLocked: false, servings: 4),
+            PlannedMeal(day: .monday, mealID: imported.id, isLocked: false, servings: 4)
+        ])
+
+        XCTAssertEqual(BringExport.exportableDinners(plan: plan, meals: [imported]).count, 1)
+    }
 }

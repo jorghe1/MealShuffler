@@ -53,6 +53,10 @@ final class AppStore {
     var pendingCaptures: [CapturedRecipe] = []
     var persistenceError: String?
     var actionNotice: String?
+    /// A short confirmation that fades on its own, for something that went as asked. An
+    /// `actionNotice` is an alert to dismiss, which is right for a problem and too heavy for
+    /// "Taco is planned for Thursday".
+    var confirmation: String?
     private(set) var isGenerating = false
     /// Bumped by changes a background shuffle could overwrite: the plans, their day settings
     /// and the rules. Not by every save -- a grocery tick, a reminder toggle or an iCloud poll
@@ -732,8 +736,20 @@ final class AppStore {
 
     func updateNextWeekContext(_ context: DayPlanContext, for day: Weekday) {
         rememberForUndo(L10n.string("Next week"))
+        let start = WeekAnchor.startOfNextWeek(after: plan.startDate)
+        let before = contexts(forWeek: start)[day] ?? DayPlanContext(diners: householdSize)
         nextWeekContexts[day] = context
         guard let next = nextWeekPlan else { planNextWeek(); return }
+        let after = contexts(forWeek: start)[day] ?? context
+        if let item = next[day], dinnerStillFits(item, from: before, to: after) {
+            var kept = next
+            kept[day] = rescaled(item, to: after)
+            nextWeekPlan = kept
+            refreshConflicts()
+            reconcileGroceryChecks()
+            return
+        }
+        let previousMeal = next[day]?.kind == .meal ? next[day]?.mealID : nil
         let locks = Dictionary(uniqueKeysWithValues: next.meals.map { ($0.day, $0.isLocked) })
         var pinned = next
         for index in pinned.meals.indices { pinned.meals[index].isLocked = pinned.meals[index].day != day }
@@ -744,6 +760,7 @@ final class AppStore {
         for index in updated.meals.indices { updated.meals[index].isLocked = locks[updated.meals[index].day] ?? false }
         nextWeekPlan = updated
         nextWeekConflicts = result.conflicts
+        noteReplacedDinner(previousMeal, by: updated[day], mode: before.mode == after.mode ? after.mode : nil)
     }
 
     func shuffleNextWeek(day: Weekday, intent: MealSwapIntent) {
@@ -1038,7 +1055,19 @@ final class AppStore {
     func updateContext(_ context: DayPlanContext, for day: Weekday) {
         guard !isCompleted(on: day) else { actionNotice = L10n.string("Mark this dinner as not cooked before replacing it."); return }
         rememberForUndo(L10n.string("Plan for %@", day.name.lowercased()))
+        let before = resolvedContexts[day] ?? DayPlanContext(diners: householdSize)
         dayContexts[day] = context
+        let after = resolvedContexts[day] ?? context
+        // More guests or smaller portions are the same dinner in a different quantity. Only an
+        // edit the planned dinner no longer fits picks a new one; adding two guests on taco
+        // Friday used to replace the taco, even a locked one.
+        if let item = plan[day], dinnerStillFits(item, from: before, to: after) {
+            plan[day] = rescaled(item, to: after)
+            refreshConflicts()
+            reconcileGroceryChecks()
+            return
+        }
+        let previousMeal = plan[day]?.kind == .meal ? plan[day]?.mealID : nil
         // Days eating this day's leftovers depend on what it cooks, so they re-roll too.
         var affected: Set<Weekday> = [day]
         for item in plan.meals {
@@ -1049,6 +1078,50 @@ final class AppStore {
             affected.insert(other)
         }
         regenerate(days: affected, respectingLocks: false)
+        noteReplacedDinner(previousMeal, by: plan[day], mode: before.mode == after.mode ? after.mode : nil)
+    }
+
+    /// Whether an edit to "Plan this day" leaves the planned dinner standing.
+    ///
+    /// It does unless the edit changes what kind of evening it is, where leftovers come from,
+    /// sets a time limit the dish is too slow for, or seats someone who dislikes it.
+    private func dinnerStillFits(_ item: PlannedMeal, from before: DayPlanContext, to after: DayPlanContext) -> Bool {
+        guard before.mode == after.mode, item.kind.mode == after.mode else { return false }
+        switch after.mode {
+        case .away, .takeaway:
+            return true
+        case .leftovers:
+            return before.leftoverSourceDay == after.leftoverSourceDay && before.freezerBatchID == after.freezerBatchID
+        case .cook:
+            guard let mealID = item.mealID, let meal = self.meal(id: mealID) else { return false }
+            // Only a limit this edit set: a busy evening's limit was already there, and a
+            // dinner locked in spite of it should not be swept away by a change of diners.
+            if let limit = after.maximumPrepMinutes, limit != before.maximumPrepMinutes, meal.prepMinutes > limit { return false }
+            let everyone = Set(household.members.map(\.id))
+            let joining = (after.attendingMemberIDs ?? everyone).subtracting(before.attendingMemberIDs ?? everyone)
+            return !joining.contains { memberPreferences[$0]?[mealID] == .disliked }
+        }
+    }
+
+    /// The same dinner, cooked for the day's new number of diners and portion size.
+    private func rescaled(_ item: PlannedMeal, to context: DayPlanContext) -> PlannedMeal {
+        var item = item
+        item.portionScale = context.portionScale
+        switch item.kind {
+        case .meal: item.servings = context.cookedServings
+        case .leftovers, .takeaway: item.servings = context.diners
+        case .away: item.servings = 0
+        }
+        return item
+    }
+
+    /// Says so when a day edit had to replace the dinner itself, so it does not just change
+    /// under the household's hands. Silent when the edit changed the kind of evening, where a
+    /// new dinner is the point.
+    private func noteReplacedDinner(_ previous: UUID?, by item: PlannedMeal?, mode: DayDinnerMode?) {
+        guard mode == .cook, let previous, let item, item.kind == .meal, item.mealID != previous,
+              let old = meal(id: previous) else { return }
+        actionNotice = L10n.string("%@ did not fit the new plan for the day, so the dinner was replaced.", old.name)
     }
 
     func swapMeals(between firstDay: Weekday, and secondDay: Weekday) {
@@ -1447,27 +1520,9 @@ final class AppStore {
     /// Brings the current plan's servings, and so the grocery quantities, back in line with
     /// the household size. Days carrying an explicit per-day override keep it.
     private func rescalePlanServings() {
-        var updated = plan
-        for index in updated.meals.indices {
-            let dayContext = context(for: updated.meals[index].day)
-            updated.meals[index].portionScale = dayContext.portionScale
-            switch updated.meals[index].kind {
-            case .meal: updated.meals[index].servings = dayContext.cookedServings
-            case .leftovers, .takeaway: updated.meals[index].servings = dayContext.diners
-            case .away: updated.meals[index].servings = 0
-            }
-        }
-        plan = updated
+        plan.meals = plan.meals.map { rescaled($0, to: context(for: $0.day)) }
         if var next = nextWeekPlan {
-            for index in next.meals.indices {
-                let context = self.context(for: next.meals[index].day, nextWeek: true)
-                next.meals[index].portionScale = context.portionScale
-                switch next.meals[index].kind {
-                case .meal: next.meals[index].servings = context.cookedServings
-                case .leftovers, .takeaway: next.meals[index].servings = context.diners
-                case .away: next.meals[index].servings = 0
-                }
-            }
+            next.meals = next.meals.map { rescaled($0, to: context(for: $0.day, nextWeek: true)) }
             nextWeekPlan = next
         }
         refreshConflicts()

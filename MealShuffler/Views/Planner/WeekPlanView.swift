@@ -217,7 +217,8 @@ struct WeekPlanView: View {
                             cooking = session
                         }
                     },
-                    change: { sheet = .day(today.day, nextWeek: false) }
+                    change: { sheet = .day(today.day, nextWeek: false) },
+                    toggleLock: { toggleLock(today.day, nextWeek: false) }
                 )
             }
             .listRowInsets(EdgeInsets())
@@ -306,31 +307,38 @@ struct WeekPlanView: View {
         let position = Double(Weekday.position(of: day))
         let cook = store.cook(for: day, nextWeek: nextWeek)?.displayName
         let isBusy = store.busyDays(inWeekStarting: plan.startDate).contains(day)
-        return Button {
-            sheet = .day(day, nextWeek: nextWeek)
-        } label: {
-            DayRow(
-                day: day,
-                date: date,
-                item: item,
-                meal: meal,
-                badge: item.flatMap { badge(for: day, item: $0, meal: meal, plan: plan) },
-                isToday: !nextWeek && Calendar.current.isDateInToday(date),
-                isDimmed: isPast || isCompleted,
-                isCompleted: isCompleted,
-                cook: cook,
-                isBusy: isBusy,
-                spin: spin,
-                delay: position * 0.09
-            )
+        return HStack(spacing: AppTheme.Space.xs) {
+            Button {
+                sheet = .day(day, nextWeek: nextWeek)
+            } label: {
+                DayRow(
+                    day: day,
+                    date: date,
+                    item: item,
+                    meal: meal,
+                    badge: item.flatMap { badge(for: day, item: $0, meal: meal, plan: plan) },
+                    isToday: !nextWeek && Calendar.current.isDateInToday(date),
+                    isDimmed: isPast || isCompleted,
+                    isCompleted: isCompleted,
+                    cook: cook,
+                    isBusy: isBusy,
+                    spin: spin,
+                    delay: position * 0.09
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("week.day.\(day.rawValue)")
+            // One tap, on the row itself: the lock is what the next shuffle leaves alone, and
+            // behind a swipe nobody found it.
+            if let item, !isPast, !isCompleted {
+                LockButton(isLocked: item.isLocked, dayName: day.name) { toggleLock(day, nextWeek: nextWeek) }
+                    .accessibilityIdentifier("week.lock.\(day.rawValue)")
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("week.day.\(day.rawValue)")
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
             if let item {
                 Button {
-                    Haptics.check()
-                    if nextWeek { store.toggleNextWeekLock(day: day) } else { store.toggleLock(day: day) }
+                    toggleLock(day, nextWeek: nextWeek)
                 } label: {
                     Label(item.isLocked ? L10n.string("Unlock") : L10n.string("Lock"),
                           systemImage: item.isLocked ? "lock.open" : "lock.fill")
@@ -360,6 +368,13 @@ struct WeekPlanView: View {
     private func badge(for day: Weekday, item: PlannedMeal, meal: Meal?, plan: WeeklyPlan) -> String? {
         let active = store.rules.filter { $0.isActive(inWeek: plan.startDate) }
         return WeekPosterContent.badge(for: day, item: item, meal: meal, rules: active, context: store.matchContext)
+    }
+
+    private func toggleLock(_ day: Weekday, nextWeek: Bool) {
+        Haptics.check()
+        withAnimation(reduceMotion ? nil : .snappy) {
+            if nextWeek { store.toggleNextWeekLock(day: day) } else { store.toggleLock(day: day) }
+        }
     }
 
     private func reroll(_ day: Weekday, nextWeek: Bool, intent: MealSwapIntent = .different) {
@@ -403,6 +418,28 @@ struct WeekPlanView: View {
             .accessibilityIdentifier("week.shuffle")
             .padding(.bottom, AppTheme.Space.m)
             .accessibilityHint(L10n.string("Locked and finished days stay as they are"))
+        } else if lockedDaysAhead(nextWeek: nextWeek) {
+            // Said rather than vanishing: a button that disappears reads as a fault, when the
+            // week is simply as the household locked it.
+            Label("All dinners are locked", systemImage: "lock.fill")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, AppTheme.Space.l)
+                .frame(minHeight: AppTheme.tapTarget)
+                .background(AppTheme.surface)
+                .foregroundStyle(AppTheme.muted)
+                .clipShape(Capsule())
+                .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+                .padding(.bottom, AppTheme.Space.m)
+                .accessibilityIdentifier("week.allLocked")
+        }
+    }
+
+    /// Whether days are still to come that the shuffle would change, were they not locked.
+    private func lockedDaysAhead(nextWeek: Bool) -> Bool {
+        if nextWeek { return store.nextWeekPlan?.meals.contains(where: \.isLocked) == true }
+        let today = Calendar.current.startOfDay(for: .now)
+        return store.plan.meals.contains {
+            $0.isLocked && !store.isCompleted(on: $0.day) && store.plan.date(for: $0.day) >= today
         }
     }
 
@@ -508,7 +545,7 @@ struct WeekPlanView: View {
         case .planDay:
             sheet = .context(day, nextWeek: nextWeek)
         case .toggleLock:
-            if nextWeek { store.toggleNextWeekLock(day: day) } else { store.toggleLock(day: day) }
+            toggleLock(day, nextWeek: nextWeek)
         case .toggleFavorite:
             if let meal { store.toggleFavorite(meal) }
         case .markCooked:
@@ -543,51 +580,57 @@ private struct TonightCard: View {
     let openRecipe: () -> Void
     let startCooking: () -> Void
     let change: () -> Void
+    let toggleLock: () -> Void
+    /// Grows with the text, up to a point: the picture belongs to the card, it is not the card.
+    @ScaledMetric(relativeTo: .title3) private var artworkSize: CGFloat = 88
 
+    private var opensRecipe: Bool { item.kind == .meal && meal != nil }
+
+    /// The picture sits beside the dinner rather than above it. As a 132pt banner it made the
+    /// card about 280pt tall -- half the week's first screen for one day.
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button(action: item.kind == .meal ? openRecipe : change) {
-                MealArtwork(meal: item.kind == .meal ? meal : nil, fallbackEmoji: DayRow.fallbackSymbol(for: item, meal: meal))
-                    .frame(height: 132)
-                    .overlay(alignment: .topLeading) {
-                        Text("Tonight")
-                            .eyebrowStyle()
-                            .padding(.horizontal, AppTheme.Space.s).padding(.vertical, AppTheme.Space.xs)
-                            .background(AppTheme.surface)
-                            .clipShape(Capsule())
-                            .padding(AppTheme.Space.m)
-                    }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(L10n.string("Open the recipe"))
+        VStack(alignment: .leading, spacing: AppTheme.Space.m) {
+            HStack(alignment: .top, spacing: AppTheme.Space.m) {
+                Button(action: opensRecipe ? openRecipe : change) {
+                    MealArtwork(meal: item.kind == .meal ? meal : nil, fallbackEmoji: DayRow.fallbackSymbol(for: item, meal: meal))
+                        .frame(width: min(artworkSize, 120), height: min(artworkSize, 120))
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(opensRecipe ? L10n.string("Open the recipe") : L10n.string("Change"))
 
-            VStack(alignment: .leading, spacing: AppTheme.Space.m) {
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: AppTheme.Space.xs) {
-                        Text(DayRow.title(for: item, meal: meal))
-                            .font(AppTheme.Typography.title).foregroundStyle(AppTheme.ink)
-                        Text([DayRow.metadata(for: item, meal: meal), cook.map { L10n.string("%@ cooks", $0) }]
-                                .compactMap { $0 }.joined(separator: " · "))
-                            .font(.subheadline).foregroundStyle(AppTheme.muted)
-                    }
-                    Spacer(minLength: AppTheme.Space.s)
+                VStack(alignment: .leading, spacing: AppTheme.Space.xs) {
+                    Text("Tonight").eyebrowStyle()
+                    Text(DayRow.title(for: item, meal: meal))
+                        .font(AppTheme.Typography.section).foregroundStyle(AppTheme.ink)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text([DayRow.metadata(for: item, meal: meal), cook.map { L10n.string("%@ cooks", $0) }]
+                            .compactMap { $0 }.joined(separator: " · "))
+                        .font(.subheadline).foregroundStyle(AppTheme.muted)
                     if let badge { RuleBadge(text: badge) }
                 }
-                HStack(spacing: AppTheme.Space.s) {
-                    if isCompleted {
-                        Label("Cooked", systemImage: "checkmark.seal.fill")
-                            .font(.headline).foregroundStyle(AppTheme.accent)
-                            .frame(maxWidth: .infinity, minHeight: AppTheme.tapTarget, alignment: .leading)
-                    } else if item.kind == .meal, meal != nil {
-                        Button(action: startCooking) { Label("Start cooking", systemImage: "flame") }
-                            .buttonStyle(.primary)
-                    }
-                    Button(action: change) { Text("Change") }
-                        .buttonStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if !isCompleted {
+                    LockButton(isLocked: item.isLocked, dayName: day.name, toggle: toggleLock)
+                        .accessibilityIdentifier("week.tonight.lock")
                 }
             }
-            .padding(AppTheme.Space.l)
+            HStack(spacing: AppTheme.Space.s) {
+                if isCompleted {
+                    Label("Cooked", systemImage: "checkmark.seal.fill")
+                        .font(.headline).foregroundStyle(AppTheme.accent)
+                        .frame(maxWidth: .infinity, minHeight: AppTheme.tapTarget, alignment: .leading)
+                } else if opensRecipe {
+                    Button(action: startCooking) { Label("Start cooking", systemImage: "flame") }
+                        .buttonStyle(.primary)
+                }
+                Button(action: change) { Text("Change") }
+                    .buttonStyle(.secondary)
+            }
         }
+        .padding(AppTheme.Space.l)
         .mealCard()
     }
 }
@@ -655,18 +698,17 @@ struct DayRow: View {
                 }
             }
             Spacer(minLength: AppTheme.Space.xs)
+            // The lock is its own button beside the row, so it is not drawn here.
             if isCompleted {
                 Image(systemName: "checkmark.seal.fill").foregroundStyle(AppTheme.accent)
                     .accessibilityLabel("Cooked")
-            } else if item?.isLocked == true {
-                Image(systemName: "lock.fill").font(.footnote).foregroundStyle(AppTheme.accent)
-                    .accessibilityLabel("Locked")
             }
         }
         .padding(.vertical, AppTheme.Space.xxs)
         .opacity(isDimmed ? 0.55 : 1)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityValue(item?.isLocked == true && !isCompleted ? Text("Locked") : Text(""))
         .accessibilityHint(L10n.string("Opens this day. Swipe to lock or replace."))
     }
 
@@ -972,10 +1014,7 @@ struct DayContextEditor: View {
                         Toggle(member.displayName, isOn: Binding(
                             get: { context.attendingMemberIDs?.contains(member.id) ?? true },
                             set: { attending in
-                                var ids = context.attendingMemberIDs ?? Set(store.household.members.map(\.id))
-                                if attending { ids.insert(member.id) } else { ids.remove(member.id) }
-                                context.attendingMemberIDs = ids
-                                context.diners = max(1, ids.count)
+                                context.setAttending(attending, member: member.id, among: store.household.members.map(\.id))
                             }
                         ))
                     }
@@ -1042,11 +1081,14 @@ struct DayContextEditor: View {
 struct MealDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let meal: Meal
+    /// A bar pinned under the recipe, such as the library's "Add to the week".
+    private let actions: AnyView?
     @State private var servings: Double
     @ScaledMetric(relativeTo: .caption) private var stepCircle: CGFloat = 26
 
-    init(meal: Meal, initialServings: Double? = nil) {
+    init(meal: Meal, initialServings: Double? = nil, actions: AnyView? = nil) {
         self.meal = meal
+        self.actions = actions
         _servings = State(initialValue: initialServings ?? Double(meal.defaultServings))
     }
 
@@ -1091,6 +1133,12 @@ struct MealDetailView: View {
                         }
                     }
                 }.padding(20)
+            }
+            // On the scroll view itself, inside the navigation stack. Applied from outside the
+            // stack, the inset never reached the scroll view, and the last steps of the recipe
+            // sat under the bar where they could not be scrolled into view.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if let actions { actions }
             }
             .appBackground()
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }

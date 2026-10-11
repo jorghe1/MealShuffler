@@ -5,6 +5,16 @@ enum PlannedMealKind: Codable, Hashable {
     case leftovers(sourceDay: Weekday)
     case away
     case takeaway
+
+    /// The kind of evening the day settings ask for that produces this entry.
+    var mode: DayDinnerMode {
+        switch self {
+        case .meal: .cook
+        case .leftovers: .leftovers
+        case .away: .away
+        case .takeaway: .takeaway
+        }
+    }
 }
 struct PlannedMeal: Identifiable, Codable, Hashable {
     var id: Weekday { day }
@@ -155,6 +165,18 @@ struct DayPlanContext: Codable, Hashable {
     var effectiveDiners: Double { Double(diners) * max(0.25, portionScale ?? 1) }
 
     var cookedServings: Int { max(diners + extraServings, 1) }
+
+    /// Seats or unseats one member, moving the number eating by one.
+    ///
+    /// Setting the count to the number of members present instead wiped any guests already
+    /// added to the day, and anyone eating here who is not on the member list.
+    mutating func setAttending(_ attending: Bool, member: UUID, among members: [UUID]) {
+        var ids = attendingMemberIDs ?? Set(members)
+        guard ids.contains(member) != attending else { return }
+        if attending { ids.insert(member) } else { ids.remove(member) }
+        attendingMemberIDs = ids
+        diners = min(20, max(1, diners + (attending ? 1 : -1)))
+    }
 }
 
 enum MealSwapIntent: String, CaseIterable, Identifiable {

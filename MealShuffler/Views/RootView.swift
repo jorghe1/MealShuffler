@@ -62,6 +62,7 @@ struct RootView: View {
         )) {
             Button("OK", role: .cancel) {}
         } message: { Text(store.inviteNotice ?? "") }
+        .overlay(alignment: .top) { ConfirmationToast() }
     }
 }
 

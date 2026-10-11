@@ -24,6 +24,7 @@ struct MealLibraryView: View {
         case detail(Meal)
         case photos(ImportedRecipeDraft)
         case capture(CapturedRecipe)
+        case addToWeek(Meal)
 
         var id: String {
             switch self {
@@ -34,6 +35,7 @@ struct MealLibraryView: View {
             case .detail(let meal): "detail-\(meal.id)"
             case .photos: "photos"
             case .capture(let capture): "capture-\(capture.id)"
+            case .addToWeek(let meal): "add-to-week-\(meal.id)"
             }
         }
     }
@@ -62,6 +64,9 @@ struct MealLibraryView: View {
     @State private var isPickingPhotos = false
     @State private var showingCollections = false
     @State private var showingFreezer = false
+    /// "Add to the week" from an open recipe, presented over it.
+    @State private var addingToWeek: Meal?
+    @AppStorage("meals.layout") private var layout: LibraryLayout = .grid
 
     private let columns = [GridItem(.flexible(), spacing: AppTheme.Space.m), GridItem(.flexible(), spacing: AppTheme.Space.m)]
 
@@ -182,16 +187,19 @@ struct MealLibraryView: View {
                     Text(isBrowsing ? L10n.string("All meals") : L10n.string("%ld meals", filteredMeals.count))
                         .font(AppTheme.Typography.section).foregroundStyle(AppTheme.ink)
                     Spacer()
+                    layoutMenu
                     sortMenu
                 }
 
                 let meals = filteredMeals
                 if meals.isEmpty {
                     emptyState
-                } else {
+                } else if layout == .grid {
                     LazyVGrid(columns: columns, spacing: AppTheme.Space.m) {
                         ForEach(meals) { meal in mealCard(meal) }
                     }
+                } else {
+                    mealList(meals)
                 }
                 Color.clear.frame(height: AppTheme.Space.xl)
             }
@@ -256,6 +264,25 @@ struct MealLibraryView: View {
                 .chipStyle(selected: hasExtraFilters)
         }
         .accessibilityLabel("More filters")
+    }
+
+    /// Pictures, a list, or names only: a library of 80 recipes is a long scroll as a grid
+    /// when the household already knows what it is looking for.
+    private var layoutMenu: some View {
+        Menu {
+            Picker("View", selection: $layout) {
+                ForEach(LibraryLayout.allCases) { option in
+                    Label(option.name, systemImage: option.symbol).tag(option)
+                }
+            }
+        } label: {
+            Image(systemName: layout.symbol)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.accent)
+                .iconButtonFrame()
+        }
+        .accessibilityLabel(L10n.string("View: %@", layout.name))
+        .accessibilityIdentifier("meals.layout")
     }
 
     private var sortMenu: some View {
@@ -373,6 +400,23 @@ struct MealLibraryView: View {
         }
     }
 
+    private func mealList(_ meals: [Meal]) -> some View {
+        LazyVStack(spacing: 0) {
+            ForEach(Array(meals.enumerated()), id: \.element.id) { index, meal in
+                if index > 0 { Divider().padding(.leading, layout == .list ? 66 : AppTheme.Space.l) }
+                MealRow(
+                    meal: meal,
+                    isFavorite: store.favoriteMealIDs.contains(meal.id),
+                    showsThumbnail: layout == .list,
+                    openMeal: { sheet = .detail(meal) },
+                    toggleFavorite: { store.toggleFavorite(meal) }
+                )
+                .contextMenu { mealActions(meal) }
+            }
+        }
+        .mealCard()
+    }
+
     private func cardMetadata(_ meal: Meal) -> String {
         var parts: [String] = []
         if meal.prepMinutes > 0 { parts.append(L10n.string("%ld min", meal.prepMinutes)) }
@@ -412,12 +456,8 @@ struct MealLibraryView: View {
     }
 
     @ViewBuilder private func mealActions(_ meal: Meal) -> some View {
-        Menu {
-            ForEach(Weekday.ordered()) { day in
-                Button(day.name) { store.setMeal(meal, on: day) }
-            }
-        } label: {
-            Label("Plan for a day", systemImage: "calendar.badge.plus")
+        Button { sheet = .addToWeek(meal) } label: {
+            Label("Add to the week", systemImage: "calendar.badge.plus")
         }
         Button(store.favoriteMealIDs.contains(meal.id)
             ? L10n.string("Remove family favorite")
@@ -467,25 +507,22 @@ struct MealLibraryView: View {
         case .photos(let draft):
             PhotoRecipeImportView(draft: draft) { imported in sheet = .editor(existing: nil, draft: imported) }
         case .detail(let meal):
-            MealDetailView(meal: meal).safeAreaInset(edge: .bottom) { detailActions(meal) }
+            MealDetailView(meal: meal, actions: AnyView(detailActions(meal)))
+        case .addToWeek(let meal):
+            AddToWeekSheet(meal: meal) { sheet = nil }
+                .environment(store)
+                .presentationDetents([.medium, .large])
         }
     }
 
     /// One main action -- put it in the week -- and the rest behind "More".
     private func detailActions(_ meal: Meal) -> some View {
         HStack(spacing: AppTheme.Space.s) {
-            Menu {
-                ForEach(Weekday.ordered()) { day in
-                    Button(day.name) { store.setMeal(meal, on: day); sheet = nil }
-                }
-            } label: {
+            Button { addingToWeek = meal } label: {
                 Label("Add to the week", systemImage: "calendar.badge.plus")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: AppTheme.tapTarget + 6)
-                    .background(AppTheme.accent)
-                    .foregroundStyle(AppTheme.onAccent)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
             }
+            .buttonStyle(.primary)
+            .accessibilityIdentifier("meals.addToWeek")
             Button { sheet = .editor(existing: meal, draft: ImportedRecipeDraft()) } label: {
                 Image(systemName: "pencil")
             }
@@ -495,7 +532,13 @@ struct MealLibraryView: View {
         }
         .padding(.horizontal, AppTheme.Space.l)
         .padding(.vertical, AppTheme.Space.s)
-        .background(AppTheme.background)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+        .sheet(item: $addingToWeek) { meal in
+            AddToWeekSheet(meal: meal) { addingToWeek = nil; sheet = nil }
+                .environment(store)
+                .presentationDetents([.medium, .large])
+        }
     }
 
     private func moreActions(_ meal: Meal) -> some View {
@@ -868,5 +911,27 @@ private struct RecipeLinkImportView: View {
             imported(draft)
         } catch is CancellationError { }
         catch { errorMessage = error.localizedDescription }
+    }
+}
+
+/// How the library draws its meals. Remembered per device.
+enum LibraryLayout: String, CaseIterable, Identifiable {
+    case grid, list, compact
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .grid: L10n.string("Pictures")
+        case .list: L10n.string("List")
+        case .compact: L10n.string("Names only")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .grid: "square.grid.2x2"
+        case .list: "list.bullet"
+        case .compact: "text.justify.left"
+        }
     }
 }

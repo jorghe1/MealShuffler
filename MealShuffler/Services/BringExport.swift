@@ -79,14 +79,19 @@ enum BringExport {
         var id: UUID { meal.id }
     }
 
-    /// This week's dinners that Bring can read, in the order they are cooked.
+    /// The dinners Bring can read, in the order they are cooked, each meal once.
+    ///
+    /// The plan may be a shopping period spanning two weeks, where the same dinner can come
+    /// round twice; a list keyed by meal must not carry it twice.
     static func exportableDinners(plan: WeeklyPlan, meals: [Meal]) -> [Dinner] {
         let order = Weekday.ordered()
+        var seen = Set<UUID>()
         return plan.meals
             .sorted { (order.firstIndex(of: $0.day) ?? 0) < (order.firstIndex(of: $1.day) ?? 0) }
             .compactMap { planned in
                 guard planned.kind == .meal,
                       let id = planned.mealID,
+                      seen.insert(id).inserted,
                       let meal = meals.first(where: { $0.id == id }),
                       let link = deeplink(for: meal, servings: planned.servings) else { return nil }
                 return Dinner(meal: meal, link: link)

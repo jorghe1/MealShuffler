@@ -1474,3 +1474,20 @@
 "Date" = "Dato";
 "Marks the planned dinner as cooked." = "Markerer den planlagte middagen som laget.";
 "Reads tonight's dinner from your weekly plan." = "Leser kveldens middag fra ukeplanen din.";
+
+/* 0.6.1: one-tap locks, day edits that keep the dinner, add to the week, library views */
+"%@ did not fit the new plan for the day, so the dinner was replaced." = "%@ passet ikke med den nye planen for dagen, så middagen ble byttet.";
+"%@ is planned for %@." = "%@ er lagt inn på %@.";
+"%@ next week" = "%@ neste uke";
+"A locked dinner stays when you shuffle" = "En låst middag blir stående når du stokker";
+"All dinners are locked" = "Alle middager er låst";
+"List" = "Liste";
+"Lock %@" = "Lås %@";
+"Unlock %@" = "Lås opp %@";
+"Names only" = "Bare navn";
+"Pictures" = "Bilder";
+"Send or share the list" = "Send eller del listen";
+"The dinner is locked on the day you choose, so a shuffle leaves it there." = "Middagen låses på dagen du velger, så stokking lar den stå.";
+"Time not specified · %ld servings" = "Tid ikke oppgitt · %ld porsjoner";
+"View" = "Visning";
+"View: %@" = "Visning: %@";

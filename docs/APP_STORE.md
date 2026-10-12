@@ -258,8 +258,9 @@ recipe content only. `BringExport.listLink` puts the shopping list in the query 
 - **Not linked.** Apple treats data as linked when it is tied to the user's identity (an
   account, or details that identify them). There is no account; the Worker never stores the ID
   next to anything, never sends it to Anthropic, and the recipe content is never kept with it.
-  The same UUID also stamps `updatedBy` on custom meals (`Models/Meal.swift`) and travels in the
-  household's iCloud share, but that is the user's own iCloud, which the developer cannot read.
+  Since 0.7.1 it is its own UUID (`DeviceIdentity.serviceKey`), separate from the one that
+  stamps `updatedBy` on custom meals and travels in the household's iCloud share, so the
+  service never sees an ID that also appears in the user's data.
 - **Not tracking.** It is not an advertising identifier, never leaves our service, and is not
   combined with third-party data. `NSPrivacyTracking` stays false and there are no tracking
   domains. (`BringExport` deliberately omits the hashed IDFA Bring!'s app-to-app API asks for.)

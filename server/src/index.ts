@@ -36,6 +36,11 @@ export interface Env {
    */
   SUPPORT_EMAIL?: string;
   ANTHROPIC_API_KEY: string;
+  /**
+   * The model that reads recipes. A var rather than a constant so a cheaper model can be
+   * tried as a preview version against real recipes before production switches to it.
+   */
+  EXTRACTION_MODEL?: string;
   /** Per-install cap. The install id is client-supplied, so this is a courtesy limit. */
   RATE_LIMITER: { limit: (options: { key: string }) => Promise<{ success: boolean }> };
   /**
@@ -193,12 +198,16 @@ export function clampRecipe(recipe: Recipe): Recipe {
   };
 }
 
+// Not exported: a Worker's main module may export only handlers and Durable Object classes.
+const DEFAULT_EXTRACTION_MODEL = "claude-opus-5";
+
 async function extract(
   client: Anthropic,
   content: Anthropic.MessageParam["content"],
+  model: string,
 ): Promise<Recipe> {
   const response = await client.messages.parse({
-    model: "claude-opus-5",
+    model,
     max_tokens: 8000,
     system: SYSTEM,
     // Extraction into a fixed schema is not a reasoning-heavy task, and this endpoint is
@@ -290,7 +299,8 @@ async function withinRateLimits(request: Request, env: Env): Promise<boolean> {
 
 export async function handleRequest(request: Request, env: Env,
   extractRecipe: (content: Anthropic.MessageParam["content"]) => Promise<unknown> = content =>
-    extract(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 25000, maxRetries: 0 }), content),
+    extract(new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 25000, maxRetries: 0 }), content,
+      env.EXTRACTION_MODEL?.trim() || DEFAULT_EXTRACTION_MODEL),
 ): Promise<Response> {
     // Privacy and support pages, share landing pages and the Bring! list: stateless GETs
     // that never touch the model.

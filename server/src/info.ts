@@ -100,9 +100,10 @@ Reminders app on your phone.</p>` },
 share is stored in your own iCloud account using Apple's CloudKit (private and shared databases), and
 only the people you invite can see it. The developer cannot read it. Apple handles it under Apple's
 privacy policy.</p>
-<p>Inside your data, each recipe you add or change is marked with your phone's random install ID
-(described below), so the app can tell which phone made a change. When you share through iCloud, that
-random code travels with the shared data. It is not your name or anything else about you.</p>` },
+<p>Inside your data, each recipe you add or change is marked with a random code for this phone, so the
+app can tell which phone made a change. When you share through iCloud, that code travels with the
+shared data. It is not your name or anything else about you, and it is a different code from the one
+the recipe service sees (described below).</p>` },
       { heading: "Reading recipes online (optional, off by default)", body: `<p>Online recipe reading is
 off until you turn it on in Settings in the app. While it is off, recipes are read on your phone.</p>
 <p>When it is on and you import a recipe, the app sends the recipe link, the text you pasted or the
@@ -116,7 +117,7 @@ to the app.</p>
 The service sends Anthropic only the recipe content, never the random ID or your IP address.</li>
 <li><strong>A random install ID.</strong> The first time the app starts, it creates a random ID for
 this installation. It is not made from anything about you or your phone – not your name, your Apple ID
-or your phone's hardware – and it stays the same until you delete the app. The app sends it with every
+or your phone's hardware – and it stays the same until you delete the app. It is used for nothing else: it is not the code that marks your recipes. The app sends it with every
 online recipe request (in a header named <code>X-Install-Id</code>), and with nothing else.</li>
 <li><strong>Your IP address.</strong> Like any web service, the recipe service sees the IP address a
 request comes from. For IPv6 addresses it uses only the network part (the first half, known as the
@@ -180,10 +181,10 @@ Påminnelser-app på telefonen.</p>` },
 deler i din egen iCloud-konto med Apples CloudKit (private og delte databaser), og bare de du
 inviterer, kan se det. Utvikleren kan ikke lese det. Apple behandler det etter Apples
 personvernerklæring.</p>
-<p>I dataene dine merkes hver oppskrift du legger til eller endrer, med den tilfeldige
-installasjons-ID-en til telefonen (beskrevet nedenfor), slik at appen vet hvilken telefon som gjorde
-endringen. Når du deler via iCloud, følger denne tilfeldige koden med de delte dataene. Den er ikke
-navnet ditt eller noe annet om deg.</p>` },
+<p>I dataene dine merkes hver oppskrift du legger til eller endrer, med en tilfeldig kode for denne
+telefonen, slik at appen vet hvilken telefon som gjorde endringen. Når du deler via iCloud, følger
+koden med de delte dataene. Den er ikke navnet ditt eller noe annet om deg, og den er en annen kode
+enn den oppskriftstjenesten ser (beskrevet nedenfor).</p>` },
       { heading: "Lese oppskrifter på nett (valgfritt, av som standard)", body: `<p>Lesing av
 oppskrifter på nett er av til du slår det på under Innstillinger i appen. Så lenge det er av, leses
 oppskriftene på telefonen.</p>
@@ -199,7 +200,7 @@ sine. Tjenesten sender bare oppskriftsinnholdet til Anthropic, aldri den tilfeld
 IP-adressen din.</li>
 <li><strong>En tilfeldig installasjons-ID.</strong> Første gang appen starter, lager den en tilfeldig ID
 for denne installasjonen. Den lages ikke av noe om deg eller telefonen din – ikke navnet ditt,
-Apple-ID-en din eller maskinvaren i telefonen – og den er den samme til du sletter appen. Appen sender
+Apple-ID-en din eller maskinvaren i telefonen – og den er den samme til du sletter appen. Den brukes ikke til noe annet: Den er ikke koden som merker oppskriftene dine. Appen sender
 den med hver forespørsel om å lese en oppskrift på nett (i en header som heter
 <code>X-Install-Id</code>), og ikke med noe annet.</li>
 <li><strong>IP-adressen din.</strong> Som enhver nettjeneste ser oppskriftstjenesten IP-adressen en

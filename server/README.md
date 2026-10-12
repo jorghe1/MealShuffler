@@ -197,6 +197,15 @@ under the minimum cacheable prefix, so a breakpoint there would do nothing but l
 If extraction quality disappoints, raise `effort` to `"medium"` in `src/index.ts` before
 reaching for anything else.
 
+**Choosing the model.** `EXTRACTION_MODEL` (a `[vars]` entry; default `claude-opus-5` in
+`src/index.ts`) picks the model without a code change. `eval/recipes-nb.json` holds 24
+Norwegian recipes with expected servings, ingredient counts, times and key amounts, and
+`node eval/run-eval.mjs <base url> <label>` scores a deployment against them (each recipe is one
+real model call, spaced for the rate limits; `--rescore <label>` re-scores a saved run). This
+Worker has Durable Objects, so preview URLs are unavailable: try a model by deploying a version
+with `--var EXTRACTION_MODEL:<model>` for the length of a run, then deploy the winner through
+`wrangler.toml`. First run, 12 October 2026: `claude-opus-5` scored 98.8 % at 8.9 s a recipe.
+
 A policy decline is handled explicitly (`stop_reason: "refusal"` becomes a 422 the app shows
 in plain language, and `ChainedRecipeExtractor` then falls back to on-device OCR). Server-side
 `fallbacks` would reroute such a request to another model instead; it is not wired up because

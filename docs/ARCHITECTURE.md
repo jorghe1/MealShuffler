@@ -1,6 +1,6 @@
 # Architecture
 
-How Meal Shuffler is put together, as of 0.7.0. Written against the code on
+How Meal Shuffler is put together, as of 0.7.1. Written against the code on
 `claude/phase-1-3`; when this file and the code disagree, the code wins and this file is out of
 date. Product behaviour is in [README.md](../README.md), the design system in
 [DESIGN.md](../DESIGN.md), status and backlog in [ROADMAP.md](ROADMAP.md).
@@ -8,7 +8,7 @@ date. Product behaviour is in [README.md](../README.md), the design system in
 ## Targets
 
 Defined in [`project.yml`](../project.yml) (XcodeGen). iOS 17+, Swift 5 language mode, no
-third-party dependencies. `MARKETING_VERSION` is 0.7.0.
+third-party dependencies. `MARKETING_VERSION` is 0.7.1.
 
 | Target | Type | Bundle id | Compiles |
 | --- | --- | --- | --- |

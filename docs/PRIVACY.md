@@ -52,10 +52,10 @@ If you use iCloud sharing, the data you share is stored in your own iCloud accou
 Apple's CloudKit (private and shared databases), and only the people you invite can see it.
 The developer cannot read it. Apple handles it under Apple's privacy policy.
 
-Inside your data, each recipe you add or change is marked with your phone's random install ID
-(described below), so the app can tell which phone made a change. When you share through
-iCloud, that random code travels with the shared data. It is not your name or anything else
-about you.
+Inside your data, each recipe you add or change is marked with a random code for this phone, so
+the app can tell which phone made a change. When you share through iCloud, that code travels
+with the shared data. It is not your name or anything else about you, and it is a different
+code from the one the recipe service sees (described below).
 
 ## Reading recipes online (optional, off by default)
 
@@ -74,7 +74,7 @@ service sends the result back to the app.
   address.
 - **A random install ID.** The first time the app starts, it creates a random ID for this
   installation. It is not made from anything about you or your phone — not your name, your
-  Apple ID or your phone's hardware — and it stays the same until you delete the app. The app
+  Apple ID or your phone's hardware — and it stays the same until you delete the app. It is used for nothing else: it is not the code that marks your recipes. The app
   sends it with every online recipe request (in a header named `X-Install-Id`), and with
   nothing else.
 - **Your IP address.** Like any web service, the recipe service sees the IP address a request
@@ -168,10 +168,10 @@ Hvis du bruker iCloud-deling, lagres det du deler i din egen iCloud-konto med Ap
 (private og delte databaser), og bare de du inviterer, kan se det. Utvikleren kan ikke lese
 det. Apple behandler det etter Apples personvernerklæring.
 
-I dataene dine merkes hver oppskrift du legger til eller endrer, med den tilfeldige installasjons-ID-en til
-telefonen (beskrevet nedenfor), slik at appen vet hvilken telefon som gjorde endringen. Når du
-deler via iCloud, følger denne tilfeldige koden med de delte dataene. Den er ikke navnet ditt
-eller noe annet om deg.
+I dataene dine merkes hver oppskrift du legger til eller endrer, med en tilfeldig kode for
+denne telefonen, slik at appen vet hvilken telefon som gjorde endringen. Når du deler via
+iCloud, følger koden med de delte dataene. Den er ikke navnet ditt eller noe annet om deg, og
+den er en annen kode enn den oppskriftstjenesten ser (beskrevet nedenfor).
 
 ## Lese oppskrifter på nett (valgfritt, av som standard)
 
@@ -190,7 +190,7 @@ strukturert form, og tjenesten sender resultatet tilbake til appen.
   tilfeldige ID-en eller IP-adressen din.
 - **En tilfeldig installasjons-ID.** Første gang appen starter, lager den en tilfeldig ID for
   denne installasjonen. Den lages ikke av noe om deg eller telefonen din – ikke navnet ditt,
-  Apple-ID-en din eller maskinvaren i telefonen – og den er den samme til du sletter appen.
+  Apple-ID-en din eller maskinvaren i telefonen – og den er den samme til du sletter appen. Den brukes ikke til noe annet: Den er ikke koden som merker oppskriftene dine.
   Appen sender den med hver forespørsel om å lese en oppskrift på nett (i en header som heter
   `X-Install-Id`), og ikke med noe annet.
 - **IP-adressen din.** Som enhver nettjeneste ser oppskriftstjenesten IP-adressen en

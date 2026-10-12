@@ -69,7 +69,7 @@ struct RemoteRecipeExtractor: RecipeExtractor {
         request.timeoutInterval = configuration.timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         // Not a credential. An abuse key, so one client can be capped without affecting others.
-        request.setValue(DeviceIdentity.current.uuidString, forHTTPHeaderField: "X-Install-Id")
+        request.setValue(DeviceIdentity.serviceKey.uuidString, forHTTPHeaderField: "X-Install-Id")
         request.httpBody = try JSONEncoder().encode(payload)
 
         let (data, response) = try await session.data(for: request)

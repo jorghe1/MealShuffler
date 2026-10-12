@@ -210,8 +210,11 @@ of 0.5.0. Rough order: the first item unblocks most of the rest.
 ### Deploy the recipe service
 
 **Why.** Import stops guessing: the Worker reads prose, cookbook photos and pages with no
-markup. It also hosts share landing pages, the Bring! list and the privacy pages. Written and
-tested, never deployed; `RECIPE_SERVICE_BASE_URL` is empty.
+markup. It also hosts share landing pages, the Bring! list and the privacy pages. **Deployed
+12 October 2026** at `https://mealshuffler-extract.jorgen-hemnes.workers.dev` and set in
+`project.yml` from 0.7.1. Left: move it to a custom domain before a public release (the
+workers.dev host carries the owner's name), set `SUPPORT_EMAIL`, and pick the extraction model
+from `server/eval/` (see server/README.md).
 
 **Needs.** A Cloudflare account and an Anthropic API key. Then:
 
@@ -221,7 +224,8 @@ tested, never deployed; `RECIPE_SERVICE_BASE_URL` is empty.
 4. `npx wrangler deploy` — prints the URL.
 5. Set `RECIPE_SERVICE_BASE_URL` in `project.yml`, regenerate the project.
 6. Optionally set `APP_STORE_URL` and `SUPPORT_EMAIL` in `wrangler.toml`.
-7. Watch the first real import with `npx wrangler tail`.
+7. Watch the first real import with `npx wrangler tail` -- live only, never saved: it shows
+   full URLs, and a Bring! list travels in one.
 
 **Done when** a link from a site without schema.org markup imports with ingredients, and
 switching the service off degrades import instead of breaking it.

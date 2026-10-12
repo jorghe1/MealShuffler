@@ -111,4 +111,21 @@ enum DeviceIdentity {
         defaults.set(fresh.uuidString, forKey: key)
         return fresh
     }()
+
+    private static let serviceKeyName = "meal-shuffler-service-key"
+
+    /// The key the recipe service rate-limits by, and nothing else.
+    ///
+    /// Until 0.7.1 the service saw `current`, the same UUID that stamps `updatedBy` on every
+    /// recipe and so travels in an iCloud share. Kept apart, the service never sees an ID that
+    /// also appears in the household's data. Never written into any record.
+    static let serviceKey: UUID = {
+        let defaults = AppGroup.defaults
+        if let raw = defaults.string(forKey: serviceKeyName), let existing = UUID(uuidString: raw) {
+            return existing
+        }
+        let fresh = UUID()
+        defaults.set(fresh.uuidString, forKey: serviceKeyName)
+        return fresh
+    }()
 }

@@ -1,6 +1,6 @@
 # Meal Shuffler
 
-En native SwiftUI-app for enkel, regelstyrt middagsplanlegging. Versjon 0.7.0.
+En native SwiftUI-app for enkel, regelstyrt middagsplanlegging. Versjon 0.7.1.
 
 Hva som er levert, hva som kommer i neste versjon og hva som venter, står samlet i
 [docs/ROADMAP.md](docs/ROADMAP.md). Eldre gjennomganger og statusrapporter ligger i
@@ -123,8 +123,9 @@ i biblioteket fra før. Importerte retter får kategorier, slik at de er synlige
 med én gang — en laksemiddag hentet fra en lenke kan oppfylle «fisk på tirsdag».
 
 Tjenesten i `server/` leser prosa bedre enn heuristikkene over og får første forsøk når den
-er satt opp. Den er ikke satt opp som standard: `RECIPE_SERVICE_BASE_URL` i `project.yml` er
-tom, og appen blir da værende på egne parsere. Se [server/README.md](server/README.md).
+er satt opp og husstanden har slått på «Les oppskrifter på nett». Fra 0.7.1 peker
+`RECIPE_SERVICE_BASE_URL` i `project.yml` på den utrullede Workeren; tom verdi lar appen bruke
+bare egne parsere. Se [server/README.md](server/README.md).
 
 ## Fanene
 

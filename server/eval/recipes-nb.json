@@ -1,0 +1,785 @@
+[
+ {
+  "id": "fiskegrateng",
+  "text": "Fiskegrateng til 4\n\n600 g torskefilet\n3 dl melk\n3 ss smør\n3 ss hvetemel\n2 egg\n1 dl revet ost\nsalt og pepper\n\nSett ovnen på 200 grader. Lag en jevning av smør, mel og melk. Rør inn eggene. Legg fisken i en smurt form, hell over sausen og dryss over ost. Stek i 35 minutter.",
+  "servings": 4,
+  "ingredientCount": [
+   6,
+   8
+  ],
+  "expect": [
+   [
+    "torsk",
+    600,
+    "g"
+   ],
+   [
+    "melk",
+    3,
+    "dl"
+   ],
+   [
+    "smør",
+    3,
+    "ss"
+   ],
+   [
+    "egg",
+    2,
+    ""
+   ]
+  ]
+ },
+ {
+  "id": "taco-fredag",
+  "text": "Fredagstaco (4 porsjoner)\n\n400 g kjøttdeig\n1 pose tacokrydder\n1,5 dl vann\n8 tortillalefser\n1 isbergsalat\n2 tomater\n1 agurk\n1 boks mais (340 g)\n2 dl rømme\n150 g revet ost\n1 glass tacosaus\n\nStek kjøttdeigen, tilsett krydder og vann og la det småkoke i 5 min. Kutt grønnsakene. Varm lefsene og server alt på bordet.",
+  "servings": 4,
+  "ingredientCount": [
+   10,
+   12
+  ],
+  "expect": [
+   [
+    "kjøttdeig",
+    400,
+    "g"
+   ],
+   [
+    "vann",
+    1.5,
+    "dl"
+   ],
+   [
+    "tortilla",
+    8,
+    ""
+   ],
+   [
+    "rømme",
+    2,
+    "dl"
+   ],
+   [
+    "ost",
+    150,
+    "g"
+   ]
+  ]
+ },
+ {
+  "id": "pannekaker-brok",
+  "text": "Pannekaker – ca. 12 stk\n\n3 egg\n5 dl melk\n2 ½ dl hvetemel\n½ ts salt\n1 ss sukker\nsmør til steking\n\nVisp mel og halvparten av melken klumpfritt, tilsett resten av melken, egg, salt og sukker. La røren svelle i 30 minutter. Stek tynne pannekaker i smør.",
+  "servings": 4,
+  "ingredientCount": [
+   6,
+   6
+  ],
+  "servingsTolerance": 8,
+  "expect": [
+   [
+    "egg",
+    3,
+    ""
+   ],
+   [
+    "melk",
+    5,
+    "dl"
+   ],
+   [
+    "hvetemel",
+    2.5,
+    "dl"
+   ],
+   [
+    "salt",
+    0.5,
+    "ts"
+   ],
+   [
+    "sukker",
+    1,
+    "ss"
+   ]
+  ]
+ },
+ {
+  "id": "kyllinggryte-intervall",
+  "text": "Kyllinggryte med karri\nPorsjoner: 4\nTid: ca 40 min\n\n600 g kyllinglårfilet\n1 løk\n2–3 fedd hvitløk\n1 ss karri\n1 boks kokosmelk (400 ml)\n1 boks hakkede tomater (400 g)\n2 paprika\n1 ts salt\n3 dl ris\n\nBrun kyllingen i biter. Fres løk, hvitløk og karri. Tilsett kokosmelk, tomater og paprika og la det koke i 20 minutter. Server med ris.",
+  "servings": 4,
+  "ingredientCount": [
+   9,
+   9
+  ],
+  "prepMinutes": [
+   35,
+   45
+  ],
+  "expect": [
+   [
+    "kylling",
+    600,
+    "g"
+   ],
+   [
+    "hvitløk",
+    2,
+    "",
+    3
+   ],
+   [
+    "karri",
+    1,
+    "ss"
+   ],
+   [
+    "kokosmelk",
+    1,
+    "boks"
+   ],
+   [
+    "ris",
+    3,
+    "dl"
+   ]
+  ]
+ },
+ {
+  "id": "lasagne-seksjoner",
+  "text": "Lasagne (6 personer)\n\nKjøttsaus:\n500 g kjøttdeig\n1 løk\n2 fedd hvitløk\n2 bokser hakkede tomater\n2 ss tomatpuré\n1 ts oregano\n\nHvit saus:\n50 g smør\n4 ss hvetemel\n7 dl melk\n1 klype muskat\n\nI tillegg:\n12 lasagneplater\n200 g revet mozzarella\n\nLag kjøttsausen og la den småkoke i 20 min. Lag hvit saus. Legg lag på lag i en form og avslutt med ost. Stek på 200 °C i 40 minutter.",
+  "servings": 6,
+  "ingredientCount": [
+   12,
+   12
+  ],
+  "expect": [
+   [
+    "kjøttdeig",
+    500,
+    "g"
+   ],
+   [
+    "tomatpuré",
+    2,
+    "ss"
+   ],
+   [
+    "smør",
+    50,
+    "g"
+   ],
+   [
+    "melk",
+    7,
+    "dl"
+   ],
+   [
+    "lasagne",
+    12,
+    ""
+   ],
+   [
+    "mozzarella",
+    200,
+    "g"
+   ]
+  ],
+  "sections": true
+ },
+ {
+  "id": "blogg-rot",
+  "text": "Hei alle sammen!! Denne uka har det vært SÅ travelt her hjemme, med fotballtrening og lekser, så da ble det denne enkle laksen som alle i familien elsker ❤️ Husk å følge meg på Instagram for flere tips!\n\nDet du trenger (til 4):\n- 4 laksefileter à ca 150 g\n- 1 sitron\n- 2 ss olivenolje\n- 800 g poteter\n- 1 brokkoli\n- salt og pepper\n\nSlik gjør du det:\n1. Sett ovnen på 200 grader\n2. Kok potetene i ca 20 min\n3. Legg laksen i en form, drypp over olje og sitron, krydre\n4. Stek i 15 minutter\n5. Damp brokkolien\n\nKommentarer (23)\nKari sier: Så godt! Vi brukte ørret i stedet.\nPer sier: Kan man fryse den?",
+  "servings": 4,
+  "ingredientCount": [
+   6,
+   6
+  ],
+  "expect": [
+   [
+    "laks",
+    4,
+    ""
+   ],
+   [
+    "olivenolje",
+    2,
+    "ss"
+   ],
+   [
+    "potet",
+    800,
+    "g"
+   ],
+   [
+    "sitron",
+    1,
+    ""
+   ]
+  ],
+  "notExpect": [
+   "ørret",
+   "instagram"
+  ]
+ },
+ {
+  "id": "prosa-kjottboller",
+  "text": "Mormors kjøttkaker blir best når du blander 600 gram kjøttdeig med en ts salt, en halv ts pepper, en ss potetmel og to dl melk, litt og litt. Form 16 kaker og stek dem i smør. Brunsausen lager du av 3 ss smør og 3 ss hvetemel som brunes, og så spes det med 5 dl kraft. Server med kokte poteter og tyttebærsyltetøy. Nok til fire.",
+  "servings": 4,
+  "ingredientCount": [
+   8,
+   11
+  ],
+  "expect": [
+   [
+    "kjøttdeig",
+    600,
+    "g"
+   ],
+   [
+    "salt",
+    1,
+    "ts"
+   ],
+   [
+    "pepper",
+    0.5,
+    "ts"
+   ],
+   [
+    "melk",
+    2,
+    "dl"
+   ],
+   [
+    "kraft",
+    5,
+    "dl"
+   ]
+  ]
+ },
+ {
+  "id": "engelsk-blanding",
+  "text": "Pasta carbonara – serves 2\n\n200 g spaghetti\n100 g bacon i terninger\n2 eggeplommer + 1 egg\n50 g parmesan, revet\nsort pepper\n\nKok pastaen al dente. Stek baconet sprøtt. Visp egg og ost. Bland alt raskt mens pastaen er varm, med litt kokevann.",
+  "servings": 2,
+  "ingredientCount": [
+   5,
+   7
+  ],
+  "expect": [
+   [
+    "spaghetti",
+    200,
+    "g"
+   ],
+   [
+    "bacon",
+    100,
+    "g"
+   ],
+   [
+    "parmesan",
+    50,
+    "g"
+   ]
+  ]
+ },
+ {
+  "id": "fiskesuppe-evt",
+  "text": "Bergensk fiskesuppe (4–6 pers.)\n\n1 l fiskekraft\n2 gulrøtter\n1 purre\n½ sellerirot\n400 g torsk eller sei\n200 g reker (evt.)\n3 dl fløte\n2 ss smør\n2 ss hvetemel\n1 ss eddik\n1 ss sukker\nfrisk gressløk til servering\n\nKok kraften med grønnsakene i 10 min. Jevne med smør og mel, tilsett fløte. Ha i fisken og la den trekke 5 min. Smak til med eddik og sukker. Ha i rekene til slutt.",
+  "servings": 4,
+  "servingsTolerance": 2,
+  "ingredientCount": [
+   11,
+   12
+  ],
+  "expect": [
+   [
+    "fiskekraft",
+    1,
+    "l"
+   ],
+   [
+    "selleri",
+    0.5,
+    ""
+   ],
+   [
+    "fløte",
+    3,
+    "dl"
+   ],
+   [
+    "eddik",
+    1,
+    "ss"
+   ],
+   [
+    "reker",
+    200,
+    "g"
+   ]
+  ]
+ },
+ {
+  "id": "vegetar-chili",
+  "text": "Vegetarchili\n4 porsjoner · 30 minutter\n\n2 ss olje\n1 rødløk\n2 fedd hvitløk\n1 rød chili\n2 ts spisskummen\n1 ts røkt paprika\n2 bokser kidneybønner à 410 g\n1 boks svarte bønner\n2 bokser hakkede tomater\n1 dl vann\n1 ss kakao\nsalt\n\nTil servering: ris, rømme og koriander\n\nFres løk, hvitløk og chili i olje. Tilsett krydder, bønner, tomater, vann og kakao. Kok i 20 min.",
+  "servings": 4,
+  "ingredientCount": [
+   12,
+   15
+  ],
+  "prepMinutes": [
+   25,
+   35
+  ],
+  "expect": [
+   [
+    "olje",
+    2,
+    "ss"
+   ],
+   [
+    "spisskummen",
+    2,
+    "ts"
+   ],
+   [
+    "kidney",
+    2,
+    "boks"
+   ],
+   [
+    "vann",
+    1,
+    "dl"
+   ],
+   [
+    "kakao",
+    1,
+    "ss"
+   ]
+  ]
+ },
+ {
+  "id": "kanelboller-gram",
+  "text": "Kanelsnurrer, ca 20 stk\n\nDeig:\n150 g smør\n5 dl melk\n50 g gjær\n1 dl sukker\n1 ts kardemomme\n850 g hvetemel\n\nFyll:\n150 g mykt smør\n1 dl sukker\n2 ss kanel\n\nPensling: 1 egg\n\nSmelt smøret, tilsett melk og lunk. Rør inn gjær og resten. Hev i 45 min. Kjevle ut, smør på fyllet, rull og skjær. Hev 30 min, pensle og stek på 225 grader i 8–10 min.",
+  "servings": 20,
+  "servingsTolerance": 4,
+  "ingredientCount": [
+   10,
+   11
+  ],
+  "expect": [
+   [
+    "gjær",
+    50,
+    "g"
+   ],
+   [
+    "hvetemel",
+    850,
+    "g"
+   ],
+   [
+    "kanel",
+    2,
+    "ss"
+   ],
+   [
+    "kardemomme",
+    1,
+    "ts"
+   ]
+  ],
+  "sections": true
+ },
+ {
+  "id": "pinnekjott-kg",
+  "text": "Pinnekjøtt til 6\n\n2,5 kg pinnekjøtt\nvann\nbjørkepinner\n\nTil servering: kålrabistappe av 1 kg kålrabi, 500 g poteter, 50 g smør og 1 dl melk.\n\nLegg kjøttet i bløt i kaldt vann i 30 timer. Legg pinner i bunnen av gryta, kjøttet oppå, og vann til pinnene. Damp i 3 timer.",
+  "servings": 6,
+  "ingredientCount": [
+   5,
+   8
+  ],
+  "expect": [
+   [
+    "pinnekjøtt",
+    2.5,
+    "kg"
+   ],
+   [
+    "kålrabi",
+    1,
+    "kg"
+   ],
+   [
+    "smør",
+    50,
+    "g"
+   ]
+  ]
+ },
+ {
+  "id": "wok-pakker",
+  "text": "Rask nudelwok · 3 porsjoner\n\n1 pk eggnudler (250 g)\n400 g svinestrimler\n1 pose wokgrønnsaker (500 g)\n3 ss soyasaus\n2 ss østerssaus\n1 ss sesamolje\n1 ts revet ingefær\n\nKok nudlene. Stek kjøttet, tilsett grønnsakene og saus. Vend inn nudlene.",
+  "servings": 3,
+  "ingredientCount": [
+   7,
+   7
+  ],
+  "expect": [
+   [
+    "nudler",
+    1,
+    "pk"
+   ],
+   [
+    "svin",
+    400,
+    "g"
+   ],
+   [
+    "soya",
+    3,
+    "ss"
+   ],
+   [
+    "ingefær",
+    1,
+    "ts"
+   ]
+  ]
+ },
+ {
+  "id": "linsesuppe-en-linje",
+  "text": "Rød linsesuppe: 1 løk, 2 gulrøtter, 2 fedd hvitløk, 2 dl røde linser, 1 boks hakkede tomater, 8 dl grønnsakskraft, 1 ts spisskummen, 1 ts paprikapulver, salt og pepper. Fres løk, gulrot og hvitløk, tilsett resten og kok 20 min. Kjør jevn med stavmikser. Gir 4 porsjoner.",
+  "servings": 4,
+  "ingredientCount": [
+   8,
+   10
+  ],
+  "expect": [
+   [
+    "linser",
+    2,
+    "dl"
+   ],
+   [
+    "kraft",
+    8,
+    "dl"
+   ],
+   [
+    "gulr",
+    2,
+    ""
+   ],
+   [
+    "spisskummen",
+    1,
+    "ts"
+   ]
+  ]
+ },
+ {
+  "id": "omelett-1",
+  "text": "Omelett til én\n\n3 egg\n2 ss melk\n1 klype salt\n1 skive skinke\n1 neve revet ost\n\nVisp egg og melk, stek på middels varme, legg på fyll og brett.",
+  "servings": 1,
+  "ingredientCount": [
+   5,
+   5
+  ],
+  "expect": [
+   [
+    "egg",
+    3,
+    ""
+   ],
+   [
+    "melk",
+    2,
+    "ss"
+   ]
+  ]
+ },
+ {
+  "id": "grandiosa-hjemme",
+  "text": "Hjemmelaget pizza (2 store)\n\nBunn:\n5 dl hvetemel\n½ pk tørrgjær\n1 ts salt\n3 dl lunkent vann\n2 ss olje\n\nFyll:\n1 boks pizzasaus\n300 g kjøttdeig, stekt\n1 paprika\n300 g revet ost\n1 ts oregano\n\nLag deigen og la den heve i 30 min. Kjevle ut, ha på saus og fyll. Stek på 250 °C i 12–15 min.",
+  "servings": 4,
+  "servingsTolerance": 2,
+  "ingredientCount": [
+   10,
+   10
+  ],
+  "expect": [
+   [
+    "hvetemel",
+    5,
+    "dl"
+   ],
+   [
+    "tørrgjær",
+    0.5,
+    "pk"
+   ],
+   [
+    "vann",
+    3,
+    "dl"
+   ],
+   [
+    "ost",
+    300,
+    "g"
+   ]
+  ],
+  "sections": true
+ },
+ {
+  "id": "kjottsuppe-tid",
+  "text": "Kjøttsuppe med boller\nTilberedningstid: 2 timer\n6 porsjoner\n\n1 kg høyrygg\n2 l vann\n1 ss salt\n4 gulrøtter\n½ kålrot\n1 purre\n8 poteter\n\nKok kjøttet i vann og salt i 1 ½ time. Skum av. Tilsett grønnsaker i biter og kok til de er møre.",
+  "servings": 6,
+  "ingredientCount": [
+   7,
+   7
+  ],
+  "prepMinutes": [
+   110,
+   130
+  ],
+  "expect": [
+   [
+    "høyrygg",
+    1,
+    "kg"
+   ],
+   [
+    "vann",
+    2,
+    "l"
+   ],
+   [
+    "kålrot",
+    0.5,
+    ""
+   ],
+   [
+    "poteter",
+    8,
+    ""
+   ]
+  ]
+ },
+ {
+  "id": "salat-uten-mengder",
+  "text": "Enkel grønn salat\n\nSalatblader\nAgurk\nCherrytomater\nRødløk\nOlivenolje og balsamico\nSalt\n\nSkyll og kutt alt, bland og drypp over dressingen.",
+  "servings": null,
+  "ingredientCount": [
+   5,
+   7
+  ],
+  "expect": [
+   [
+    "agurk",
+    null,
+    ""
+   ],
+   [
+    "tomat",
+    null,
+    ""
+   ]
+  ]
+ },
+ {
+  "id": "laks-teriyaki-ml",
+  "text": "Teriyakilaks (4 pers.)\n\n4 laksestykker (ca. 600 g)\n100 ml soyasaus\n50 ml mirin\n2 ss honning\n1 ts sesamfrø\n3 vårløk\n\nRør sammen soya, mirin og honning og kok inn til en blank saus. Stek laksen 3–4 min på hver side, glaser med sausen og strø over sesam og vårløk.",
+  "servings": 4,
+  "ingredientCount": [
+   6,
+   6
+  ],
+  "expect": [
+   [
+    "soya",
+    100,
+    "ml"
+   ],
+   [
+    "mirin",
+    50,
+    "ml"
+   ],
+   [
+    "honning",
+    2,
+    "ss"
+   ],
+   [
+    "vårløk",
+    3,
+    ""
+   ]
+  ]
+ },
+ {
+  "id": "fiskepinner-barn",
+  "text": "Barnas favoritt: hjemmelagde fiskepinner (4)\n\n500 g torskeloins\n1 dl hvetemel\n2 egg\n2 dl panko\n½ ts salt\nolje til steking\n\nGulrotsalat: 4 gulrøtter, 1 eple, saft av ½ sitron.\n\nSkjær fisken i pinner. Vend i mel, sammenvispet egg og panko. Stek i olje til gyllen.",
+  "servings": 4,
+  "ingredientCount": [
+   8,
+   10
+  ],
+  "expect": [
+   [
+    "torsk",
+    500,
+    "g"
+   ],
+   [
+    "panko",
+    2,
+    "dl"
+   ],
+   [
+    "gulrøtter",
+    4,
+    ""
+   ],
+   [
+    "salt",
+    0.5,
+    "ts"
+   ]
+  ]
+ },
+ {
+  "id": "risgrot",
+  "text": "Risgrøt – 4 porsjoner\n\n2 ½ dl grøtris\n5 dl vann\n1 l helmelk\n1 ts salt\n\nKok risen i vannet i ca. 10 minutter. Tilsett melk og kok på svak varme i ca. 1 time under lokk. Rør innimellom. Smak til med salt. Server med smør, sukker og kanel.",
+  "servings": 4,
+  "ingredientCount": [
+   4,
+   7
+  ],
+  "prepMinutes": [
+   65,
+   80
+  ],
+  "expect": [
+   [
+    "ris",
+    2.5,
+    "dl"
+   ],
+   [
+    "vann",
+    5,
+    "dl"
+   ],
+   [
+    "melk",
+    1,
+    "l"
+   ],
+   [
+    "salt",
+    1,
+    "ts"
+   ]
+  ]
+ },
+ {
+  "id": "burger",
+  "text": "Hjemmelagde burgere x 4\n\n500 g karbonadedeig\n4 hamburgerbrød\n4 skiver cheddar\n1 tomat\nsalat\n1 rødløk\nketsjup og dressing etter smak\n\nForm fire burgere, stek 3–4 min på hver side. Legg på ost det siste minuttet. Bygg burgerne.",
+  "servings": 4,
+  "ingredientCount": [
+   6,
+   9
+  ],
+  "expect": [
+   [
+    "karbonade",
+    500,
+    "g"
+   ],
+   [
+    "brød",
+    4,
+    ""
+   ],
+   [
+    "cheddar",
+    4,
+    "skive"
+   ]
+  ]
+ },
+ {
+  "id": "eplekake-desimal",
+  "text": "Eplekake i form (24 cm), 10 stykker\n\n200 g smør\n2,5 dl sukker\n4 egg\n3,5 dl hvetemel\n1,5 ts bakepulver\n3 epler\n1 ts kanel\n\nPisk smør og sukker hvitt. Tilsett egg ett om gangen, så mel og bakepulver. Ha røren i formen, legg epler på toppen og dryss over kanel og sukker. Stek på 175 grader i 45 minutter.",
+  "servings": 10,
+  "servingsTolerance": 2,
+  "ingredientCount": [
+   7,
+   7
+  ],
+  "expect": [
+   [
+    "smør",
+    200,
+    "g"
+   ],
+   [
+    "sukker",
+    2.5,
+    "dl"
+   ],
+   [
+    "hvetemel",
+    3.5,
+    "dl"
+   ],
+   [
+    "bakepulver",
+    1.5,
+    "ts"
+   ],
+   [
+    "epler",
+    3,
+    ""
+   ]
+  ]
+ },
+ {
+  "id": "fiskekaker-pakke",
+  "text": "Fiskekaker med løk og gulrotstappe – 4 porsjoner\n\n1 pk fiskekaker (600 g)\n2 løk\n2 ss smør\n800 g gulrøtter\n400 g poteter\n1 dl melk\nsalt\n\nStek fiskekakene og løken i smør. Kok gulrøtter og poteter møre, mos med melk og smak til.",
+  "servings": 4,
+  "ingredientCount": [
+   7,
+   7
+  ],
+  "expect": [
+   [
+    "fiskekaker",
+    1,
+    "pk"
+   ],
+   [
+    "gulrøtter",
+    800,
+    "g"
+   ],
+   [
+    "poteter",
+    400,
+    "g"
+   ],
+   [
+    "melk",
+    1,
+    "dl"
+   ]
+  ]
+ }
+]

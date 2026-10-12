@@ -59,11 +59,13 @@ test("the privacy page discloses the install ID, the IP key and the Bring! query
     en: [/<code>X-Install-Id<\/code>/, /stays the same until you delete the app/, /\/64/,
       /about a minute/, /never the random ID or your IP\s+address/, /after "\?"/,
       /Bring! receives the address, with the list in it, from your phone/,
-      /never the address or the list/, /travels with the shared data/],
+      /never the address or the list/, /travels\s+with\s+the\s+shared\s+data/,
+      /a\s+different\s+code\s+from\s+the\s+one\s+the\s+recipe\s+service\s+sees/],
     nb: [/<code>X-Install-Id<\/code>/, /den samme til du sletter appen/, /\/64/,
       /omtrent ett minutt/, /aldri den tilfeldige ID-en eller\s+IP-adressen din/, /etter «\?»/,
       /Bring! mottar adressen, med listen i, fra telefonen din/,
-      /aldri adressen eller listen/, /følger denne tilfeldige koden med de delte dataene/],
+      /aldri adressen eller listen/, /følger\s+koden\s+med\s+de\s+delte\s+dataene/,
+      /en\s+annen\s+kode\s+enn\s+den\s+oppskriftstjenesten\s+ser/],
   };
   for (const language of ["en", "nb"] as const) {
     const html = await (await get(`/privacy?lang=${language}`)).text();

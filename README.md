@@ -1,6 +1,6 @@
 # Meal Shuffler
 
-En native SwiftUI-app for enkel, regelstyrt middagsplanlegging. Versjon 0.6.1.
+En native SwiftUI-app for enkel, regelstyrt middagsplanlegging. Versjon 0.7.0.
 
 Hva som er levert, hva som kommer i neste versjon og hva som venter, står samlet i
 [docs/ROADMAP.md](docs/ROADMAP.md). Eldre gjennomganger og statusrapporter ligger i

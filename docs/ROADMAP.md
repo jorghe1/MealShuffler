@@ -74,7 +74,16 @@ answers one question and every feature has one place.
 - **Small things.** 44pt hit areas on rule chips and grocery rows, icon buttons visible on
   white cards, one-column library at accessibility sizes, rule badges no longer hide a day's
   facts, shake to shuffle can be turned off, add-recipe sheet can grow.
-- **Data safety** and **release pipeline**: see their own entries below when merged.
+- **Data safety.** A restore can no longer be overwritten by an older queued save; a backup
+  restore puts files back if the state fails; out-of-range values are repaired instead of the
+  whole state being refused; daily backups (last 7) as a further fallback; shopping sessions
+  older than 8 weeks are pruned; 10 recovery packages instead of 3.
+- **Release pipeline.** An `ios-*` tag starts Codemagic through its API from GitHub Actions
+  (there is no webhook), checked against `MARKETING_VERSION`; the build number comes from App
+  Store Connect + 1. See [CODEMAGIC.md](CODEMAGIC.md).
+- **Privacy.** The install ID, the IP rate-limit key and the Bring! list's path through the
+  service are disclosed in the policy, the Worker's page and the app.
+- **Sync design** for later: [ADR 0001](adr/0001-entity-sync-and-store-split.md).
 
 ### Check on a device
 

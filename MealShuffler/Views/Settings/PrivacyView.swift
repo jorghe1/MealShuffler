@@ -31,7 +31,7 @@ struct PrivacyView: View {
                 )
                 PrivacyRow(
                     title: L10n.string("Send to Bring!"),
-                    detail: L10n.string("The shopping list is put in a link that Bring! fetches to import it. Bring! then handles it under its own privacy policy.")
+                    detail: L10n.string("The shopping list is put in a web address on the Meal Shuffler service, which Bring! opens and fetches to import it. The service only turns the address into a page for Bring! and keeps nothing. Bring! then handles the list under its own privacy policy.")
                 )
                 if FeatureFlags.householdSyncEnabled {
                     PrivacyRow(

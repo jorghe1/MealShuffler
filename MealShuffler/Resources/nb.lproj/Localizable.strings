@@ -1267,7 +1267,7 @@
 "Sharing with a friend" = "Dele med en venn";
 "A shared recipe, rule list or week travels inside the link itself. The page that opens it stores nothing." = "En delt oppskrift, regelliste eller uke ligger inne i selve lenken. Siden som åpner den, lagrer ingenting.";
 "Send to Bring!" = "Send til Bring!";
-"The shopping list is put in a link that Bring! fetches to import it. Bring! then handles it under its own privacy policy." = "Handlelisten legges i en lenke som Bring! henter for å importere den. Deretter behandler Bring! den etter sine egne personvernregler.";
+"The shopping list is put in a web address on the Meal Shuffler service, which Bring! opens and fetches to import it. The service only turns the address into a page for Bring! and keeps nothing. Bring! then handles the list under its own privacy policy." = "Handlelisten legges i en nettadresse hos Meal Shuffler-tjenesten, som Bring! åpner og henter for å importere den. Tjenesten gjør bare adressen om til en side for Bring! og tar ikke vare på noe. Deretter behandler Bring! listen etter sine egne personvernregler.";
 "If you share your household through iCloud, it is stored in your own iCloud. The developer cannot read it." = "Hvis du deler husstanden gjennom iCloud, lagres den i din egen iCloud. Utvikleren kan ikke lese den.";
 "Reminders and widgets" = "Påminnelser og widgeter";
 "Reminders are scheduled on this phone, and the widget reads the plan on this phone. Nothing is sent to do either." = "Påminnelsene planlegges på denne telefonen, og widgeten leser planen på denne telefonen. Ingenting sendes for å få til noe av det.";

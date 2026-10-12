@@ -964,7 +964,7 @@ final class AppStore {
     /// locked afterwards because a dinner chosen by hand should survive the next shuffle.
     func setMeal(_ meal: Meal, on day: Weekday) {
         guard !isCompleted(on: day) else { actionNotice = L10n.string("Mark this dinner as not cooked before replacing it."); return }
-        rememberForUndo(L10n.string("Dinner on %@", day.name.lowercased()))
+        rememberForUndo(L10n.string("Dinner on %@", day.nameInSentence))
 
         var context = context(for: day)
         // Choosing a dinner for a day nobody was eating at home means eating at home again.
@@ -1087,7 +1087,7 @@ final class AppStore {
     func shuffle(day: Weekday, intent: MealSwapIntent = .different) {
         guard !isCompleted(on: day) else { actionNotice = L10n.string("Mark this dinner as not cooked before replacing it."); return }
         let previous = plan[day]?.mealID.flatMap { meal(id: $0) }
-        rememberForUndo(L10n.string("Dinner on %@", day.name.lowercased()))
+        rememberForUndo(L10n.string("Dinner on %@", day.nameInSentence))
         let currentID = plan[day]?.mealID
         regenerate(
             days: [day],
@@ -1116,7 +1116,7 @@ final class AppStore {
 
     func updateContext(_ context: DayPlanContext, for day: Weekday) {
         guard !isCompleted(on: day) else { actionNotice = L10n.string("Mark this dinner as not cooked before replacing it."); return }
-        rememberForUndo(L10n.string("Plan for %@", day.name.lowercased()))
+        rememberForUndo(L10n.string("Plan for %@", day.nameInSentence))
         let before = resolvedContexts[day] ?? DayPlanContext(diners: householdSize)
         dayContexts[day] = context
         let after = resolvedContexts[day] ?? context
@@ -1413,7 +1413,7 @@ final class AppStore {
         rememberForUndo(L10n.string("Cooked"))
         if Calendar.current.isDate(date, inSameDayAs: plan.date(for: day)), var item = plan[day], let batch = item.freezerBatch, item.freezerConsumed != true {
             guard householdTools.freezer.first(where: { $0.id == batch.id }).map({ $0.portions >= item.effectiveServings }) == true else {
-                actionNotice = L10n.string("Not enough freezer portions for %@.", day.name); return
+                actionNotice = L10n.string("Not enough freezer portions for %@.", day.nameInSentence); return
             }
             item.freezerConsumed = true; plan[day] = item
             consumeFreezerBatch(batch.id, portions: item.effectiveServings)
@@ -1667,7 +1667,7 @@ final class AppStore {
         case .away: return L10n.string("Nobody is home for dinner.")
         case .takeaway: return L10n.string("This day is set aside for takeaway.")
         case .leftovers(let source):
-            return L10n.string("Leftovers from %@ reduce both work and food waste.", source.name.lowercased())
+            return L10n.string("Leftovers from %@ reduce both work and food waste.", source.nameInSentence)
         case .meal: break
         }
         guard let mealID = item.mealID, let meal = meal(id: mealID) else { return nil }
@@ -1690,7 +1690,7 @@ final class AppStore {
             )
         }
         if context(for: day).maximumPrepMinutes != nil {
-            return L10n.string("Fits the time limit you set for %@.", day.name.lowercased())
+            return L10n.string("Fits the time limit you set for %@.", day.nameInSentence)
         }
         if busyDays(inWeekStarting: plan.startDate).contains(day) {
             return L10n.string("Your calendar has something on this evening, so this one is quick.")

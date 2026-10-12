@@ -154,7 +154,7 @@ struct MealHistoryView: View {
             }
 
             Section {
-                Text("History affects shuffle locally: meals you cook become slightly more relevant, while recently cooked meals temporarily receive a repetition penalty.")
+                Text("Your history shapes the shuffle: meals you cook often come up a little more, and meals you cooked recently are held back for a while.")
                     .font(.caption).foregroundStyle(AppTheme.muted)
             }
 
@@ -222,6 +222,6 @@ struct MealHistoryView: View {
         case .skipped: action = L10n.string("Replaced")
         case .snoozed: action = L10n.string("Paused for 28 days")
         }
-        return event.weekday.map { L10n.string("%@ on %@", action, $0.name.lowercased()) } ?? action
+        return event.weekday.map { L10n.string("%@ on %@", action, $0.nameInSentence) } ?? action
     }
 }

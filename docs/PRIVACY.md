@@ -42,6 +42,10 @@ not receive a copy. The app contains no advertising, no analytics and no trackin
 Reminders are local notifications, scheduled on your phone. They are not sent through any
 server.
 
+If you turn on quick dinners on busy evenings, the app reads your calendar on the phone;
+nothing is changed or sent. Exporting the shopping list to Reminders writes it to Apple's
+Reminders app on your phone.
+
 ## iCloud sharing with your household
 
 If you use iCloud sharing, the data you share is stored in your own iCloud account using
@@ -119,7 +123,7 @@ privacy policy.
 ## Deleting your data
 
 Deleting the app deletes the data stored on your phone. Data kept in iCloud can be removed in
-the iOS Settings app under your name (Apple ID) → iCloud → Manage Storage. The recipe service
+the iOS Settings app under your name (Apple ID) → iCloud → Manage Account Storage. The recipe service
 keeps nothing, so there is nothing to delete there.
 
 ## Children
@@ -154,6 +158,10 @@ kopi. Appen inneholder ingen reklame, ingen analyseverktøy og ingen sporings-SD
 
 Påminnelser er lokale varsler som planlegges på telefonen. De sendes ikke via noen server.
 
+Slår du på raske middager på travle kvelder, leser appen kalenderen på telefonen; ingenting
+endres eller sendes. Eksporterer du handlelisten til Påminnelser, skrives den til Apples
+Påminnelser-app på telefonen.
+
 ## iCloud-deling i husstanden
 
 Hvis du bruker iCloud-deling, lagres det du deler i din egen iCloud-konto med Apples CloudKit
@@ -181,17 +189,17 @@ strukturert form, og tjenesten sender resultatet tilbake til appen.
   modellene sine. Tjenesten sender bare oppskriftsinnholdet til Anthropic, aldri den
   tilfeldige ID-en eller IP-adressen din.
 - **En tilfeldig installasjons-ID.** Første gang appen starter, lager den en tilfeldig ID for
-  denne installasjonen. Den lages ikke av noe om deg eller telefonen din — ikke navnet ditt,
-  Apple-ID-en din eller maskinvaren i telefonen — og den er den samme til du sletter appen.
+  denne installasjonen. Den lages ikke av noe om deg eller telefonen din – ikke navnet ditt,
+  Apple-ID-en din eller maskinvaren i telefonen – og den er den samme til du sletter appen.
   Appen sender den med hver forespørsel om å lese en oppskrift på nett (i en header som heter
   `X-Install-Id`), og ikke med noe annet.
 - **IP-adressen din.** Som enhver nettjeneste ser oppskriftstjenesten IP-adressen en
   forespørsel kommer fra. For IPv6-adresser bruker den bare nettverksdelen (den første
-  halvdelen, kalt /64), som peker på en hjemmeforbindelse eller et mobilnett heller enn én
+  halvdelen, kalt /64), som peker på en hjemmeforbindelse eller et mobilnett i stedet for én enkelt
   enhet.
 - ID-en og adressen brukes bare til å telle forespørsler, slik at én telefon eller én
   forbindelse ikke kan overbelaste tjenesten (begrensning av antall forespørsler). Cloudflare
-  holder på disse tellingene i omtrent ett minutt. Ingen av verdiene lagres, logges, kobles
+  tar vare på disse tellerne i omtrent ett minutt. Ingen av verdiene lagres, logges, kobles
   til oppskriften eller noe annet, eller brukes til å identifisere deg.
 - Tjenestens egne logger registrerer bare hva slags forespørsel det var, resultatstatusen og
   hvor lang tid den tok. De inneholder aldri oppskriften, lenken, IP-adressen din eller den
@@ -216,8 +224,8 @@ dem du mener å dele med.
 
 ## Sende handlelisten til Bring!
 
-Hvis du velger «Send listen til Bring!», legger appen handlelisten — tittelen og hver vare med
-mengde — inn i en nettadresse hos Meal Shuffler-tjenesten, og åpner Bring! med den adressen.
+Hvis du velger «Send listen til Bring!», legger appen handlelisten – tittelen og hver vare med
+mengde – inn i en nettadresse hos Meal Shuffler-tjenesten, og åpner Bring! med den adressen.
 Listen ligger i delen av adressen etter «?». I motsetning til delen etter «#» som brukes ved
 deling med venner, sendes denne delen til servere:
 
@@ -226,20 +234,20 @@ deling med venner, sendes denne delen til servere:
   fra den og returnerer den som en side Bring! kan importere.
 
 Meal Shuffler-tjenesten lagrer ikke listen, ber nettlesere og mellomlagre om ikke å beholde
-siden, og loggene registrerer bare at en listeside ble levert — aldri adressen eller listen.
+siden, og loggene registrerer bare at en listeside ble levert – aldri adressen eller listen.
 Den tilfeldige installasjons-ID-en sendes ikke. Deretter behandler Bring! listen etter sin egen
 personvernerklæring.
 
 ## Slette dataene dine
 
 Når du sletter appen, slettes dataene som er lagret på telefonen. Data i iCloud kan fjernes i
-Innstillinger-appen under navnet ditt (Apple-ID) → iCloud → Administrer lagring.
+Innstillinger-appen under navnet ditt (Apple-ID) → iCloud → Administrer kontolagring.
 Oppskriftstjenesten lagrer ingenting, så der er det ingenting å slette.
 
 ## Barn
 
 Meal Shuffler er et familieverktøy som brukes av foreldre. Appen har ingen kontoer og samler
-ikke bevisst inn personopplysninger om barn.
+ikke bevisst inn personopplysninger fra barn.
 
 ## Endringer i erklæringen
 

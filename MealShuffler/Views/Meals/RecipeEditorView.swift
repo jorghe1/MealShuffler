@@ -281,7 +281,7 @@ struct RecipeEditorView: View {
                 Text("Check the highlighted ingredient amounts before saving the recipe.").foregroundStyle(AppTheme.warning)
             }
             if resolvedIngredients.isEmpty {
-                Text("Nothing recognised yet.").font(.subheadline).foregroundStyle(AppTheme.muted)
+                Text("Nothing recognized yet.").font(.subheadline).foregroundStyle(AppTheme.muted)
             }
             ForEach(resolvedIngredients) { ingredient in
                 HStack(spacing: 10) {

@@ -30,7 +30,7 @@ struct RulesView: View {
                     .font(.subheadline)
                 }
             } footer: {
-                Text("Loosen a rule to \"preferred\", or add dinners that fit.")
+                Text("Make a rule “Preferred”, or add dinners that fit.")
             }
         }
     }

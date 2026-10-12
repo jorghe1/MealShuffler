@@ -14,7 +14,7 @@
 "New" = "Ny";
 "Other" = "Annet";
 "OK" = "OK";
-"Community" = "Community";
+"Community" = "Fellesskap";
 "Unknown error" = "Ukjent feil";
 
 /* Onboarding */
@@ -41,13 +41,13 @@
 "Shuffle week" = "Stokk uka";
 "Tap ••• for quicker, cheaper or favorite meals, or to swap days." = "Trykk på ••• for raskere, billigere, favoritter eller bytte av dag.";
 "Shuffle the rest" = "Stokk resten";
-"Make rule preferred" = "Endre til «Bør følges»";
+"Make rule preferred" = "Gjør regelen til «Helst»";
 "%ld rule conflict" = "%ld regelkonflikt";
 "%ld rule conflicts" = "%ld regelkonflikter";
 "Replace dinner" = "Bytt middag";
 "Move" = "Flytt";
 "Swap with another day" = "Bytt med en annen dag";
-"We cooked this" = "Vi lagde den";
+"We cooked this" = "Vi lagde denne";
 "Not for today" = "Ikke i dag";
 "Remove family favorite" = "Fjern familiefavoritt";
 "Family favorite" = "Familiefavoritt";
@@ -60,7 +60,7 @@
 "%ld min · %ld servings" = "%ld min · %ld porsjoner";
 "Day off" = "Fridag";
 "%ld people" = "%ld personer";
-"What's happening on %@?" = "Hva skjer %@?";
+"What's happening on %@?" = "Hva skjer på %@?";
 "Plan" = "Plan";
 "%ld people eating" = "%ld spiser";
 "Cooking" = "Matlaging";
@@ -83,8 +83,8 @@
 "Chosen because the rule “%@” applies on this day." = "Valgt fordi regelen «%@» gjelder denne dagen.";
 "Fits the time limit you set for %@." = "Passer tidsgrensen du satte for %@.";
 "One of the family's favorites." = "En av familiens favoritter.";
-"Adds variety to the rest of the week." = "Gir variasjon fra resten av uka.";
-"%ld extra servings are made on %@, but %ld people will eat leftovers on %@." = "Det lages %ld ekstra porsjoner %@, men %ld skal spise rester %@.";
+"Adds variety to the rest of the week." = "Gir mer variasjon i uka.";
+"%ld extra servings are made on %@, but %ld people will eat leftovers on %@." = "Det lages %ld ekstra porsjoner på %@, men %ld skal spise rester på %@.";
 "Increase the number of extra servings on %@." = "Øk antall ekstra porsjoner på %@.";
 "%@ is set to leftovers, but no earlier dinner can be used." = "%@ er satt til rester, men ingen tidligere middag kan brukes.";
 "Choose an earlier day and make extra servings." = "Velg en tidligere dag og lag ekstra porsjoner.";
@@ -92,9 +92,9 @@
 "Add more favorites in these categories." = "Legg til flere favoritter i disse kategoriene.";
 "No plan was found for %@." = "Fant ingen plan for %@.";
 "“%@” cannot be satisfied on %@." = "«%@» kan ikke oppfylles på %@.";
-"Add a suitable meal or make the rule preferred." = "Legg til en passende rett eller gjør regelen myk.";
+"Add a suitable meal or make the rule preferred." = "Legg til en passende rett eller gjør regelen til «Helst».";
 "“%@” is broken on %@." = "«%@» brytes på %@.";
-"Unlock the day or make the rule preferred." = "Lås opp dagen eller gjør regelen myk.";
+"Unlock the day or make the rule preferred." = "Lås opp dagen eller gjør regelen til «Helst».";
 "“%@” allows %ld, but the plan needs %ld." = "«%@» tillater %ld, men planen trenger %ld.";
 "Raise the limit or replace a locked dinner." = "Øk grensen eller bytt en låst middag.";
 "“%@” requires %ld, but only %ld are possible." = "«%@» krever %ld, men bare %ld er mulig.";
@@ -116,7 +116,7 @@
 "We read the standard format used by most recipe sites. You can always review the content before saving." = "Vi leser standardformatet som de fleste oppskriftssider bruker. Du får alltid kontrollere innholdet før lagring.";
 "Fetch recipe" = "Hent oppskrift";
 "Import from link" = "Importer fra lenke";
-"Meal" = "Retten";
+"Meal" = "Rett";
 "Meal name" = "Navn på retten";
 "Short description (optional)" = "Kort beskrivelse (valgfritt)";
 "About %ld minutes" = "Ca. %ld minutter";
@@ -150,18 +150,18 @@
 /* History */
 "Cooked" = "Laget";
 "Paused" = "Pauset";
-"History affects shuffle locally: meals you cook become slightly more relevant, while recently cooked meals temporarily receive a repetition penalty." = "Historikken påvirker forslagene. Retter dere liker å lage, foreslås oftere, mens retter dere nylig har laget, velges sjeldnere.";
+"Your history shapes the shuffle: meals you cook often come up a little more, and meals you cooked recently are held back for a while." = "Historikken påvirker forslagene. Retter dere liker å lage, foreslås oftere, mens retter dere nylig har laget, velges sjeldnere.";
 "Activity" = "Aktivitet";
 "No activity yet." = "Ingen aktivitet ennå.";
 "Clear history" = "Tøm historikk";
 "Clear history?" = "Tømme historikken?";
-"Replaced" = "Byttet bort";
+"Replaced" = "Byttet ut";
 "Paused for 28 days" = "Pauset i 28 dager";
 "%@ on %@" = "%@ på %@";
 
 /* Rules */
 "Rules written as plain sentences" = "Regler som vanlige setninger";
-"Required rules must be followed. Preferred rules influence the choice, but never block an otherwise good week." = "Harde regler må følges. Myke regler påvirker valget, men blokkerer aldri en ellers god uke.";
+"Required rules must be followed. Preferred rules influence the choice, but never block an otherwise good week." = "«Må»-regler følges alltid. «Helst»-regler påvirker valget, men stopper aldri en ellers god uke.";
 "Your rules" = "Dine regler";
 "Required" = "Må";
 "Preferred" = "Helst";
@@ -171,13 +171,13 @@
 "Show onboarding again" = "Vis introduksjonen på nytt";
 "Start onboarding again?" = "Starte introduksjonen på nytt?";
 "Start over" = "Start på nytt";
-"Rules and custom meals are kept, but taste choices and the weekly plan are reset." = "Regler og egne retter beholdes, men smakssvar og ukeplan nullstilles.";
+"Rules and custom meals are kept, but taste choices and the weekly plan are reset." = "Regler og egne retter beholdes, men smakene dere har valgt og ukeplanen nullstilles.";
 "What should the rule do?" = "Hva skal regelen gjøre?";
 "Choose a template and tap the green words to change the sentence." = "Velg en mal og trykk på de grønne ordene for å endre setningen.";
 "How strict?" = "Hvor strengt?";
 "Strength" = "Styrke";
 "The plan shows a conflict if the rule cannot be followed." = "Planen viser en konflikt hvis regelen ikke kan følges.";
-"The rule gets higher priority, but can yield to required rules." = "Regelen får høyere prioritet, men kan vike for harde regler.";
+"The rule gets higher priority, but can yield to required rules." = "Regelen får høyere prioritet, men kan vike for «Må»-regler.";
 "%ld of %ld meals work with this choice" = "%ld av %ld retter kan brukes med dette valget";
 "Add rule" = "Legg til regel";
 "New rule" = "Ny regel";
@@ -330,7 +330,7 @@
 "unit.pot" = "potte";
 /* Family */
 "Family" = "Familie";
-"Household" = "Husholdning";
+"Household" = "Husstand";
 "Name" = "Navn";
 "OWNER" = "EIER";
 "Add member" = "Legg til medlem";
@@ -450,7 +450,7 @@
 "Reading the recipe…" = "Leser oppskriften…";
 "Could not read that" = "Klarte ikke å lese den";
 "Try again" = "Prøv igjen";
-"Read from a photo — check the details before saving." = "Lest fra et bilde — kontroller detaljene før du lagrer.";
+"Read from a photo — check the details before saving." = "Lest fra et bilde – kontroller detaljene før du lagrer.";
 "Reading pasted text needs the import service, which is not set up yet." = "Å lese innlimt tekst krever importtjenesten, som ikke er satt opp ennå.";
 "Saving…" = "Lagrer…";
 "Saved to Meal Shuffler" = "Lagret i Meal Shuffler";
@@ -466,15 +466,15 @@
 "Start planning" = "Start planleggingen";
 "Jumps to that day" = "Hopper til den dagen";
 "All" = "Alle";
-"Favourites" = "Favoritter";
+"Favorites" = "Favoritter";
 "Mine" = "Mine";
 "%ld meals" = "%ld retter";
 "No meals yet" = "Ingen retter ennå";
-"No favourites yet" = "Ingen favoritter ennå";
+"No favorites yet" = "Ingen favoritter ennå";
 "No meals of your own yet" = "Ingen egne retter ennå";
 "Tap the heart on a meal to keep it close." = "Trykk på hjertet på en rett for å ha den lett tilgjengelig.";
 "Add one, or share a recipe into the app from Safari." = "Legg til en, eller del en oppskrift inn i appen fra Safari.";
-"Reorder aisles" = "Endre rekkefølge på avdelinger";
+"Reorder aisles" = "Rekkefølge på avdelinger";
 "Order" = "Rekkefølge";
 "Drag the sections into the order you walk your shop. The shared list follows the same order." = "Dra avdelingene i den rekkefølgen du går gjennom butikken. Den delte listen følger samme rekkefølge.";
 "Reset to default" = "Tilbakestill til standard";
@@ -595,13 +595,13 @@
 "Fry the fish cakes in butter until golden on both sides." = "Stek fiskekakene i smør til de er gyllne på begge sider.";
 "Fry the fish for 2–3 minutes on each side until golden." = "Stek fisken 2–3 minutter på hver side til den er gyllen.";
 "Fry the salmon skin-side down for 4 minutes." = "Stek laksen med skinnsiden ned i 4 minutter.";
-"Fry the sliced garlic gently in the oil." = "Stek den skivede hvitløken forsiktig i oljen.";
+"Fry the sliced garlic gently in the oil." = "Stek hvitløksskivene forsiktig i oljen.";
 "Fry the vegetables over high heat for 3 minutes." = "Stek grønnsakene på høy varme i 3 minutter.";
 "Fry thin pancakes in butter, a ladle at a time." = "Stek tynne pannekaker i smør, en øse om gangen.";
 "Garlic" = "Hvitløk";
 "Ginger" = "Ingefær";
 "Grate the carrots and dress them with lemon juice." = "Riv gulrøttene og bland dem med sitronsaft.";
-"Grate the carrots into a slaw." = "Riv gulrøttene til en salat.";
+"Grate the carrots into a slaw." = "Riv gulrøttene til råkost.";
 "Halloumi" = "Halloumi";
 "Halloumi wraps" = "Halloumiwraps";
 "Heat the oven as hot as it goes, with a tray inside." = "Sett stekeovnen så varm som den blir, med et brett inni.";
@@ -674,7 +674,7 @@
 "Season with salt and serve with the rice." = "Smak til med salt og server med risen.";
 "Serve everything together." = "Server alt sammen.";
 "Serve on the rice with spring onion on top." = "Server på risen med vårløk på toppen.";
-"Serve with halved eggs and bread." = "Server med delte egg og brød.";
+"Serve with halved eggs and bread." = "Server med halverte egg og brød.";
 "Serve with the bacon, and jam for anyone who wants it." = "Server med baconet, og syltetøy til den som vil ha.";
 "Serve with the potatoes and slaw." = "Server med potetene og salaten.";
 "Serve with the rice." = "Server med risen.";
@@ -743,7 +743,7 @@
 "%@ takes about %ld min, so dinner lands at %@." = "%@ tar ca. %ld min, så middagen er klar %@.";
 "%ld %@" = "%ld %@";
 "%ld days ago" = "For %ld dager siden";
-"%ld dinners ready to take over" = "%ld middager klare til å ta over";
+"%ld dinners ready to take over" = "%ld middager klare til neste uke";
 "%ld of %ld still to buy" = "%ld av %ld igjen å kjøpe";
 "About" = "Om";
 "Already on %@" = "Allerede på %@";
@@ -753,23 +753,22 @@
 "Different meals" = "Ulike retter";
 "Dinner on %@" = "Middag på %@";
 "Due a turn" = "På tide igjen";
-"Everything is stored on this device. Nothing is sent anywhere unless you import a recipe from a link or a photo." = "Alt lagres på denne enheten. Ingenting sendes noe sted med mindre du importerer en oppskrift fra en lenke eller et bilde.";
-"Longest since you cooked it, first. Long-press to put one on a day." = "Rettene dere ikke har laget på lengst tid, vises først. Velg en rett for å se oppskriften.";
+"Longest since you cooked it, first. Long-press to put one on a day." = "Rettene dere ikke har laget på lengst tid, vises først. Trykk og hold for å legge en på en dag.";
 "Marks it a family favorite" = "Merker den som familiefavoritt";
-"Meal Shuffler needs permission to send reminders. You can turn it on in iOS Settings." = "Meal Shuffler trenger tillatelse til å sende påminnelser. Du kan slå det på i Innstillinger i iOS.";
+"Meal Shuffler needs permission to send reminders. You can turn it on in iOS Settings." = "Meal Shuffler trenger tillatelse til å sende påminnelser. Du kan slå det på i Innstillinger-appen.";
 "Never cooked" = "Aldri laget";
 "Next week is still empty" = "Neste uke er fortsatt tom";
 "No meals match" = "Ingen retter passer";
 "Not now" = "Ikke nå";
 "Nothing planned yet. Get ahead in one tap." = "Ingenting planlagt ennå. Kom i forkant med ett trykk.";
 "Notifications are off" = "Varsler er av";
-"Notifications are off for Meal Shuffler. You can turn them on later in Settings." = "Varsler er av for Meal Shuffler. Du kan slå dem på senere under Innstillinger.";
+"Notifications are off for Meal Shuffler. You can turn them on later in Settings." = "Varsler er av for Meal Shuffler. Du kan slå dem på senere i Innstillinger-appen.";
 "One notification a day, at a time you choose." = "Ett varsel om dagen, på et tidspunkt du velger.";
 "Open Meal Shuffler to line up next week's dinners." = "Åpne Meal Shuffler for å sette opp middagene for neste uke.";
 "Open Settings" = "Åpne Innstillinger";
 "Pausing %@" = "Pause av %@";
 "Plan for %@" = "Plan for %@";
-"Plan for a day" = "Velg dag";
+"Plan for a day" = "Legg på en dag";
 "Puts this on %@" = "Legger denne på %@";
 "Reminders" = "Påminnelser";
 "Replacing %@" = "Bytte av %@";
@@ -778,7 +777,6 @@
 "Swap of two days" = "Bytte av to dager";
 "Takes it off the list" = "Tar den av listen";
 "The dinner reminder tells you what tonight's meal is, and follows the plan when you reshuffle a day. When next week is empty you get one nudge to plan it." = "Middagspåminnelsen sier hva som er kveldens rett, og følger planen når du stokker om en dag. Når neste uke er tom, får du én påminnelse om å planlegge den.";
-"The plan shares as plain text, so it works in any app. Everything stays on this device." = "Planen deles som ren tekst, så den fungerer i alle apper. Alt blir værende på denne enheten.";
 "This week: %@" = "Denne uka: %@";
 "Time to start cooking" = "På tide å begynne å lage mat";
 "Today" = "I dag";
@@ -812,7 +810,7 @@
 "Day plan" = "Dagsplan";
 "Don't repeat a dinner within" = "Ikke gjenta en middag innen";
 "every day" = "hver dag";
-"Free up a day, or make the rule preferred." = "Frigjør en dag, eller gjør regelen myk.";
+"Free up a day, or make the rule preferred." = "Frigjør en dag, eller gjør regelen til «Helst».";
 "Have" = "Ha";
 "How that reads" = "Slik leses det";
 "Ingredient" = "Ingrediens";
@@ -820,7 +818,7 @@
 "Keep it varied" = "Hold det variert";
 "Label" = "Merkelapp";
 "Label, for example kid-friendly" = "Merkelapp, for eksempel barnevennlig";
-"Matched by name, so “olive oil” covers every recipe that calls for it, whatever the amount." = "Treffer på navn, så «olivenolje» dekker alle oppskrifter som bruker det, uansett mengde.";
+"Matched by name, so “olive oil” covers every recipe that calls for it, whatever the amount." = "Søker på navn, så «olivenolje» dekker alle oppskrifter som bruker den, uansett mengde.";
 "Never" = "Aldri";
 "Never %@" = "Aldri %@";
 "No %@ two days running" = "Ikke %@ to dager på rad";
@@ -828,19 +826,19 @@
 "No repeats within %ld weeks" = "Ingen gjentakelser innen %ld uker";
 "No repeats within the week" = "Ingen gjentakelser i løpet av uka";
 "Not in a row" = "Ikke på rad";
-"Nothing recognised yet." = "Ingenting er gjenkjent ennå.";
+"Nothing recognized yet." = "Ingenting er gjenkjent ennå.";
 "Nothing yet. Add items here, or long-press a line on the shopping list." = "Ingenting ennå. Legg til varer her, eller trykk og hold på en linje i handlelisten.";
 "Pantry staples" = "Basisvarer";
 "Paste" = "Lim inn";
 "Paste a recipe" = "Lim inn en oppskrift";
-"Paste the recipe here — the name, the ingredients, and the steps." = "Lim inn oppskriften her — navnet, ingrediensene og fremgangsmåten.";
+"Paste the recipe here — the name, the ingredients, and the steps." = "Lim inn oppskriften her – navnet, ingrediensene og fremgangsmåten.";
 "Pasted in – check the details before saving" = "Limt inn – sjekk detaljene før du lagrer";
 "Person" = "Person";
-"Read automatically — check the details before saving." = "Lest automatisk — sjekk detaljene før du lagrer.";
+"Read automatically — check the details before saving." = "Lest automatisk – sjekk detaljene før du lagrer.";
 "Read recipe" = "Les oppskriften";
 "Remove the label %@" = "Fjern merkelappen %@";
-"Rules cover the day plan too: eating out, nobody home, or living off leftovers can be stated once here instead of set on the day every week." = "Regler dekker dagsplanen også: spise ute, ingen hjemme, eller rester kan sies én gang her i stedet for å settes på dagen hver uke.";
-"Saving adds a second one. Cancel and edit the original instead if that is what you meant." = "Lagring gir deg nummer to. Avbryt og rediger den opprinnelige i stedet hvis det var det du mente.";
+"Rules cover the day plan too: eating out, nobody home, or living off leftovers can be stated once here instead of set on the day every week." = "Regler kan også gjelde dagsplanen: Spise ute, ingen hjemme eller rester kan angis én gang her i stedet for på dagen hver uke.";
+"Saving adds a second one. Cancel and edit the original instead if that is what you meant." = "Hvis du lagrer, får du to like retter. Avbryt og rediger den opprinnelige i stedet hvis det var det du mente.";
 "Scan" = "Skann";
 "Set it above" = "Angi den over";
 "Spread out %@" = "Spre %@";
@@ -857,7 +855,7 @@
 "You already have this rule: %@" = "Du har allerede denne regelen: %@";
 "Your own labels" = "Dine egne merkelapper";
 "“%@” is broken: %@ and %@ are back to back." = "«%@» brytes: %@ og %@ kommer rett etter hverandre.";
-"“%@” is overdue and could not be fitted in." = "«%@» er på overtid og fikk ikke plass.";
+"“%@” is overdue and could not be fitted in." = "«%@» skulle vært laget nå, men fikk ikke plass.";
 "“Kid-friendly”, “cheap”, “freezer”. Rules can be written about any label you add here." = "«Barnevennlig», «billig», «fryser». Du kan lage regler om alle merkelapper du legger til her.";
 
 /* Bring! */
@@ -868,7 +866,6 @@
 "%@ exceeds the time available on %@." = "%@ tar lengre tid enn det er satt av på %@.";
 "Additional context" = "Tilleggsinformasjon";
 "As needed" = "Etter behov";
-"Attendance controls personal dislikes. Adjust the serving count above for appetites and guests." = "Hvem som deltar styrer personlige preferanser. Juster antall porsjoner over etter appetitt og gjester.";
 "Avoid these dislikes when present" = "Unngå disse rettene når personen deltar";
 "Check the original yield before using scaled shopping quantities." = "Kontroller opprinnelig antall porsjoner før mengdene på handlelisten skaleres.";
 "Choose a meal" = "Velg en rett";
@@ -926,7 +923,7 @@
 "%ld shared recipes" = "%ld delte oppskrifter";
 "Accept iCloud invitation" = "Godta iCloud-invitasjon";
 "Active time known" = "Aktiv tid er oppgitt";
-"Add a batch" = "Legg til en porsjonspakke";
+"Add a batch" = "Legg til fryseporsjoner";
 "Add collection" = "Legg til samling";
 "Add to freezer" = "Legg i fryseren";
 "Amount not specified" = "Mengde ikke oppgitt";
@@ -961,19 +958,19 @@
 "Hide recipe" = "Skjul oppskrift";
 "iCloud sharing" = "iCloud-deling";
 "In the freezer" = "I fryseren";
-"Includes plans, rules, household preferences, shopping progress, recipes, drafts, source photos, history and freezer batches. Restoring replaces household data on this device and keeps a recovery copy first." = "Inneholder ukeplaner, regler, familiens preferanser, avkrysninger på handlelisten, oppskrifter, utkast, originalbilder, historikk og fryserinnhold. Ved gjenoppretting erstattes familiedataene på denne enheten. Først lagres en kopi av det som ligger her nå.";
+"Includes plans, rules, household preferences, shopping progress, recipes, drafts, source photos, history and freezer batches. Restoring replaces household data on this device and keeps a recovery copy first." = "Inneholder ukeplaner, regler, husstandens preferanser, avkrysninger på handlelisten, oppskrifter, utkast, originalbilder, historikk og fryserinnhold. Ved gjenoppretting erstattes dataene for husstanden på denne enheten. Først lagres en kopi av det som ligger her nå.";
 "Invite or manage people" = "Inviter eller administrer deltakere";
 "Keep this device's version" = "Behold versjonen på denne enheten";
 "Large portions" = "Store porsjoner";
 "Last synced" = "Sist synkronisert";
 "Leave the amount empty when it is not specified. Use an amount note for “to taste”." = "La mengden stå tom når den ikke er oppgitt. Skriv «etter smak» i merknadsfeltet ved behov.";
 "Mark this dinner as not cooked before replacing it." = "Angre markeringen som laget før du bytter ut middagen.";
-"Meal plan" = "Ukeplan";
+"Meal plan" = "Middagsplan";
 "Minutes" = "Minutter";
 "Needs review" = "Må gjennomgås";
 "New collection" = "Ny samling";
 "Next active week: %@" = "Neste uke regelen gjelder: %@";
-"No batches saved yet." = "Du har ikke registrert noe i fryseren ennå.";
+"No batches saved yet." = "Ingen fryseporsjoner registrert ennå.";
 "No replacement matched that request. Your dinner has been kept." = "Ingen annen rett oppfylte ønsket. Middagen er beholdt.";
 "on Fridays" = "på fredager";
 "on Mondays" = "på mandager";
@@ -985,7 +982,7 @@
 "on weekdays" = "på hverdager";
 "On-device recipe recognition" = "Oppskrifter leses på enheten";
 "Online extraction is not configured in this build. Pasted text, photos and structured recipe websites can still be imported on this device." = "Nettbasert oppskriftslesing er ikke satt opp i denne versjonen. Du kan fortsatt importere innlimt tekst, bilder og nettsider med strukturerte oppskrifter på enheten.";
-"Only dinners still to cook can be swapped. Change other arrangements in the day settings." = "Du kan bytte plass på middager som ikke er laget ennå. Endre andre middagsplaner under «Planlegg dagen».";
+"Only dinners still to cook can be swapped. Change other arrangements in the day settings." = "Du kan bytte plass på middager som ikke er laget ennå. Endre andre middagsplaner under «Planlegg denne dagen».";
 "Original recipe photo" = "Originalbilde av oppskriften";
 "Original servings" = "Antall porsjoner i originalen";
 "Package size" = "Pakkestørrelse";
@@ -996,34 +993,34 @@
 "Recipe imports" = "Import av oppskrifter";
 "Recipe section" = "Del av oppskriften";
 "Recovery copies" = "Gjenopprettingskopier";
-"Replace this device's household data?" = "Erstatte familiedataene på denne enheten?";
+"Replace this device's household data?" = "Erstatte dataene for husstanden på denne enheten?";
 "Reset to original" = "Tilbakestill til originalen";
 "Restore backup" = "Gjenopprett sikkerhetskopi";
 "Restore full backup" = "Gjenopprett full sikkerhetskopi";
 "Review iCloud changes" = "Se gjennom iCloud-endringer";
-"Review the shared household before replacing this device's data." = "Se gjennom den delte familien før du erstatter dataene på denne enheten.";
+"Review the shared household before replacing this device's data." = "Se gjennom den delte husstanden før du erstatter dataene på denne enheten.";
 "Share a dated plan as text, or invite household members through iCloud to edit together." = "Del en datert ukeplan som tekst, eller inviter familien via iCloud for å redigere sammen.";
 "Share all items" = "Del alle varer";
 "Share next week" = "Del neste uke";
 "Share recipes, plans, shopping progress and household preferences with invited iCloud users. Everyone can edit. Cooking steps and notification settings stay personal." = "Del oppskrifter, ukeplaner, avkrysninger på handlelisten og familiens preferanser med inviterte iCloud-brukere. Alle kan redigere. Fremdrift i matlagingen og varslingsinnstillinger beholdes på hver enhet.";
 "Share remaining items" = "Del varer som gjenstår";
-"Shared household: %@" = "Delt familie: %@";
+"Shared household: %@" = "Delt husstand: %@";
 "Shopping complete" = "Ferdig handlet";
 "Shopping period" = "Handleperiode";
 "Show checked items" = "Vis avkryssede varer";
-"Shuffle %ld remaining dinners" = "Trekk %ld gjenstående middager";
-"Sign in to iCloud in iOS Settings to share a household." = "Logg på iCloud i iOS-innstillingene for å dele med familien.";
+"Shuffle %ld remaining dinners" = "Stokk %ld gjenstående middager";
+"Sign in to iCloud in iOS Settings to share a household." = "Logg på iCloud i Innstillinger-appen for å dele med husstanden.";
 "Standard portions" = "Vanlige porsjoner";
 "Start timer" = "Start nedtelling";
 "Sync is paused on this device. Shared data remains in iCloud." = "Synkronisering er satt på pause på denne enheten. Delte data ligger fortsatt i iCloud.";
 "Sync now" = "Synkroniser nå";
-"The household changed while syncing. Review it again." = "Familiedataene ble endret under synkronisering. Se gjennom dem på nytt.";
-"This device and iCloud have different changes. Choose which household version to keep. A recovery copy is saved first." = "Denne enheten og iCloud har ulike endringer. Velg hvilken versjon av familiedataene du vil beholde. Først lagres en gjenopprettingskopi.";
-"Three-quarter portions" = "Trekvart porsjon per person";
+"The household changed while syncing. Review it again." = "Dataene for husstanden ble endret under synkronisering. Se gjennom dem på nytt.";
+"This device and iCloud have different changes. Choose which household version to keep. A recovery copy is saved first." = "Denne enheten og iCloud har ulike endringer. Velg hvilken versjon av husstanden du vil beholde. Først lagres en gjenopprettingskopi.";
+"Three-quarter portions" = "¾-porsjoner";
 "Time not specified" = "Tid ikke oppgitt";
 "Timer finished" = "Tiden er ute";
 "Total elapsed time" = "Total tid";
-"Total to cook" = "Antall porsjoner som skal lages";
+"Total to cook" = "Porsjoner totalt";
 "Undo cooking completion" = "Angre markering som laget";
 "unit.clove" = "fedd";
 "unit.cup" = "kopp";
@@ -1057,20 +1054,20 @@
 "This source is too large. Try fewer photos or a shorter text." = "Kilden er for stor. Prøv med færre bilder eller en kortere tekst.";
 "The recipe could not be read reliably. Check the source or use on-device recognition." = "Oppskriften kunne ikke leses pålitelig. Sjekk kilden eller bruk lesing på enheten.";
 "Online extraction is unavailable. Try again or use on-device recognition." = "Nettbasert oppskriftslesing er utilgjengelig. Prøv igjen eller bruk lesing på enheten.";
-"Planning dinners…" = "Planlegger middager …";
+"Planning dinners…" = "Planlegger middager…";
 
 "%ld serving" = "%ld porsjon";
 "%ld minute" = "%ld minutt";
 "%ld person" = "%ld person";
 "%ld person eating" = "%ld person spiser";
 "%ld person at dinner" = "%ld person til middag";
-"About %ld minute" = "Omtrent %ld minutt";
-"Maximum %ld minute" = "Høyst %ld minutt";
+"About %ld minute" = "Ca. %ld minutt";
+"Maximum %ld minute" = "Maks %ld minutt";
 "Every %ld week" = "Hver %ld. uke";
 "%ld meal" = "%ld rett";
 "%ld dinner ready to take over" = "%ld middag klar til neste uke";
 "Cooked %ld time" = "Laget %ld gang";
-"Shuffle %ld remaining dinner" = "Trekk %ld gjenstående middag";
+"Shuffle %ld remaining dinner" = "Stokk %ld gjenstående middag";
 "%ld shared recipe" = "%ld delt oppskrift";
 "We cook %@ at least %ld time per week." = "Vi lager %@ minst %ld gang i uka.";
 "We cook %@ at most %ld time per week." = "Vi lager %@ høyst %ld gang i uka.";
@@ -1091,7 +1088,7 @@
 /* Review completion: workflow and grammatical copy. */
 "30 minutes or less" = "30 minutter eller mindre";
 "All steps" = "Alle trinn";
-"Change portions or dinner plans" = "Endre porsjoner eller middagsplaner";
+"Change portions or dinner plans" = "Endre porsjoner eller plan";
 "Check amount range" = "Kontroller mengdeintervallet";
 "Check package size" = "Kontroller pakningsstørrelsen";
 "Check the original servings and total time to save this recipe. You can save a draft and finish later." = "Kontroller antall porsjoner og samlet tidsbruk før du lagrer oppskriften. Du kan lagre et utkast og fortsette senere.";
@@ -1101,7 +1098,7 @@
 "Data" = "Data";
 "Edit item: %@" = "Rediger vare: %@";
 "Everything is already at home" = "Dere har allerede alt hjemme";
-"Freezer batch" = "Porsjoner fra fryseren";
+"Freezer batch" = "Fryseporsjon";
 "From the freezer: %@" = "Fra fryseren: %@";
 "Ingredient amounts are scaled. Quantities written inside the method remain as in the original recipe." = "Ingrediensmengdene er tilpasset antall porsjoner. Mengder som står i fremgangsmåten, er fortsatt som i originaloppskriften.";
 "Ingredients for %ld planned dinners" = "Ingredienser til %ld planlagte middager";
@@ -1127,24 +1124,24 @@
 "This device's plan and shopping" = "Ukeplan og handleliste på denne enheten";
 "To taste" = "Etter smak";
 "Unlock a day" = "Lås opp en dag";
-"Use an earlier dinner" = "Bruk rester fra en tidligere middag";
+"Use an earlier dinner" = "En tidligere middag";
 "vegetarian meals" = "vegetarretter";
 "We ate this" = "Dette spiste vi";
 "We cook %@ at least once every %ld weeks." = "Vi lager %@ minst én gang hver %ld. uke.";
 "We cook %@ at least once every %ld week." = "Vi lager %@ minst én gang hver %ld. uke.";
 "weekend meals" = "helgeretter";
 "“%@” conflicts with the last dinner of the previous week." = "«%@» er i strid med den siste middagen i forrige uke.";
-"The freezer batch for %@ is no longer available." = "Porsjonene fra fryseren til %@ er ikke lenger tilgjengelige.";
+"The freezer batch for %@ is no longer available." = "Fryseporsjonene til %@ er ikke lenger tilgjengelige.";
 "Rule added." = "Regelen er lagt til.";
 "This rule already exists: %@" = "Denne regelen finnes allerede: %@";
 "This conflicts with: %@" = "Dette er i strid med: %@";
 "Check the highlighted ingredient amounts before saving the recipe." = "Kontroller de markerte ingrediensmengdene før du lagrer oppskriften.";
 "More rule templates" = "Flere regelmaler";
 "Portions needed" = "Porsjoner som trengs";
-"Existing local drafts and captures are kept when restoring a backup." = "Eksisterende lokale utkast og innsendte oppskrifter beholdes når du gjenoppretter en sikkerhetskopi.";
+"Existing local drafts and captures are kept when restoring a backup." = "Eksisterende lokale utkast og delte oppskrifter beholdes når du gjenoppretter en sikkerhetskopi.";
 "Open recipe" = "Åpne oppskriften";
 "Community sharing is not available yet." = "Deling med et offentlig fellesskap er ikke tilgjengelig ennå.";
-"Invitation code %@ is no longer supported. Ask the household owner for an iCloud invitation." = "Invitasjonskoden %@ støttes ikke lenger. Be eieren av husholdningen om en iCloud-invitasjon.";
+"Invitation code %@ is no longer supported. Ask the household owner for an iCloud invitation." = "Invitasjonskoden %@ støttes ikke lenger. Be eieren av husstanden om en iCloud-invitasjon.";
 "Write a recipe" = "Skriv en oppskrift";
 "Import from a link" = "Importer fra en lenke";
 "Paste recipe text" = "Lim inn oppskriftstekst";
@@ -1152,20 +1149,20 @@
 "Scan recipe pages" = "Skann oppskriftssider";
 "Add recipe" = "Legg til oppskrift";
 "meals containing %@" = "retter med %@";
-"meals labelled “%@”" = "retter merket «%@»";
+"meals labeled “%@”" = "retter merket «%@»";
 "meals %@ dislikes" = "retter %@ ikke liker";
 "We do not cook the same dinner twice in one week." = "Vi lager ikke samme middag to ganger i løpet av en uke.";
 "We do not cook the same dinner again within %ld weeks." = "Vi lar det gå minst %ld uker før vi lager samme middag igjen.";
-"iCloud sharing is unavailable in this unsigned build. Your local household data is still available." = "iCloud-deling er ikke tilgjengelig i denne usignerte versjonen. Du har fortsatt tilgang til lokale husholdningsdata.";
+"iCloud sharing is unavailable in this unsigned build. Your local household data is still available." = "iCloud-deling er ikke tilgjengelig i denne usignerte versjonen. Du har fortsatt tilgang til lokale data for husstanden.";
 
 /* One reminder a day */
 "At most one reminder a day, whichever is most useful. The dinner reminder tells you what tonight's meal is and follows the plan when you reshuffle a day; with start-cooking timing on, that one arrives instead. When next week is empty you get one nudge to plan it." = "Høyst én påminnelse om dagen, den som er mest nyttig. Middagspåminnelsen forteller hva kveldens rett er og følger planen når du stokker om på en dag; med «tid for å begynne» slått på kommer den i stedet. Når neste uke er tom får du én påminnelse om å planlegge den.";
 
 /* Rules in your own words, sharing between households, the shuffle moment */
 "Healthy" = "Sunn";
-"healthy meals" = "sunne middager";
+"healthy meals" = "sunne retter";
 "Say it in your own words" = "Si det med dine egne ord";
-"Taco Friday, fish twice a week…" = "Fredagstaco, fisk to ganger i uka …";
+"Taco Friday, fish twice a week…" = "Fredagstaco, fisk to ganger i uka…";
 "Days, limits, allergies, day plans and variety all work. Try a suggestion." = "Dager, grenser, allergier, dagsplaner og variasjon fungerer. Prøv et forslag.";
 "Not sure what that means yet. Try one of the suggestions." = "Skjønner ikke helt den ennå. Prøv et av forslagene.";
 "Added: %@" = "Lagt til: %@";
@@ -1248,7 +1245,7 @@
 
 "Share up to 24 recipes at a time. For large recipes, use a smaller collection." = "Del opptil 24 oppskrifter om gangen. Bruk en mindre samling for store oppskrifter.";
 
-"This list is too large for Bring! Use Share remaining items instead." = "Listen er for stor for Bring! Bruk Del gjenværende varer i stedet.";
+"This list is too large for Bring! Use “Share remaining items” instead." = "Listen er for stor for Bring! Bruk «Del varer som gjenstår» i stedet.";
 
 "Notifications are unavailable. Keep this screen open to see when the timer finishes." = "Varsler er utilgjengelige. Hold denne skjermen åpen for å se når tiden er ute.";
 
@@ -1257,20 +1254,20 @@
 "When this is on, the link, text or photos you import are sent to the Meal Shuffler recipe service, which uses Anthropic's Claude to read the recipe. Nothing is stored there. Turn it off to read recipes on this device only." = "Når dette er på, sendes lenken, teksten eller bildene du importerer til oppskriftstjenesten til Meal Shuffler, som bruker Claude fra Anthropic til å lese oppskriften. Ingenting lagres der. Slå det av for å lese oppskrifter bare på denne telefonen.";
 "Read recipes online?" = "Lese oppskrifter på nett?";
 "Turn on" = "Slå på";
-"The recipe you import is sent to the Meal Shuffler recipe service and to Anthropic, which reads it and sends the result back. Neither keeps it or uses it for training. You can turn this off at any time." = "Oppskriften du importerer sendes til oppskriftstjenesten til Meal Shuffler og til Anthropic, som leser den og sender resultatet tilbake. Ingen av dem tar vare på den eller bruker den til trening. Du kan slå dette av når som helst.";
+"The recipe you import is sent to the Meal Shuffler recipe service and to Anthropic, which reads it and sends the result back. The service keeps nothing, and Anthropic does not use it for training. You can turn this off at any time." = "Oppskriften du importerer, sendes til oppskriftstjenesten til Meal Shuffler og til Anthropic, som leser den og sender resultatet tilbake. Tjenesten tar ikke vare på noe, og Anthropic bruker den ikke til trening. Du kan slå dette av når som helst.";
 "Meal Shuffler keeps your meals, recipes, rules, plans, shopping lists and history on this phone. There is no account, no advertising and no analytics." = "Meal Shuffler lagrer retter, oppskrifter, regler, planer, handlelister og historikk på denne telefonen. Det finnes ingen konto, ingen reklame og ingen analyseverktøy.";
-"What can leave the phone" = "Dette kan forlate telefonen";
+"What can leave the phone" = "Dette kan sendes fra telefonen";
 "Reading recipes online" = "Lese oppskrifter på nett";
-"Off unless you turn it on. The link, text or photos you import are sent to the Meal Shuffler recipe service, which uses Anthropic's Claude to read the recipe and sends the result back. Neither keeps the recipe or uses it for training. A random install id and your IP address are used only to stop abuse." = "Av med mindre du slår det på. Lenken, teksten eller bildene du importerer sendes til oppskriftstjenesten til Meal Shuffler, som bruker Claude fra Anthropic til å lese oppskriften og sender resultatet tilbake. Ingen av dem tar vare på oppskriften eller bruker den til trening. En tilfeldig installasjons-ID og IP-adressen din brukes bare for å hindre misbruk.";
+"Off unless you turn it on. The link, text or photos you import are sent to the Meal Shuffler recipe service, which uses Anthropic's Claude to read the recipe and sends the result back. The service keeps nothing, and Anthropic does not use the recipe for training. A random install ID and your IP address are used only to stop abuse." = "Av med mindre du slår det på. Lenken, teksten eller bildene du importerer, sendes til oppskriftstjenesten til Meal Shuffler, som bruker Claude fra Anthropic til å lese oppskriften og sender resultatet tilbake. Tjenesten tar ikke vare på noe, og Anthropic bruker ikke oppskriften til trening. En tilfeldig installasjons-ID og IP-adressen din brukes bare for å hindre misbruk.";
 "Importing from a website" = "Importere fra en nettside";
 "The phone contacts that website directly, the same way a browser would, and loads the recipe picture from it." = "Telefonen kontakter nettsiden direkte, slik en nettleser gjør, og henter bildet av oppskriften derfra.";
 "Sharing with a friend" = "Dele med en venn";
 "A shared recipe, rule list or week travels inside the link itself. The page that opens it stores nothing." = "En delt oppskrift, regelliste eller uke ligger inne i selve lenken. Siden som åpner den, lagrer ingenting.";
-"Send to Bring!" = "Send til Bring!";
-"The shopping list is put in a web address on the Meal Shuffler service, which Bring! opens and fetches to import it. The service only turns the address into a page for Bring! and keeps nothing. Bring! then handles the list under its own privacy policy." = "Handlelisten legges i en nettadresse hos Meal Shuffler-tjenesten, som Bring! åpner og henter for å importere den. Tjenesten gjør bare adressen om til en side for Bring! og tar ikke vare på noe. Deretter behandler Bring! listen etter sine egne personvernregler.";
+"Sending to Bring!" = "Sende til Bring!";
+"The shopping list is put in a web address on the Meal Shuffler service, which Bring! opens and fetches to import it. The service only turns the address into a page for Bring! and keeps nothing. Bring! then handles the list under its own privacy policy." = "Handlelisten legges i en nettadresse hos Meal Shuffler-tjenesten. Bring! åpner adressen og henter listen derfra. Tjenesten gjør bare adressen om til en side for Bring! og tar ikke vare på noe. Deretter behandler Bring! listen etter sin egen personvernerklæring.";
 "If you share your household through iCloud, it is stored in your own iCloud. The developer cannot read it." = "Hvis du deler husstanden gjennom iCloud, lagres den i din egen iCloud. Utvikleren kan ikke lese den.";
 "Reminders and widgets" = "Påminnelser og widgeter";
-"Reminders are scheduled on this phone, and the widget reads the plan on this phone. Nothing is sent to do either." = "Påminnelsene planlegges på denne telefonen, og widgeten leser planen på denne telefonen. Ingenting sendes for å få til noe av det.";
+"Reminders are scheduled on this phone, and the widget reads the plan on this phone. Nothing is sent to do either." = "Påminnelser planlegges på telefonen, og widgeten leser planen direkte fra telefonen. Ingenting sendes ut for noen av delene.";
 "Deleting your data" = "Slette dataene dine";
 "Deleting the app deletes everything it stored. The recipe service keeps nothing, so there is nothing to delete there." = "Når du sletter appen, slettes alt den har lagret. Oppskriftstjenesten tar ikke vare på noe, så der er det ingenting å slette.";
 "Full privacy policy" = "Hele personvernerklæringen";
@@ -1286,7 +1283,7 @@
 "It is tomorrow's dinner and needs the night in the fridge." = "Det er middagen i morgen, og den trenger natten i kjøleskapet.";
 "A new week" = "En ny uke";
 "Open Meal Shuffler to see this week's dinners." = "Åpne Meal Shuffler for å se middagene denne uka.";
-"Shuffle it now, it takes ten seconds." = "Stokk den nå. Det tar ti sekunder.";
+"Shuffle it now. It takes ten seconds." = "Stokk den nå. Det tar ti sekunder.";
 "Tomorrow: %@ from the freezer. Take it out tonight." = "I morgen: %@ fra fryseren. Ta den ut i kveld.";
 "Next week is still empty. Open the app to shuffle it." = "Neste uke er fortsatt tom. Åpne appen for å stokke den.";
 "No cooking tonight." = "Ingen matlaging i kveld.";
@@ -1306,7 +1303,7 @@
 "A cookbook, up to five pages" = "Kokebok, opptil fem sider";
 "A rule is about one food, so %@ was left out. Write it as a rule of its own." = "En regel handler om én matvare, så %@ ble ikke med. Skriv det som en egen regel.";
 "Add a rule" = "Legg til regel";
-"Add an item…" = "Legg til vare …";
+"Add an item…" = "Legg til vare…";
 "Add to the week" = "Legg i uka";
 "All %ld rules" = "Alle %ld regler";
 "All meals" = "Alle retter";
@@ -1318,7 +1315,7 @@
 "Build a rule step by step" = "Bygg en regel steg for steg";
 "Change" = "Bytt";
 "Change the dinner" = "Bytt middag";
-"Changes which days the list covers" = "Endrer hvilke dager lista gjelder";
+"Changes which days the list covers" = "Endrer hvilke dager listen gjelder";
 "Cooked %@" = "Laget %@";
 "Day" = "Dag";
 "Days your rules already decide." = "Dager reglene allerede bestemmer.";
@@ -1353,7 +1350,7 @@
 "Next week · empty" = "Neste uke · tom";
 "No dinner in your library fits “%@”. Add one first, or say it another way." = "Ingen middager i biblioteket passer til «%@». Legg til en først, eller si det på en annen måte.";
 "No dinners in your library are affected yet" = "Ingen middager i biblioteket berøres ennå";
-"No tastes saved yet" = "Ingen smak lagret ennå";
+"No tastes saved yet" = "Ingen smaker lagret ennå";
 "Not understood: %@" = "Forsto ikke: %@";
 "Off" = "Av";
 "Only %@" = "Bare %@";
@@ -1362,23 +1359,23 @@
 "Opens this day. Swipe to lock or replace." = "Åpner dagen. Sveip for å låse eller bytte.";
 "Opens your rules" = "Åpner reglene";
 "Paste text" = "Lim inn tekst";
-"Plan this day covers who is eating, portions, a time limit, takeaway, leftovers or nobody home." = "Planlegg dagen dekker hvem som spiser, porsjoner, tidsgrense, takeaway, rester eller at ingen er hjemme.";
+"Plan this day covers who is eating, portions, a time limit, takeaway, leftovers or nobody home." = "«Planlegg denne dagen» dekker hvem som spiser, porsjoner, tidsgrense, takeaway, rester eller at ingen er hjemme.";
 "Recipe sites and blogs" = "Oppskriftssider og blogger";
 "Rename household" = "Gi husstanden nytt navn";
 "Scan pages" = "Skann sider";
 "Screenshots and pictures" = "Skjermbilder og bilder";
 "Set days" = "Faste dager";
-"Shopping" = "Handling";
+"Shopping" = "Innkjøp";
 "Shopping list" = "Handleliste";
 "Shopping list options" = "Valg for handlelisten";
 "Show" = "Vis";
 "Show the introduction again" = "Vis introduksjonen på nytt";
 "Shuffle %ld days" = "Stokk %ld dager";
 "Shuffle 1 day" = "Stokk 1 dag";
-"Shuffle it now and it will be waiting when the week turns." = "Stokk den nå, så står den klar når uka snur.";
-"Swipe an item to set it aside as already at home. Things you always have go in pantry staples, in the menu above." = "Sveip en vare for å legge den til side som noe dere har hjemme. Det dere alltid har, legger du i basisvarer i menyen øverst.";
+"Shuffle it now and it will be waiting when the week turns." = "Stokk den nå, så står den klar når neste uke begynner.";
+"Swipe an item to set it aside as already at home. Things you always have go in pantry staples, in the menu above." = "Sveip en vare for å legge den til side som noe dere har hjemme. Det dere alltid har, legger dere i «Basisvarer» i menyen øverst.";
 "Tastes" = "Smak";
-"Tells you what tonight's dinner is, and follows the plan when a day changes. With start-cooking on, it comes when it is time to start instead. The evening before a dinner from the freezer, it says to take it out." = "Sier hva som er til middag i kveld, og følger planen når en dag endres. Med «på tide å begynne» på kommer den når det er tid for å starte i stedet. Kvelden før en middag fra fryseren sier den fra om å ta den ut.";
+"Tells you what tonight's dinner is, and follows the plan when a day changes. With start-cooking on, it comes when it is time to start instead. The evening before a dinner from the freezer, it says to take it out." = "Sier hva som er til middag i kveld, og følger planen når en dag endres. Med «På tide å begynne å lage mat» slått på kommer varselet i stedet når det er tid for å begynne. Kvelden før en middag fra fryseren minner den deg på å ta den ut.";
 "Tip: in Safari, tap Share and choose Meal Shuffler." = "Tips: I Safari trykker du Del og velger Meal Shuffler.";
 "Used for portions and shopping quantities." = "Brukes til porsjoner og mengder på handlelisten.";
 "Variety" = "Variasjon";
@@ -1397,21 +1394,21 @@
 "Who cooks" = "Hvem lager";
 "Not decided" = "Ikke bestemt";
 "Busy evening in your calendar" = "Travel kveld i kalenderen";
-"Your calendar has something on this evening, so this one is quick." = "Kalenderen din har noe denne kvelden, så denne er rask.";
-"No dinner in your library is both %@ and %@." = "Ingen middag i samlingen din er både %@ og %@.";
-"None of your %@ is ready in %ld minutes." = "Ingen av %@ er klare på %ld minutter.";
-"Together your rules ask for %ld dinners a week of different kinds, but only %ld evenings are cooked." = "Til sammen ber reglene om %ld middager i uka av ulike slag, men bare %ld kvelder lages det mat.";
-"%@: no dinner in your library fits the rules." = "%@: ingen middag i samlingen passer reglene.";
+"Your calendar has something on this evening, so this one is quick." = "Du har noe i kalenderen denne kvelden, så middagen er rask.";
+"No dinner in your library is both %@ and %@." = "Ingen retter i biblioteket ditt passer til både «%@» og «%@».";
+"None of your %@ is ready in %ld minutes." = "Ingen av rettene dine som passer til «%@», er klare på %ld minutter.";
+"Together your rules ask for %ld dinners a week of different kinds, but only %ld evenings are cooked." = "Til sammen krever reglene %ld ulike middager i uka, men det lages middag bare %ld kvelder.";
+"%@: no dinner in your library fits the rules." = "%@: ingen middager i biblioteket passer til reglene.";
 "%@: only %ld dinners fit the rules, so shuffling repeats them." = "%@: bare %ld middager passer reglene, så stokkingen gjentar dem.";
-"Loosen a rule to \"preferred\", or add dinners that fit." = "Myk opp en regel til «helst», eller legg til middager som passer.";
+"Make a rule “Preferred”, or add dinners that fit." = "Gjør en regel om til «Helst», eller legg til middager som passer.";
 "Take a picture of it?" = "Vil du ta bilde av den?";
-"Your own photo of %@ replaces the drawing in the library and on the week." = "Ditt eget bilde av %@ erstatter tegningen i samlingen og på uka.";
+"Your own photo of %@ replaces the drawing in the library and on the week." = "Ditt eget bilde av %@ erstatter tegningen i biblioteket og i ukeplanen.";
 "That photo could not be saved. Try another one." = "Bildet kunne ikke lagres. Prøv et annet.";
 "Take photo" = "Ta bilde";
 "Choose from photos" = "Velg fra bilder";
 "Share as emoji" = "Del som emoji";
 "Shuffle your own week" = "Stokk deres egen uke";
-"%ld of %ld house rules kept ✓" = "%ld av %ld husregler holdt ✓";
+"%ld of %ld house rules kept ✓" = "%ld av %ld husregler fulgt ✓";
 "Hi, %@! 👋" = "Hei, %@! 👋";
 "Leave the kids view" = "Gå ut av barnevisningen";
 "Ask a grown-up" = "Spør en voksen";
@@ -1444,7 +1441,7 @@
 "Kids view" = "Barnevisning";
 "Kitchen board" = "Kjøkkenmodus";
 "Together" = "Sammen";
-"The kids view lets a child see the week, vote on dishes and wish for one. Leaving it needs the phone's code. The kitchen board keeps the week on screen on an iPad." = "I barnevisningen kan barna se uka, stemme på retter og ønske seg én. For å gå ut trengs koden til telefonen. Kjøkkenmodus holder uka på skjermen på en iPad.";
+"The kids view lets a child see the week, vote on dishes and wish for one. Leaving it needs the phone's code. The kitchen board keeps the week on screen on an iPad." = "I barnevisningen kan et barn se uka, stemme på retter og ønske seg én. For å gå ut trengs koden til telefonen. Kjøkkenmodus holder uka på skjermen på en iPad.";
 "Dinner year %@" = "Middagsåret %@";
 "Our dinner year %@" = "Vårt middagsår %@";
 "%ld dinners at home" = "%ld middager hjemme";
@@ -1452,7 +1449,7 @@
 "new this year" = "nye i år";
 "fish dinners" = "fiskemiddager";
 "vegetarian" = "vegetar";
-"Our favourites" = "Favorittene våre";
+"Our favorites" = "Favorittene våre";
 "%ld×" = "%ld×";
 "Most cooked on: %@" = "Oftest laget på: %@";
 "Mark dinners as cooked and the year adds up here." = "Marker middager som laget, så summeres året her.";
@@ -1463,8 +1460,8 @@
 "Quick dinners on busy evenings" = "Raske middager på travle kvelder";
 "Fewer things to buy" = "Færre ting å kjøpe";
 "Sound when shuffling" = "Lyd når det stokkes";
-"Meal Shuffler has no access to your calendar. Turn it on in the Settings app under Meal Shuffler → Calendars." = "Meal Shuffler har ikke tilgang til kalenderen din. Slå det på i Innstillinger-appen under Meal Shuffler → Kalendere.";
-"With the calendar on, an evening with something in it around dinner gets a dinner that is ready in time. The calendar is only read on this phone; nothing is changed or sent. Fewer things to buy prefers dinners that share ingredients." = "Med kalenderen på får en kveld med noe rundt middagstid en middag som blir klar i tide. Kalenderen leses bare på denne telefonen; ingenting endres eller sendes. Færre ting å kjøpe foretrekker middager som deler ingredienser.";
+"Meal Shuffler has no access to your calendar. Turn it on in the Settings app under Meal Shuffler → Calendars." = "Meal Shuffler har ikke tilgang til kalenderen din. Gi tilgang i Innstillinger-appen under Meal Shuffler → Kalendere.";
+"With the calendar on, an evening with something in it around dinner gets a dinner that is ready in time. The calendar is only read on this phone; nothing is changed or sent. Fewer things to buy prefers dinners that share ingredients." = "Når kalenderen er på, får kvelder med en avtale rundt middagstid en middag som blir klar i tide. Kalenderen leses bare på denne telefonen; ingenting endres eller sendes. «Færre ting å kjøpe» velger helst middager som deler ingredienser.";
 "%@ tonight" = "%@ i kveld";
 "%ld items left" = "%ld varer igjen";
 "1 item left" = "1 vare igjen";
@@ -1476,7 +1473,7 @@
 "Reads tonight's dinner from your weekly plan." = "Leser kveldens middag fra ukeplanen din.";
 
 /* 0.6.1: one-tap locks, day edits that keep the dinner, add to the week, library views */
-"%@ did not fit the new plan for the day, so the dinner was replaced." = "%@ passet ikke med den nye planen for dagen, så middagen ble byttet.";
+"%@ did not fit the new plan for the day, so the dinner was replaced." = "%@ passet ikke inn i den nye planen for dagen, så middagen ble byttet ut.";
 "%@ is planned for %@." = "%@ er lagt inn på %@.";
 "%@ next week" = "%@ neste uke";
 "A locked dinner stays when you shuffle" = "En låst middag blir stående når du stokker";
@@ -1487,7 +1484,7 @@
 "Names only" = "Bare navn";
 "Pictures" = "Bilder";
 "Send or share the list" = "Send eller del listen";
-"The dinner is locked on the day you choose, so a shuffle leaves it there." = "Middagen låses på dagen du velger, så stokking lar den stå.";
+"The dinner is locked on the day you choose, so a shuffle leaves it there." = "Middagen låses på dagen du velger, så den blir stående når du stokker.";
 "Time not specified · %ld servings" = "Tid ikke oppgitt · %ld porsjoner";
 "View" = "Visning";
 "View: %@" = "Visning: %@";
@@ -1504,7 +1501,7 @@
 "away all week" = "borte hele uka";
 "Away for dinner on" = "Borte til middag på";
 "Child" = "Barn";
-"Children are the ones offered the kids view." = "Barn er de som kan velges i barnevisningen.";
+"The kids view is offered to the children." = "Barnevisningen tilbys barna.";
 "Eats at home" = "Spiser hjemme";
 "Even and odd weeks follow the week numbers in the calendar. Days this person is away get one portion less and leave out their dislikes. A day you plan by hand keeps what you set." = "Partalls- og oddetallsuker følger ukenumrene i kalenderen. Dager personen er borte, får én porsjon mindre og tar ikke hensyn til det personen ikke liker. En dag du har planlagt selv, beholder det du har valgt.";
 "Even weeks" = "Partallsuker";
@@ -1516,8 +1513,8 @@
 "Member" = "Medlem";
 "More in Meals" = "Mer i Retter";
 "Odd weeks" = "Oddetallsuker";
-"People" = "Folk";
-"Portions and shopping follow the usual number. Someone away by their home pattern is taken off that day; guests are added on the day itself." = "Porsjoner og handling følger det vanlige antallet. Den som er borte etter fast mønster, trekkes fra den dagen. Gjester legger du til på selve dagen.";
+"People" = "Personer";
+"Portions and shopping follow the usual number. Someone away by their home pattern is taken off that day; guests are added on the day itself." = "Porsjoner og handleliste følger det vanlige antallet. Den som er borte etter fast mønster, trekkes fra den dagen. Gjester legger du til på selve dagen.";
 "Print" = "Skriv ut";
 "Print the list" = "Skriv ut listen";
 "Recipe files" = "Oppskriftsfiler";
@@ -1525,6 +1522,12 @@
 "Save or send as PDF" = "Lagre eller send som PDF";
 "Shake to shuffle" = "Rist for å stokke";
 "Share or print this week" = "Del eller skriv ut denne uka";
-"The kids view lets a child see the week, vote on dishes and wish for one. Leaving it needs the phone's code." = "I barnevisningen kan et barn se uka, stemme på retter og ønske seg en. For å gå ut trengs telefonens kode.";
+"The kids view lets a child see the week, vote on dishes and wish for one. Leaving it needs the phone's code." = "I barnevisningen kan et barn se uka, stemme på retter og ønske seg én. For å gå ut trengs koden til telefonen.";
 "Usually %ld at dinner" = "Vanligvis %ld til middag";
 "Week %ld: %@" = "Uke %ld: %@";
+
+/* Singular forms for counts of one (Localization.swift singularForms) */
+"%ld active rule" = "%ld aktiv regel";
+"Keeps %ld dinner off the plan" = "Holder %ld middag unna planen";
+"Likes %ld dish" = "Liker %ld rett";
+"Time not specified · %ld serving" = "Tid ikke oppgitt · %ld porsjon";

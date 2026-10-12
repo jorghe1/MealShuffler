@@ -108,11 +108,11 @@ struct MealPlanGenerator {
                             message: L10n.string(
                                 "%ld extra servings are made on %@, but %ld people will eat leftovers on %@.",
                                 availableExtras,
-                                source.name.lowercased(),
+                                source.nameInSentence,
                                 context.diners,
-                                day.name.lowercased()
+                                day.nameInSentence
                             ),
-                            suggestion: L10n.string("Increase the number of extra servings on %@.", source.name.lowercased())
+                            suggestion: L10n.string("Increase the number of extra servings on %@.", source.nameInSentence)
                         ))
                     }
                 } else {
@@ -677,7 +677,7 @@ struct MealPlanGenerator {
         var conflicts: [PlanConflict] = []
 
         for day in orderedDays where plan[day] == nil || (plan[day]?.kind == .meal && byDay[day] == nil) {
-            conflicts.append(PlanConflict(message: L10n.string("No plan was found for %@.", day.name.lowercased())))
+            conflicts.append(PlanConflict(message: L10n.string("No plan was found for %@.", day.nameInSentence)))
         }
 
         /// Days a scope covers that the household is cooking on.
@@ -699,7 +699,7 @@ struct MealPlanGenerator {
                 where byDay[day].map({ matcher.matches($0, context: context.forDay(day)) }) != true {
                     conflicts.append(PlanConflict(
                         ruleID: rule.id,
-                        message: L10n.string("“%@” cannot be satisfied on %@.", ruleDescription, day.name.lowercased()),
+                        message: L10n.string("“%@” cannot be satisfied on %@.", ruleDescription, day.nameInSentence),
                         suggestion: L10n.string("Add a suitable meal or make the rule preferred.")
                     ))
                 }
@@ -708,7 +708,7 @@ struct MealPlanGenerator {
                     && servedByDay[day].map({ matcher.matches($0, context: context.forDay(day)) }) == true {
                     conflicts.append(PlanConflict(
                         ruleID: rule.id,
-                        message: L10n.string("“%@” is broken on %@.", ruleDescription, day.name.lowercased()),
+                        message: L10n.string("“%@” is broken on %@.", ruleDescription, day.nameInSentence),
                         suggestion: L10n.string("Unlock the day or make the rule preferred.")
                     ))
                 }
@@ -765,7 +765,7 @@ struct MealPlanGenerator {
                         ruleID: rule.id,
                         message: L10n.string(
                             "“%@” is broken: %@ and %@ are back to back.",
-                            ruleDescription, orderedDays[index - 1].name.lowercased(), orderedDays[index].name.lowercased()
+                            ruleDescription, orderedDays[index - 1].nameInSentence, orderedDays[index].nameInSentence
                         ),
                         suggestion: L10n.string("Swap one of the two days.")
                     ))
@@ -792,27 +792,27 @@ struct MealPlanGenerator {
         for day in orderedDays {
             guard let item = plan[day] else { continue }
             if let limit = contexts[day]?.maximumPrepMinutes, let meal = byDay[day], meal.prepMinutes > limit {
-                conflicts.append(PlanConflict(message: L10n.string("%@ exceeds the time available on %@.", meal.name, day.name)))
+                conflicts.append(PlanConflict(message: L10n.string("%@ exceeds the time available on %@.", meal.name, day.nameInSentence)))
             }
             if let batch = item.freezerBatch {
                 if item.freezerConsumed == true { continue }
                 frozenAllocations[batch.id, default: 0] += item.effectiveServings
                 let available = taste.freezerBatches.first(where: { $0.id == batch.id })?.portions ?? 0
                 if frozenAllocations[batch.id, default: 0] > available {
-                    conflicts.append(PlanConflict(message: L10n.string("Not enough freezer portions for %@.", day.name), suggestion: L10n.string("Choose another batch or reduce the portions.")))
+                    conflicts.append(PlanConflict(message: L10n.string("Not enough freezer portions for %@.", day.nameInSentence), suggestion: L10n.string("Choose another batch or reduce the portions.")))
                 }
                 continue
             }
             if contexts[day]?.freezerBatchID != nil, item.freezerBatch == nil {
-                conflicts.append(PlanConflict(message: L10n.string("The freezer batch for %@ is no longer available.", day.name), suggestion: L10n.string("Choose another batch or reduce the portions.")))
+                conflicts.append(PlanConflict(message: L10n.string("The freezer batch for %@ is no longer available.", day.nameInSentence), suggestion: L10n.string("Choose another batch or reduce the portions.")))
                 continue
             }
             if case .leftovers(let source) = item.kind {
                 allocated[source, default: 0] += item.effectiveServings
                 let available = max(0, (plan[source]?.effectiveServings ?? 0) - (contexts[source] ?? DayPlanContext()).effectiveDiners)
                 if item.mealID == nil || allocated[source, default: 0] > available {
-                    conflicts.append(PlanConflict(message: L10n.string("Not enough leftovers for %@.", day.name),
-                        suggestion: L10n.string("Increase the number of extra servings on %@.", source.name.lowercased())))
+                    conflicts.append(PlanConflict(message: L10n.string("Not enough leftovers for %@.", day.nameInSentence),
+                        suggestion: L10n.string("Increase the number of extra servings on %@.", source.nameInSentence)))
                 }
             }
         }

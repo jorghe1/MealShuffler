@@ -1050,7 +1050,7 @@ struct DayContextEditor: View {
                     } else { LabeledContent("Portions needed", value: L10n.portions(context.effectiveDiners)) }
                     }
                 } header: {
-                    Text(L10n.string("What's happening on %@?", day.name.lowercased()))
+                    Text(L10n.string("What's happening on %@?", day.nameInSentence))
                 } footer: {
                     if let governingRule {
                         Text(L10n.string("The rule “%@” already decides this. Change it under Rules.", governingRule))

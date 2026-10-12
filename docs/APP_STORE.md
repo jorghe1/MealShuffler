@@ -1,6 +1,6 @@
 # App Store Connect metadata (proposal)
 
-Proposed listing for Meal Shuffler 0.6.0, in Norwegian Bokmål (primary) and English (UK/US).
+Proposed listing for Meal Shuffler 0.7.0, in Norwegian Bokmål (primary) and English (UK/US).
 Nothing here is submitted yet. Character counts were checked against Apple's limits; recount
 after any edit. The primary market is Norway, so set **Norwegian (Bokmål)** as the primary
 language and add **English (U.K.)** and **English (U.S.)** with the English text.

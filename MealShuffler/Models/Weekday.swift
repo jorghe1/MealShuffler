@@ -19,6 +19,12 @@ enum Weekday: String, CaseIterable, Codable, Identifiable, Hashable {
 
     var shortName: String { Weekday.shortSymbol(for: self) }
 
+    /// The name inside a sentence: "på mandag" in Norwegian, "on Monday" in English. Calls
+    /// either passed `name` ("på Mandag") or lowercased it for every language ("on monday").
+    var nameInSentence: String {
+        (Bundle.main.preferredLocalizations.first ?? "en").hasPrefix("en") ? name : name.lowercased()
+    }
+
     var recurringPhrase: String {
         switch self {
         case .monday: L10n.string("on Mondays")

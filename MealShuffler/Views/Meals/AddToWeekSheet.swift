@@ -76,7 +76,7 @@ struct AddToWeekSheet: View {
     }
 
     private func add(on day: Weekday, nextWeek: Bool) {
-        let when = nextWeek ? L10n.string("%@ next week", day.name.lowercased()) : day.name.lowercased()
+        let when = nextWeek ? L10n.string("%@ next week", day.nameInSentence) : day.nameInSentence
         if nextWeek {
             store.setNextWeekMeal(meal, on: day)
         } else {

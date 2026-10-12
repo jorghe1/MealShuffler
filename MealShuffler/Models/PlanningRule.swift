@@ -164,7 +164,7 @@ enum MealMatcher: Codable, Hashable {
         }
         switch self {
         case .ingredient(let name): return L10n.string("meals containing %@", name)
-        case .customTag(let name): return L10n.string("meals labelled “%@”", name)
+        case .customTag(let name): return L10n.string("meals labeled “%@”", name)
         case .dislikedBy(let id): return L10n.string("meals %@ dislikes", context.memberNames[id] ?? L10n.string("a family member"))
         default: return label(meals: meals, context: context)
         }

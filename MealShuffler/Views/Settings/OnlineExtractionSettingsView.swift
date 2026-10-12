@@ -23,7 +23,7 @@ struct OnlineExtractionSettingsView: View {
                     Button("Turn on") { enabled = true }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("The recipe you import is sent to the Meal Shuffler recipe service and to Anthropic, which reads it and sends the result back. Neither keeps it or uses it for training. You can turn this off at any time.")
+                    Text("The recipe you import is sent to the Meal Shuffler recipe service and to Anthropic, which reads it and sends the result back. The service keeps nothing, and Anthropic does not use it for training. You can turn this off at any time.")
                 }
         } else {
             Label("On-device recipe recognition", systemImage: "iphone")

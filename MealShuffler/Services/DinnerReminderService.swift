@@ -430,7 +430,7 @@ struct DinnerReminderService: ReminderScheduling, @unchecked Sendable {
 
         case .planNextWeek:
             title = L10n.string("Next week is still empty")
-            lines.append(L10n.string("Shuffle it now, it takes ten seconds."))
+            lines.append(L10n.string("Shuffle it now. It takes ten seconds."))
             category = planCategoryIdentifier
             destination = .nextWeek
         }

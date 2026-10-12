@@ -19,7 +19,7 @@ struct PrivacyView: View {
             Section("What can leave the phone") {
                 PrivacyRow(
                     title: L10n.string("Reading recipes online"),
-                    detail: L10n.string("Off unless you turn it on. The link, text or photos you import are sent to the Meal Shuffler recipe service, which uses Anthropic's Claude to read the recipe and sends the result back. Neither keeps the recipe or uses it for training. A random install id and your IP address are used only to stop abuse.")
+                    detail: L10n.string("Off unless you turn it on. The link, text or photos you import are sent to the Meal Shuffler recipe service, which uses Anthropic's Claude to read the recipe and sends the result back. The service keeps nothing, and Anthropic does not use the recipe for training. A random install ID and your IP address are used only to stop abuse.")
                 )
                 PrivacyRow(
                     title: L10n.string("Importing from a website"),
@@ -30,7 +30,7 @@ struct PrivacyView: View {
                     detail: L10n.string("A shared recipe, rule list or week travels inside the link itself. The page that opens it stores nothing.")
                 )
                 PrivacyRow(
-                    title: L10n.string("Send to Bring!"),
+                    title: L10n.string("Sending to Bring!"),
                     detail: L10n.string("The shopping list is put in a web address on the Meal Shuffler service, which Bring! opens and fetches to import it. The service only turns the address into a page for Bring! and keeps nothing. Bring! then handles the list under its own privacy policy.")
                 )
                 if FeatureFlags.householdSyncEnabled {

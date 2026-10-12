@@ -689,7 +689,7 @@ struct MealLibraryView: View {
     private var emptyTitle: String {
         if !searchText.isEmpty { return L10n.string("No meals match “%@”", searchText) }
         return switch filter {
-        case .favourites: L10n.string("No favourites yet")
+        case .favourites: L10n.string("No favorites yet")
         case .mine: L10n.string("No meals of your own yet")
         case .all: L10n.string("No meals yet")
         }

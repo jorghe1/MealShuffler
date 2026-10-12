@@ -31,7 +31,11 @@ enum L10n {
         "%ld ingredients": (0, "%ld ingredient"),
         "%ld rules were about people or recipes you do not have, so they were left out.": (0, "%ld rule was about people or recipes you do not have, so it was left out."),
         "%ld would contradict your own rules and were left out.": (0, "%ld would contradict your own rules and was left out."),
-        "%ld rules kept": (0, "%ld rule kept")
+        "%ld rules kept": (0, "%ld rule kept"),
+        "%ld active rules": (0, "%ld active rule"),
+        "Keeps %ld dinners off the plan": (0, "Keeps %ld dinner off the plan"),
+        "Likes %ld dishes": (0, "Likes %ld dish"),
+        "Time not specified · %ld servings": (0, "Time not specified · %ld serving")
     ]
     static func string(_ key: String, _ arguments: CVarArg...) -> String {
         var selectedKey = key

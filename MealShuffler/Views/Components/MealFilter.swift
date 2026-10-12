@@ -9,7 +9,7 @@ enum MealFilter: String, CaseIterable, Identifiable {
     var name: String {
         switch self {
         case .all: L10n.string("All")
-        case .favourites: L10n.string("Favourites")
+        case .favourites: L10n.string("Favorites")
         case .mine: L10n.string("Mine")
         }
     }

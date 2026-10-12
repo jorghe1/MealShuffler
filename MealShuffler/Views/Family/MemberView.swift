@@ -32,7 +32,7 @@ struct MemberView: View {
                 }
             } footer: {
                 if draft.role == .child {
-                    Text("Children are the ones offered the kids view.")
+                    Text("The kids view is offered to the children.")
                 }
             }
 
@@ -97,9 +97,15 @@ struct MemberView: View {
         } else if away.count == days.count {
             text = L10n.string("away all week")
         } else {
-            text = L10n.string("away %@", away.map(\.shortName).joined(separator: ", "))
+            text = L10n.string("away %@", dayList(away))
         }
         return L10n.string("Week %ld: %@", number, text)
+    }
+
+    /// "man, tir" rather than "man., tir.": the locale's short names carry a full stop that
+    /// reads as clutter in a list.
+    private static func dayList(_ days: [Weekday]) -> String {
+        days.map { $0.shortName.trimmingCharacters(in: CharacterSet(charactersIn: ".")) }.joined(separator: ", ")
     }
 
     /// The line under a member in Family: a child, a pattern, then their tastes.
@@ -114,7 +120,7 @@ struct MemberView: View {
             }
             if !pattern.awayDays.isEmpty {
                 let days = Weekday.ordered().filter { pattern.awayDays.contains($0) }
-                parts.append(L10n.string("away %@", days.map(\.shortName).joined(separator: ", ")))
+                parts.append(L10n.string("away %@", dayList(days)))
             }
         }
         parts.append(tasteSummary(for: member, store: store))

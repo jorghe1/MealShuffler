@@ -54,14 +54,14 @@ struct MealPickerView: View {
                                 .mealCard()
                         }
                         .buttonStyle(.plain)
-                        .accessibilityHint(L10n.string("Puts this on %@", day.name.lowercased()))
+                        .accessibilityHint(L10n.string("Puts this on %@", day.nameInSentence))
                     }
                     Color.clear.frame(height: 20)
                 }
                 .padding(16)
             }
             .appBackground()
-            .navigationTitle(L10n.string("Dinner on %@", day.name.lowercased()))
+            .navigationTitle(L10n.string("Dinner on %@", day.nameInSentence))
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "Search meals")
             .toolbar {
@@ -86,7 +86,7 @@ struct MealPickerView: View {
     }
 
     private func note(for meal: Meal) -> String? {
-        elsewhereThisWeek[meal.id].map { L10n.string("Already on %@", $0.name.lowercased()) }
+        elsewhereThisWeek[meal.id].map { L10n.string("Already on %@", $0.nameInSentence) }
     }
 
     private var emptyState: some View {

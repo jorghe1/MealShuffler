@@ -320,7 +320,7 @@ struct GroceryListView: View {
                     }
                 } else if !remainingItems.isEmpty, RemoteRecipeExtractor.Configuration.fromBundle() != nil {
                     Button {
-                        exportMessage = L10n.string("This list is too large for Bring! Use Share remaining items instead.")
+                        exportMessage = L10n.string("This list is too large for Bring! Use “Share remaining items” instead.")
                     } label: { Label("Send the list to Bring!", systemImage: "cart.fill.badge.plus") }
                 }
                 if !bringDinners.isEmpty {

@@ -47,7 +47,7 @@ test("the privacy page states the facts App Review and users ask about", async (
   const html = await (await get("/privacy?lang=en")).text();
   for (const fact of [/Effective date: 12 October 2026/, /no advertising, no analytics and no tracking/,
     /does not use it to train its models/, /Anthropic's Claude/, /off until you turn it on in Settings/,
-    /Bring!'s servers then fetch/, /Manage\s+Storage/, /does not knowingly\s+collect personal information from children/]) {
+    /Bring!'s servers then fetch/, /Manage\s+Account\s+Storage/, /does not knowingly\s+collect personal information from children/]) {
     assert.match(html, fact);
   }
 });

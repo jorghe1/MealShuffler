@@ -56,6 +56,36 @@ backend required, recipe service and iCloud sharing off.
 - Familie: household, portions, tastes, reminders and sharing; settings behind a gear.
 - Design tokens and three button styles in `AppTheme` (see [DESIGN.md](../DESIGN.md)).
 
+## Added in 0.7.0
+
+Second TestFlight round. Navigation is planned in [NAVIGATION.md](NAVIGATION.md): each tab
+answers one question and every feature has one place.
+
+- **Navigation.** Family keeps people, rules, wishes and "together"; reminders, sharing the
+  week and sharing house rules left it (Settings, the week, the rules screen). Meals has a ⋯
+  menu for history, collections, freezer and recipe files (from Settings); its filter menu only
+  filters. The kids view offers children; the kitchen board shows on iPad.
+- **Home patterns.** Per member: every week, even or odd ISO weeks, and fixed days away.
+  Untouched days start from them (diners and attendance, so dislikes of someone away do not
+  count). "Usually N at dinner" sits with the people it counts.
+- **Guests on the day.** The day sheet's stepper keeps and scales the dinner.
+- **Printing.** A4 PDF of the week (this or next, optionally with the shopping list) and of the
+  shopping list; print, or save/send the PDF.
+- **Small things.** 44pt hit areas on rule chips and grocery rows, icon buttons visible on
+  white cards, one-column library at accessibility sizes, rule badges no longer hide a day's
+  facts, shake to shuffle can be turned off, add-recipe sheet can grow.
+- **Data safety** and **release pipeline**: see their own entries below when merged.
+
+### Check on a device
+
+- [ ] Family → a member → even/odd weeks and a day away: the preview lines match the calendar,
+      and the week's portions on those days drop by one.
+- [ ] Day sheet: + and − on "at dinner" keep the dinner; the guest line reads right.
+- [ ] Week → share → Print and PDF, with and without the shopping list; next week too.
+- [ ] Handle → share → Print the list (several aisles, a long list runs to page 2).
+- [ ] Meals → ⋯ → History, Collections, Freezer, Recipe files all open.
+- [ ] Settings → Shake to shuffle off: shaking does nothing.
+
 ## Fixed in 0.6.1
 
 From the first TestFlight round of 0.6.0 (build 29).

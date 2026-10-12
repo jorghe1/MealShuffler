@@ -12,3 +12,6 @@ build/
 *.p12
 GoogleService-Info.plist
 MealShuffler.xcodeproj/
+
+# Claude Code agent worktrees
+.claude/worktrees/

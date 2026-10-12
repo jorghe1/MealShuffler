@@ -99,7 +99,7 @@ Høyst ett varsel om dagen, men det som ellers ville blitt et nytt varsel samme 
 - En uke ingen har planlagt, får ett varsel den første kvelden.
 
 Bakgrunnsoppdatering snur uka og planlegger varslene på nytt når uka skifter, også om appen ikke
-åpnes. Trykk på et varsel åpner riktig sted. Oppsettet ligger under Familie → Påminnelser.
+åpnes. Trykk på et varsel åpner riktig sted. Oppsettet ligger under Familie → tannhjulet → Påminnelser.
 
 ## Oppskriftsimport
 
@@ -132,16 +132,31 @@ tom, og appen blir da værende på egne parsere. Se [server/README.md](server/RE
 
 I rekkefølgen uka går: planlegge, velge retter, handle, og familien reglene hører til.
 
-- **Uke** viser i kveld øverst, så sju kompakte dager (sveip for å låse eller trekke på nytt,
-  trykk for alt annet), og én knapp som stokker det som kan endres. Neste uke er en bryter
-  øverst, og de aktive reglene vises som merkelapper der de bestemmer uka.
-- **Retter** er et bildegitter med kategorier, «Lengst siden sist» (historikken) og fryseren.
-  «+» åpner fem kilder: lenke, lim inn tekst, skann sider, bilder og skriv selv.
-- **Handle** begynner med fremdrift og et felt for å legge til en vare. Kjøpt og «har hjemme»
-  legger seg sammenfoldet nederst; eksport, handleperiode, basisvarer og butikkrekkefølge
-  ligger i ⋯-menyen.
-- **Familie** samler husregler, hvem som spiser og hva hver enkelt liker, påminnelser og deling.
-  Innstillinger (sikkerhetskopi, oppskriftsimport, personvern) ligger bak tannhjulet.
+Hver fane svarer på ett spørsmål, og hver funksjon har ett sted. Hele kartet og begrunnelsen
+står i [docs/NAVIGATION.md](docs/NAVIGATION.md).
+
+- **Uke** — hva spiser vi denne og neste uke? I kveld øverst, så sju kompakte dager med lås på
+  hver dag (sveip for å trekke på nytt, trykk for alt annet), og én knapp som stokker det som
+  kan endres. Dagsarket har antall til middag og gjester direkte. Del-knappen gir bilde, tekst,
+  oppskrifter og **utskrift/PDF** (A4, eventuelt med handlelisten) for begge ukene.
+- **Retter** — hva kan vi lage? Bilder, liste eller bare navn, kategorier, «Lengst siden sist»
+  og fryseren. «+» åpner fem kilder; ⋯ har historikk, samlinger, fryser og oppskriftsfiler.
+- **Handle** — hva må vi kjøpe? Fremdrift, et felt for å legge til, «Send listen til Bring!»
+  når tjenesten er satt opp. Del-knappen har Bring!, Påminnelser, utskrift/PDF og tekst; ⋯ har
+  handleperiode, basisvarer og butikkrekkefølge.
+- **Familie** — hvem er vi, og hva liker vi? Folk (vanlig antall til middag, en side per person
+  med når de spiser hjemme og hva de liker), husregler, ønsker og «Sammen» (barnevisning,
+  kjøkkentavle på iPad, middagsåret). Innstillinger (påminnelser, planlegging, oppskriftsimport,
+  sikkerhetskopi, personvern) ligger bak tannhjulet.
+
+## Hvem spiser når (0.7.0)
+
+- **Faste mønstre per person**: bor her hver uke, i partalls- eller oddetallsuker (ISO-ukenummer,
+  som i norske kalendere), og faste dager borte. Dager ingen har planlagt for hånd starter fra
+  mønsteret, så porsjonene og hvem sine «liker ikke» som teller følger av seg selv.
+- **Gjester** legges til rett i dagsarket. Middagen beholdes og skaleres; bare en ny type kveld,
+  en tidsgrense retten ikke klarer eller noen som ikke liker den bytter middagen.
+- **Utskrift**: uka på A4 til kjøleskapet og handlelisten med avkrysningsbokser, gang for gang.
 
 ## Familien rundt uka (0.6.0)
 
@@ -158,7 +173,7 @@ I rekkefølgen uka går: planlegge, velge retter, handle, og familien reglene h�
 - **Travle kvelder** fra kalenderen, **«bruk opp rømme»** som regel for denne uka, regler som
   ikke kan holde avvises med forklaring, og **færre ting å kjøpe** som valg (Innstillinger →
   Planlegging).
-- Rister du telefonen på Uke-fanen, stokkes uka.
+- Rister du telefonen på Uke-fanen, stokkes uka (kan slås av under Innstillinger → Planlegging).
 
 ## Kjøring
 

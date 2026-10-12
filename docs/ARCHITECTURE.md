@@ -263,7 +263,8 @@ Deferred to the next ("network") release. Reasons and prerequisites are in
 
 - AI fallback for rule parsing on the Worker, for sentences the grammar cannot read.
 - `CKSyncEngine` per-entity iCloud sync with push, and notifications when a partner changes
-  the plan. Replaces the whole-household snapshot sync above.
+  the plan. Replaces the whole-household snapshot sync above. Design:
+  [ADR 0001](adr/0001-entity-sync-and-store-split.md).
 - App Clip and universal links (AASA) so share links open the app or a clip directly.
 - Worker hardening for real traffic: App Attest, per-install quotas, KV caching of
   extractions, and a model evaluation set.

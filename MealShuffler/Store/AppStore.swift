@@ -270,6 +270,7 @@ final class AppStore {
             let session = householdTools.shoppingSessions[shoppingPeriodID] ?? ShoppingSession()
             checkedGroceryIDs = session.checked; stockedGroceryIDs = session.stocked; manualGroceryItems = session.manual
         }
+        pruneShoppingSessions(now: now, calendar: calendar)
         refreshConflicts()
     }
 
@@ -520,6 +521,44 @@ final class AppStore {
         checkedGroceryIDs = session.checked; stockedGroceryIDs = session.stocked; manualGroceryItems = session.manual
         shoppingAmounts = session.amounts ?? Dictionary(builtGroceryItems.map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
         reconcileGroceryChecks()
+        pruneShoppingSessions(now: .now, calendar: .current)
+    }
+
+    /// How long a finished shopping period's ticks are kept, in weeks.
+    nonisolated static let shoppingSessionRetentionWeeks = 8
+
+    /// One session is filed per shopping period and nothing ever removed them, so a household
+    /// that has used the app for a year carries fifty-odd lists of ticks it will never look
+    /// at again -- in every save, every backup and every iCloud upload. A period that ended
+    /// two months ago is not going to be shopped again.
+    private func pruneShoppingSessions(now: Date, calendar: Calendar) {
+        let kept = Self.prunedShoppingSessions(householdTools.shoppingSessions, keeping: shoppingPeriodID,
+                                               now: now, calendar: calendar)
+        if kept.count != householdTools.shoppingSessions.count { householdTools.shoppingSessions = kept }
+    }
+
+    /// The sessions still worth keeping. The current period's is always kept, and so is any
+    /// key this build cannot read: guessing would risk a list somebody is still using.
+    nonisolated static func prunedShoppingSessions(
+        _ sessions: [String: ShoppingSession], keeping currentID: String, now: Date, calendar: Calendar = .current
+    ) -> [String: ShoppingSession] {
+        guard let cutoff = calendar.date(byAdding: .weekOfYear, value: -shoppingSessionRetentionWeeks, to: now) else { return sessions }
+        return sessions.filter { key, _ in
+            guard key != currentID, let end = shoppingPeriodEnd(key) else { return true }
+            return end >= cutoff
+        }
+    }
+
+    /// The last day of the period a session key names.
+    ///
+    /// Keys are `shoppingPeriodID`: start and end as whole seconds since 1970, joined by a
+    /// hyphen. A date before 1970 carries its own minus sign, so the separator is the first
+    /// hyphen after the first character rather than any hyphen.
+    nonisolated static func shoppingPeriodEnd(_ key: String) -> Date? {
+        guard let separator = key.dropFirst().firstIndex(of: "-"),
+              Int(key[..<separator]) != nil,
+              let end = Int(key[key.index(after: separator)...]) else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(end))
     }
 
     func updateGroceryItem(_ item: ManualGroceryItem) {
@@ -1941,14 +1980,18 @@ final class AppStore {
     }
 
     func restoreSnapshot(_ state: AppStateSnapshot, sharedOnly: Bool = false) throws {
+        // Decoded snapshots arrive repaired already; one built in memory may not have been.
+        var state = state
+        state.repairOutOfRangeValues()
         try state.validateStructure()
-        guard (1...20).contains(state.householdSize), state.customMeals.count <= 2000,
-              state.plan.meals.count <= 7, Set(state.plan.meals.map(\.day)).count == state.plan.meals.count,
-              state.nextWeekPlan.map({ $0.meals.count <= 7 && Set($0.meals.map(\.day)).count == $0.meals.count }) ?? true else { throw CocoaError(.fileReadCorruptFile) }
         let previous = makeSnapshot()
         let previousAmounts = shoppingAmounts
         let previousUndo = undoCheckpoint
+        // A debounced save still waiting would write the pre-restore state over the restored
+        // one when it fires. Cancelled and forgotten here; one that already fired is queued on
+        // `writeQueue`, which the restore's own write waits behind below.
         pendingSave?.cancel()
+        pendingSave = nil
         isRestoring = true
         defer { isRestoring = false }
         func applyFields(_ state: AppStateSnapshot) {
@@ -1973,12 +2016,21 @@ final class AppStore {
         undoCheckpoint = nil
         shoppingAmounts = Dictionary(builtGroceryItems.map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
         refreshConflicts()
-        do { try repository.saveOrThrow(makeSnapshot()) }
+        let restored = makeSnapshot()
+        let repository = self.repository
+        // Through the write queue, like `writeState()`. Written straight from here, a
+        // background write already queued with the old state could land after this one and
+        // put the household back the way it was before the restore.
+        do { try writeQueue.sync { try repository.saveOrThrow(restored) } }
         catch {
             applyFields(previous)
             shoppingAmounts = previousAmounts
             undoCheckpoint = previousUndo
             refreshConflicts()
+            // The cancelled debounce may have been carrying the last edits before the
+            // restore. They are back in memory now, so schedule them to be written again.
+            isRestoring = false
+            save()
             throw error
         }
         refreshPendingCaptures(); refreshBackgroundSurfaces(force: true)

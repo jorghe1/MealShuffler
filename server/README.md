@@ -182,7 +182,7 @@ arrived untagged, so a rule like "fish on Tuesday" could never match one.
 
 ## Cost and tuning
 
-Extraction runs `claude-opus-5` at `effort: "low"` — filling a fixed schema is not
+Extraction runs the model in `EXTRACTION_MODEL` (Haiku 5.5 in production) at `effort: "low"` — filling a fixed schema is not
 reasoning-heavy, and this endpoint is the app's only per-call cost.
 
 The largest lever is upstream of the model, not the model itself. Page text sent for
@@ -204,7 +204,11 @@ Norwegian recipes with expected servings, ingredient counts, times and key amoun
 real model call, spaced for the rate limits; `--rescore <label>` re-scores a saved run). This
 Worker has Durable Objects, so preview URLs are unavailable: try a model by deploying a version
 with `--var EXTRACTION_MODEL:<model>` for the length of a run, then deploy the winner through
-`wrangler.toml`. First run, 12 October 2026: `claude-opus-5` scored 98.8 % at 8.9 s a recipe.
+`wrangler.toml`. First run, 12 October 2026: `claude-opus-5` 98.8 % at 8.9 s a recipe, `claude-sonnet-5-5`
+98.8 % at 5.1 s, `claude-haiku-5-5` 97.7 % at 4.2 s (its one miss left out a side dish written as
+"til servering", which the prompt asks for). Production runs Haiku 5.5 since then, at about
+1/20 of Sonnet's price. The set has no photo pages yet; add some before relying on Haiku for
+cookbook photos, and switch back through `EXTRACTION_MODEL` if they read worse.
 
 A policy decline is handled explicitly (`stop_reason: "refusal"` becomes a 422 the app shows
 in plain language, and `ChainedRecipeExtractor` then falls back to on-device OCR). Server-side

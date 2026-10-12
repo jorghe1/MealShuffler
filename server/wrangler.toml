@@ -45,6 +45,10 @@ invocation_logs = false
 
 [vars]
 DAILY_MODEL_CALL_LIMIT = "200"
+# Chosen with eval/ on 12 October 2026: Haiku 5.5 97.7 %, 4.2 s; Sonnet 5.5 98.8 %, 5.1 s;
+# Opus 5 98.8 %, 8.9 s -- on 24 Norwegian text recipes, at about 1/20 of Sonnet's price.
+# Re-run the eval before changing it, and add photo pages to it before trusting a switch.
+EXTRACTION_MODEL = "claude-haiku-5-5"
 # Contact address on /privacy and /support. Empty: the pages say to use the App Store page.
 SUPPORT_EMAIL = ""
 

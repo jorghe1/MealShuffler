@@ -1,20 +1,19 @@
 import SwiftUI
 
-/// The household: who is in it, the rules it lives by, what each person likes, and when the
-/// app may interrupt it.
+/// The household: who is in it, when they eat at home, what they like, and the rules it lives
+/// by -- "who are we, and what do we like?" (see docs/NAVIGATION.md).
 ///
 /// These were spread over two tabs and three levels. Rules had a tab of their own; the people
 /// were Settings → Family → a member, three taps from telling the app that Emma does not eat
-/// fish; reminders sat at the bottom of Settings under backups and import. Settings itself --
-/// backups, recipe reading, privacy -- is a gear here now, because it is opened a few times a
-/// year.
+/// fish. 0.6 then gathered too much here: reminders and sharing the week sat in this list as
+/// well as in Settings and on the week. Each now has one place, and Settings -- reminders,
+/// backups, recipe reading, privacy -- is the gear, because it is opened a few times a year.
 struct FamilyView: View {
     @Environment(AppStore.self) private var store
     @State private var showingAddMember = false
     @State private var newMemberName = ""
     @State private var renaming = false
     @State private var householdName = ""
-    @State private var showingShare = false
     @State private var kidsMember: HouseholdMember?
     @State private var showingBoard = false
 
@@ -28,15 +27,7 @@ struct FamilyView: View {
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
 
-            Section {
-                Stepper(
-                    L10n.string("%ld people at dinner", store.householdSize),
-                    value: Binding(get: { store.householdSize }, set: { store.setHouseholdSize($0) }),
-                    in: 1...20
-                )
-            } footer: {
-                Text("Used for portions and shopping quantities.")
-            }
+            peopleSection
 
             Section {
                 ForEach(store.rules.prefix(4)) { rule in
@@ -60,45 +51,15 @@ struct FamilyView: View {
                 }
             }
 
-            Section("Tastes") {
-                ForEach(store.household.members) { member in
-                    NavigationLink {
-                        MemberTasteView(member: member)
-                    } label: {
-                        HStack(spacing: AppTheme.Space.m) {
-                            MemberAvatar(member: member, index: memberIndex(member), size: 32)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(member.displayName).foregroundStyle(AppTheme.ink)
-                                Text(tasteSummary(for: member))
-                                    .font(.caption).foregroundStyle(AppTheme.muted).lineLimit(1)
-                            }
-                        }
-                    }
-                }
-                .onDelete(perform: store.removeHouseholdMembers)
-                Button { showingAddMember = true } label: {
-                    Label("Add member", systemImage: "person.badge.plus")
-                }
-            }
-
             wishesSection
 
             Section {
-                if store.household.members.count == 1, let only = store.household.members.first {
-                    Button { kidsMember = only } label: {
-                        Label("Kids view", systemImage: "face.smiling")
+                kidsViewEntry
+                // A landscape iPad screen; on a phone it was one more row nobody would use.
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    Button { showingBoard = true } label: {
+                        Label("Kitchen board", systemImage: "rectangle.split.3x1")
                     }
-                } else {
-                    Menu {
-                        ForEach(store.household.members) { member in
-                            Button(member.displayName) { kidsMember = member }
-                        }
-                    } label: {
-                        Label("Kids view", systemImage: "face.smiling")
-                    }
-                }
-                Button { showingBoard = true } label: {
-                    Label("Kitchen board", systemImage: "rectangle.split.3x1")
                 }
                 NavigationLink { YearSummaryView() } label: {
                     Label(L10n.string("Dinner year %@", String(Calendar.current.component(.year, from: .now))),
@@ -107,37 +68,17 @@ struct FamilyView: View {
             } header: {
                 Text("Together")
             } footer: {
-                Text("The kids view lets a child see the week, vote on dishes and wish for one. Leaving it needs the phone's code. The kitchen board keeps the week on screen on an iPad.")
+                Text("The kids view lets a child see the week, vote on dishes and wish for one. Leaving it needs the phone's code.")
             }
 
-            Section {
-                NavigationLink {
-                    ReminderSettingsView()
-                } label: {
-                    LabeledContent {
-                        Text(reminderSummary).lineLimit(1)
-                    } label: {
-                        Label("Reminders", systemImage: "bell")
+            if FeatureFlags.householdSyncEnabled || FeatureFlags.communityEnabled {
+                Section {
+                    if FeatureFlags.householdSyncEnabled {
+                        NavigationLink { CloudSharingView() } label: { Label("iCloud sharing", systemImage: "icloud") }
                     }
-                }
-                Button { showingShare = true } label: {
-                    Label("Share this week", systemImage: "square.and.arrow.up")
-                }
-                if !HouseRulesShare.shareableRules(store.rules, meals: store.meals).isEmpty {
-                    ShareLink(
-                        item: HouseRulesShare.link(rules: store.rules, household: store.household.name, meals: store.meals),
-                        subject: Text("Our house rules"),
-                        message: Text(HouseRulesShare.message(rules: store.rules, household: store.household.name,
-                                                              meals: store.meals, context: store.matchContext))
-                    ) {
-                        Label("Share our house rules", systemImage: "list.bullet.clipboard")
+                    if FeatureFlags.communityEnabled {
+                        NavigationLink { CommunityHost() } label: { Label("Explore", systemImage: "person.3") }
                     }
-                }
-                if FeatureFlags.householdSyncEnabled {
-                    NavigationLink { CloudSharingView() } label: { Label("iCloud sharing", systemImage: "icloud") }
-                }
-                if FeatureFlags.communityEnabled {
-                    NavigationLink { CommunityHost() } label: { Label("Explore", systemImage: "person.3") }
                 }
             }
         }
@@ -151,7 +92,6 @@ struct FamilyView: View {
                     .accessibilityIdentifier("family.settings")
             }
         }
-        .sheet(isPresented: $showingShare) { WeekShareView().environment(store) }
         .fullScreenCover(item: $kidsMember) { member in
             KidsView(member: member).environment(store)
         }
@@ -167,6 +107,64 @@ struct FamilyView: View {
             TextField("Name", text: $householdName)
             Button("Save") { commitName() }
             Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    /// The people, and the one number they add up to: how many usually sit down to dinner.
+    ///
+    /// The number used to be a bare stepper above the rules with nothing tying it to the member
+    /// list. Here it sits with the people it counts, and each person's page says when they are
+    /// away -- which is what takes a day below the usual table.
+    private var peopleSection: some View {
+        Section {
+            Stepper(
+                L10n.string("Usually %ld at dinner", store.householdSize),
+                value: Binding(get: { store.householdSize }, set: { store.setHouseholdSize($0) }),
+                in: 1...20
+            )
+            .accessibilityIdentifier("family.householdSize")
+            ForEach(store.household.members) { member in
+                NavigationLink {
+                    MemberView(member: member)
+                } label: {
+                    HStack(spacing: AppTheme.Space.m) {
+                        MemberAvatar(member: member, index: memberIndex(member), size: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(member.displayName).foregroundStyle(AppTheme.ink)
+                            Text(MemberView.summary(of: member, store: store))
+                                .font(.caption).foregroundStyle(AppTheme.muted).lineLimit(1)
+                        }
+                    }
+                }
+                .accessibilityIdentifier("family.member.\(memberIndex(member))")
+            }
+            .onDelete(perform: store.removeHouseholdMembers)
+            Button { showingAddMember = true } label: {
+                Label("Add member", systemImage: "person.badge.plus")
+            }
+        } header: {
+            Text("People")
+        } footer: {
+            Text("Portions and shopping follow the usual number. Someone away by their home pattern is taken off that day; guests are added on the day itself.")
+        }
+    }
+
+    /// The kids view is a child's: it offers the children, or everyone if nobody is marked as one.
+    @ViewBuilder private var kidsViewEntry: some View {
+        let children = store.household.members.filter { $0.role == .child }
+        let candidates = children.isEmpty ? store.household.members : children
+        if candidates.count == 1, let only = candidates.first {
+            Button { kidsMember = only } label: {
+                Label("Kids view", systemImage: "face.smiling")
+            }
+        } else {
+            Menu {
+                ForEach(candidates) { member in
+                    Button(member.displayName) { kidsMember = member }
+                }
+            } label: {
+                Label("Kids view", systemImage: "face.smiling")
+            }
         }
     }
 
@@ -242,27 +240,6 @@ struct FamilyView: View {
 
     private func memberIndex(_ member: HouseholdMember) -> Int {
         store.household.members.firstIndex { $0.id == member.id } ?? 0
-    }
-
-    /// "Liker ikke Laks i ovn, Taco" -- the first few dishes this person swiped left on.
-    private func tasteSummary(for member: HouseholdMember) -> String {
-        let opinions = store.memberPreferences[member.id] ?? [:]
-        let disliked = opinions.filter { $0.value == .disliked }.keys.compactMap { store.meal(id: $0)?.name }.sorted()
-        let liked = opinions.filter { $0.value == .liked }.count
-        if !disliked.isEmpty {
-            let shown = disliked.prefix(2).joined(separator: ", ")
-            return disliked.count > 2
-                ? L10n.string("Dislikes %@ and %ld more", shown, disliked.count - 2)
-                : L10n.string("Dislikes %@", shown)
-        }
-        return liked > 0 ? L10n.string("Likes %ld dishes", liked) : L10n.string("No tastes saved yet")
-    }
-
-    private var reminderSummary: String {
-        var parts: [String] = []
-        if store.dinnerReminderEnabled { parts.append(HourOption.label(store.dinnerReminderHour)) }
-        if store.groceryReminderEnabled { parts.append(store.groceryReminderWeekday.name) }
-        return parts.isEmpty ? L10n.string("Off") : parts.joined(separator: " · ")
     }
 
     private func commitName() {

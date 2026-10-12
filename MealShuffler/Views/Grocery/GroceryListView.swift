@@ -23,6 +23,7 @@ struct GroceryListView: View {
 
     @Environment(\.openURL) private var openURL
     @State private var pendingBringList: URL?
+    @State private var pdfFile: SharedFile?
 
     private var allItems: [GroceryItem] { store.groceryItems }
     private var remainingItems: [GroceryItem] { allItems.filter { !store.checkedGroceryIDs.contains($0.id) } }
@@ -135,6 +136,9 @@ struct GroceryListView: View {
             }
         }
         .sheet(isPresented: $showingPeriod) { ShoppingPeriodView().environment(store) }
+        .sheet(item: $pdfFile) { file in
+            ActivityView(items: [file.url]).presentationDetents([.medium, .large])
+        }
         .sheet(item: $editingItem) { item in
             AddGroceryItemView(existing: item) { name, quantity, unit, aisle in
                 store.updateGroceryItem(ManualGroceryItem(id: item.id, name: name, quantity: quantity, unit: unit, aisle: aisle))
@@ -238,7 +242,7 @@ struct GroceryListView: View {
                 Spacer(minLength: AppTheme.Space.s)
                 Text(item.quantityText).font(.subheadline).foregroundStyle(AppTheme.muted)
             }
-            .frame(minHeight: 36)
+            .frame(minHeight: AppTheme.tapTarget)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -337,6 +341,17 @@ struct GroceryListView: View {
                     Label("Share all items", systemImage: "list.bullet")
                 }
             }
+            // Paper for the shop, aisle by aisle with tick boxes.
+            Section {
+                Button {
+                    PrintDocuments.print(listPDF(), jobName: L10n.string("Shopping list"))
+                } label: { Label("Print the list", systemImage: "printer") }
+                .disabled(remainingItems.isEmpty)
+                Button {
+                    pdfFile = PrintDocuments.file(listPDF(), named: L10n.string("Shopping list")).map(SharedFile.init)
+                } label: { Label("Save or send as PDF", systemImage: "doc.richtext") }
+                .disabled(remainingItems.isEmpty)
+            }
         } label: {
             if isExporting {
                 ProgressView()
@@ -359,6 +374,10 @@ struct GroceryListView: View {
             Image(systemName: "ellipsis.circle")
         }
         .accessibilityLabel(L10n.string("Shopping list options"))
+    }
+
+    private func listPDF() -> Data {
+        PrintDocuments.pdf(PrintDocuments.pages(week: nil, shopping: PrintDocuments.shoppingList(store: store)))
     }
 
     private func exportToReminders() async {

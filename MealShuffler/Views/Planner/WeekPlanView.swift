@@ -12,6 +12,7 @@ struct WeekPlanView: View {
     @Environment(AppStore.self) private var store
     @EnvironmentObject private var router: AppRouter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage(ShakeToShuffle.enabledKey) private var shakeToShuffle = true
 
     @State private var sheet: WeekSheet?
     @State private var cooking: CookingSession?
@@ -36,7 +37,7 @@ struct WeekPlanView: View {
         case picker(Weekday, nextWeek: Bool)
         case context(Weekday, nextWeek: Bool)
         case recipe(Meal, servings: Double)
-        case share
+        case share(nextWeek: Bool)
         case rules
         case photo(Meal)
 
@@ -46,7 +47,7 @@ struct WeekPlanView: View {
             case .picker(let day, let next): "picker-\(day.rawValue)-\(next)"
             case .context(let day, let next): "context-\(day.rawValue)-\(next)"
             case .recipe(let meal, _): "recipe-\(meal.id)"
-            case .share: "share"
+            case .share(let next): "share-\(next)"
             case .rules: "rules"
             case .photo(let meal): "photo-\(meal.id)"
             }
@@ -88,7 +89,7 @@ struct WeekPlanView: View {
         .onAppear { openRequestedDay(router.openDay) }
         .onReceive(NotificationCenter.default.publisher(for: .deviceDidShake)) { _ in
             // Only when the week is what is on screen: the other tabs stay alive behind it.
-            guard router.tab == .week, sheet == nil, cooking == nil, !store.isGenerating else { return }
+            guard shakeToShuffle, router.tab == .week, sheet == nil, cooking == nil, !store.isGenerating else { return }
             shuffle()
         }
     }
@@ -150,6 +151,7 @@ struct WeekPlanView: View {
                             .background(blocked.contains(rule.id) ? AppTheme.warning.opacity(0.12) : AppTheme.accentSoft)
                             .foregroundStyle(blocked.contains(rule.id) ? AppTheme.warning : AppTheme.accent)
                             .clipShape(Capsule())
+                            .chipHitArea()
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint(L10n.string("Opens your rules"))
@@ -162,10 +164,10 @@ struct WeekPlanView: View {
                         .background(AppTheme.raised)
                         .foregroundStyle(AppTheme.ink)
                         .clipShape(Capsule())
+                        .chipHitArea()
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.vertical, AppTheme.Space.xxs)
         }
         .scrollClipDisabled()
     }
@@ -182,16 +184,17 @@ struct WeekPlanView: View {
                 }
                 .accessibilityLabel(store.undoLabel.map { L10n.string("Undo: %@", $0) } ?? L10n.string("Undo"))
             }
+            // Share and print, for either week: next week used to get a text link only.
             if router.showsNextWeek {
-                if let plan = store.nextWeekPlan {
-                    ShareLink(item: PlanTextExporter.weeklyPlan(plan, meals: store.meals)) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    .accessibilityLabel("Share next week")
+                if store.nextWeekPlan != nil {
+                    Button { sheet = .share(nextWeek: true) } label: { Image(systemName: "square.and.arrow.up") }
+                        .accessibilityLabel("Share next week")
+                        .accessibilityIdentifier("week.share")
                 }
             } else {
-                Button { sheet = .share } label: { Image(systemName: "square.and.arrow.up") }
-                    .accessibilityLabel("Share this week")
+                Button { sheet = .share(nextWeek: false) } label: { Image(systemName: "square.and.arrow.up") }
+                    .accessibilityLabel(L10n.string("Share or print this week"))
+                    .accessibilityIdentifier("week.share")
             }
         }
     }
@@ -502,8 +505,8 @@ struct WeekPlanView: View {
             .presentationDetents([.medium, .large])
         case .recipe(let meal, let servings):
             MealDetailView(meal: meal, initialServings: servings).presentationDetents([.medium, .large])
-        case .share:
-            WeekShareView().environment(store)
+        case .share(let nextWeek):
+            WeekShareView(nextWeek: nextWeek).environment(store)
         case .photo(let meal):
             DinnerPhotoSheet(meal: meal).environment(store)
                 .presentationDetents([.medium])
@@ -564,6 +567,14 @@ struct WeekPlanView: View {
             sheet = nil
             if let meal { spins[day, default: 0] += 1; store.snooze(meal, on: day) }
         }
+    }
+}
+
+private extension View {
+    /// A 34pt chip, drawn compact so the rules read as a strip, but answering taps across the
+    /// full 44pt the guidelines ask for.
+    func chipHitArea() -> some View {
+        padding(.vertical, (AppTheme.tapTarget - 34) / 2).contentShape(Rectangle())
     }
 }
 
@@ -679,12 +690,16 @@ struct DayRow: View {
                     .lineLimit(2)
                     .id(meal?.id.uuidString ?? item.map { "\($0.kind)" } ?? "none")
                     .transition(.push(from: .top))
+                // The rule badge and the facts both: a day a rule decided used to lose its time,
+                // portions and cook. The badge keeps its size; the facts give way first.
                 HStack(spacing: AppTheme.Space.xs) {
                     if let badge {
                         RuleBadge(text: badge)
                             .id(badge + (meal?.id.uuidString ?? ""))
                             .transition(.scale(scale: 1.6).combined(with: .opacity))
-                    } else if let item {
+                            .layoutPriority(1)
+                    }
+                    if let item {
                         Text([Self.metadata(for: item, meal: meal), cook.map { L10n.string("%@ cooks", $0) }]
                                 .compactMap { $0 }.joined(separator: " · "))
                             .font(.caption).foregroundStyle(AppTheme.muted)
@@ -889,6 +904,12 @@ struct DaySheet: View {
                     }
                 }
 
+                if let item, item.kind != .away, !isPast, !isCompleted {
+                    Section {
+                        dinersStepper
+                    }
+                }
+
                 if item?.kind == .meal, store.household.members.count > 1 || store.cook(for: day, nextWeek: nextWeek) != nil {
                     Section {
                         Picker(selection: Binding(
@@ -952,6 +973,33 @@ struct DaySheet: View {
 
     /// A day still ahead can be marked cooked only once it has come.
     private var isUpcoming: Bool { date > Calendar.current.startOfDay(for: .now).addingTimeInterval(86_399) }
+
+    /// The most common day edit -- two guests on Friday -- one tap from the day instead of
+    /// three levels down in "Plan this day". It keeps the dinner and scales it.
+    private var dinersStepper: some View {
+        let diners = store.context(for: day, nextWeek: nextWeek).diners
+        let guests = diners - store.expectedDiners(on: day, nextWeek: nextWeek)
+        return Stepper(value: Binding(
+            get: { diners },
+            set: { count in
+                var updated = store.context(for: day, nextWeek: nextWeek)
+                updated.diners = count
+                if nextWeek { store.updateNextWeekContext(updated, for: day) } else { store.updateContext(updated, for: day) }
+            }
+        ), in: 1...20) {
+            VStack(alignment: .leading, spacing: 2) {
+                Label(L10n.string("%ld at dinner", diners), systemImage: "person.2")
+                    .foregroundStyle(AppTheme.ink)
+                if guests != 0 {
+                    Text(guests == 1 ? L10n.string("1 guest")
+                         : guests > 1 ? L10n.string("%ld guests", guests)
+                         : L10n.string("%ld fewer than usual", -guests))
+                        .font(.caption).foregroundStyle(AppTheme.muted)
+                }
+            }
+        }
+        .accessibilityIdentifier("daySheet.diners")
+    }
 }
 
 struct DayContextEditor: View {

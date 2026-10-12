@@ -199,6 +199,9 @@ struct IconButtonStyle: ButtonStyle {
             .background(prominent ? AppTheme.accent : AppTheme.raised)
             .foregroundStyle(prominent ? AppTheme.onAccent : AppTheme.ink)
             .clipShape(Circle())
+            // In light mode `raised` and a card's `surface` are both white, so on a card the
+            // button had no edge at all. A hairline gives it one without a new colour.
+            .overlay(Circle().stroke(prominent ? Color.clear : AppTheme.muted.opacity(0.22), lineWidth: 1))
             .contentShape(Circle())
             .opacity(configuration.isPressed ? 0.75 : 1)
     }

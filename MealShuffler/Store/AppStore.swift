@@ -650,10 +650,33 @@ final class AppStore {
     }
 
     /// The dinners actually being cooked this week, for sending the recipes along.
-    var plannedMeals: [Meal] {
+    var plannedMeals: [Meal] { dinners(in: plan) }
+
+    /// This week's or next week's picture, so next week can be shared and printed the way
+    /// this week can rather than as plain text only.
+    func weekPoster(nextWeek: Bool) -> WeekPosterContent {
+        guard nextWeek, let next = nextWeekPlan else { return weekPoster }
+        var content = WeekPosterContent.make(
+            plan: next,
+            meals: meals,
+            rules: rules,
+            household: household.name,
+            context: matchContextForWeek(next.startDate)
+        )
+        let broken = Set(nextWeekConflicts.filter { $0.severity == .blocking }.compactMap(\.ruleID))
+        content.rulesKept = rules.filter { $0.isActive(inWeek: next.startDate) && !broken.contains($0.id) }.count
+        return content
+    }
+
+    func plannedMeals(nextWeek: Bool) -> [Meal] {
+        guard nextWeek else { return plannedMeals }
+        return nextWeekPlan.map(dinners(in:)) ?? []
+    }
+
+    private func dinners(in week: WeeklyPlan) -> [Meal] {
         var seen = Set<UUID>()
         return Weekday.ordered().compactMap { day -> Meal? in
-            guard let item = plan[day], item.kind == .meal, let id = item.mealID,
+            guard let item = week[day], item.kind == .meal, let id = item.mealID,
                   seen.insert(id).inserted else { return nil }
             return meal(id: id)
         }
@@ -1487,6 +1510,42 @@ final class AppStore {
         household.members.append(HouseholdMember(displayName: cleanName, role: role))
     }
 
+    /// Saves a member's name, role and home pattern.
+    ///
+    /// A changed pattern changes who is expected at the table on days nobody has planned by
+    /// hand, so the portions follow at once; the dinners themselves stay until the next shuffle.
+    func updateMember(_ member: HouseholdMember) {
+        guard let index = household.members.firstIndex(where: { $0.id == member.id }) else { return }
+        var updated = member
+        updated.displayName = member.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if updated.displayName.isEmpty { updated.displayName = household.members[index].displayName }
+        if updated.homePattern?.isAlwaysHome == true { updated.homePattern = nil }
+        guard updated != household.members[index] else { return }
+        let patternChanged = updated.homePattern != household.members[index].homePattern
+        household.members[index] = updated
+        if patternChanged { rescalePlanServings() }
+    }
+
+    /// A day nobody has planned by hand: the usual table, less whoever's home pattern has them
+    /// away that day.
+    func defaultContext(for day: Weekday, inWeekStarting start: Date) -> DayPlanContext {
+        var context = DayPlanContext(diners: householdSize)
+        let away = household.members.filter { !$0.isHome(on: day, inWeekStarting: start) }.map(\.id)
+        guard !away.isEmpty else { return context }
+        context.attendingMemberIDs = Set(household.members.map(\.id)).subtracting(away)
+        context.diners = max(1, householdSize - away.count)
+        return context
+    }
+
+    /// Who the home patterns expect at the table on a day, for showing guests as the
+    /// difference between that and the number planned.
+    func expectedDiners(on day: Weekday, nextWeek: Bool = false) -> Int {
+        let attending = context(for: day, nextWeek: nextWeek).attendingMemberIDs
+        let everyone = Set(household.members.map(\.id))
+        let absent = everyone.subtracting(attending ?? everyone).count
+        return max(1, householdSize - absent)
+    }
+
     func removeHouseholdMembers(at offsets: IndexSet) {
         let removable = offsets
             .filter { household.members.indices.contains($0) }
@@ -1615,13 +1674,15 @@ final class AppStore {
             household.members.map { ($0.id, $0.displayName) },
             uniquingKeysWith: { first, _ in first }
         )
+        // Resolved rather than stored contexts, so a day nobody touched still knows who its
+        // home patterns leave out -- and whose dislikes therefore do not count.
         return MealMatcher.MatchContext(dislikes: dislikes, memberNames: names,
-            attendance: dayContexts.compactMapValues(\.attendingMemberIDs))
+            attendance: contexts(forWeek: plan.startDate, includingCalendar: false).compactMapValues(\.attendingMemberIDs))
     }
 
     private func matchContextForWeek(_ start: Date) -> MealMatcher.MatchContext {
         var result = matchContext
-        result.attendance = contexts(forWeek: start).compactMapValues(\.attendingMemberIDs)
+        result.attendance = contexts(forWeek: start, includingCalendar: false).compactMapValues(\.attendingMemberIDs)
         return result
     }
 
@@ -1680,7 +1741,7 @@ final class AppStore {
     ///   calendar event never becomes a saved time limit that outlives it.
     private func contexts(forWeek start: Date, includingCalendar: Bool = true) -> [Weekday: DayPlanContext] {
         let stored = start == plan.startDate ? dayContexts : nextWeekContexts
-        var contexts = Dictionary(uniqueKeysWithValues: Weekday.allCases.map { ($0, stored[$0] ?? DayPlanContext(diners: householdSize)) })
+        var contexts = Dictionary(uniqueKeysWithValues: Weekday.allCases.map { ($0, stored[$0] ?? defaultContext(for: $0, inWeekStarting: start)) })
         for rule in rules where rule.isActive(inWeek: start) && rule.strength == .required {
             guard case .dinnerMode(let scope, let mode) = rule.constraint else { continue }
             for day in scope.days() where contexts[day]?.overridesDinnerMode != true {

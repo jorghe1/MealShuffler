@@ -108,7 +108,11 @@ struct LibraryTransferView: View {
             }
             if let message { Text(message) }
         }
-        .navigationTitle("Recipe backups")
+        .scrollContentBackground(.hidden)
+        .appBackground()
+        // Reached from Meals → ⋯ now, next to the recipes it moves; the full backup of
+        // everything stays in Settings.
+        .navigationTitle("Recipe files")
         .fileExporter(isPresented: $exporting, document: document, contentType: .mealShufflerRecipes, defaultFilename: "Meal-Shuffler.mealrecipes") { result in
             if case .failure(let error) = result { message = error.localizedDescription }
         }

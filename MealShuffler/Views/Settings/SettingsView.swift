@@ -1,12 +1,14 @@
 import SwiftUI
 import UIKit
 
-/// The preferences a household opens a few times a year, behind the gear in Family.
+/// The preferences a household opens a few times a year, behind the gear in Family: how this
+/// phone should behave (see docs/NAVIGATION.md).
 ///
 /// This used to be a tab holding everything that was not planning: the freezer, collections
 /// and history (which are content, and live in Meals now), the shop's aisle order and pantry
 /// staples (which belong to the shopping list, in its ⋯ menu), the family (its own tab), and
-/// reminders at the very bottom, under backups.
+/// reminders at the very bottom, under backups. Reminders are only here now -- Family had a
+/// second row for them -- and recipe files moved to Meals with the recipes.
 struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @State private var showingResetConfirmation = false
@@ -33,11 +35,10 @@ struct SettingsView: View {
 
             Section {
                 NavigationLink { DeviceBackupView() } label: { Label("Backup", systemImage: "externaldrive.fill") }
-                NavigationLink { LibraryTransferView() } label: { Label("Export recipes", systemImage: "square.and.arrow.up.on.square") }
             } header: {
                 Text("Your data")
             } footer: {
-                Text("A backup keeps everything, including photos and history. Exporting recipes makes a file another household can import.")
+                Text("A backup keeps everything, including photos and history. A file of just the recipes, for another household, is under Meals → ⋯ → Recipe files.")
             }
 
             Section {
@@ -164,6 +165,12 @@ struct ReminderSettingsView: View {
     }
 }
 
+/// Shaking the phone shuffles the week. On by default -- children love it -- but iOS has
+/// taught everyone else that a shake means undo, so it can be turned off.
+enum ShakeToShuffle {
+    static let enabledKey = "shakeToShuffle.enabled"
+}
+
 /// The hours a household plausibly eats or shops, formatted without a locale surprise.
 enum HourOption {
     static let all = Array(5...22)
@@ -188,6 +195,7 @@ private struct PlanningAidsSection: View {
     @AppStorage(CalendarBusyEvenings.enabledKey) private var calendarEnabled = false
     @AppStorage(CalendarBusyEvenings.minutesKey) private var calendarMinutes = CalendarBusyEvenings.defaultMinutes
     @AppStorage(ShuffleSound.enabledKey) private var soundEnabled = false
+    @AppStorage(ShakeToShuffle.enabledKey) private var shakeEnabled = true
     @State private var accessDenied = false
 
     var body: some View {
@@ -206,6 +214,9 @@ private struct PlanningAidsSection: View {
                 set: { store.householdTools.sharesIngredients = $0 }
             )) {
                 Label("Fewer things to buy", systemImage: "cart")
+            }
+            Toggle(isOn: $shakeEnabled) {
+                Label("Shake to shuffle", systemImage: "iphone.radiowaves.left.and.right")
             }
             Toggle(isOn: $soundEnabled) {
                 Label("Sound when shuffling", systemImage: "speaker.wave.2")

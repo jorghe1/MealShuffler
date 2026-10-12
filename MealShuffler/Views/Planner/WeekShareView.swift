@@ -10,7 +10,14 @@ import SwiftUI
 struct WeekShareView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    /// Next week shares the way this week does: it used to get a plain-text link only.
+    var nextWeek = false
     @State private var picture: Image?
+    @State private var includeShopping = false
+    @State private var pdfFile: SharedFile?
+
+    private var poster: WeekPosterContent { store.weekPoster(nextWeek: nextWeek) }
+    private var plan: WeeklyPlan { (nextWeek ? store.nextWeekPlan : nil) ?? store.plan }
 
     var body: some View {
         NavigationStack {
@@ -20,7 +27,7 @@ struct WeekShareView: View {
                     if let picture {
                         ShareLink(
                             item: picture,
-                            preview: SharePreview(store.weekPoster.heading, image: picture)
+                            preview: SharePreview(poster.heading, image: picture)
                         ) {
                             Label("Share the picture", systemImage: "photo.on.rectangle.angled")
                                 .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
@@ -28,6 +35,7 @@ struct WeekShareView: View {
                         .buttonStyle(.borderedProminent)
                         .buttonBorderShape(.roundedRectangle(radius: AppTheme.controlRadius))
                     }
+                    printing
                     links
                     Text("Recipes and rules travel inside the link itself. Nothing is uploaded.")
                         .font(.caption).foregroundStyle(AppTheme.muted)
@@ -36,13 +44,57 @@ struct WeekShareView: View {
                 .padding(20)
             }
             .appBackground()
-            .navigationTitle("Share this week")
+            .navigationTitle(nextWeek ? L10n.string("Share next week") : L10n.string("Share this week"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
             .task { render() }
+            .sheet(item: $pdfFile) { file in
+                ActivityView(items: [file.url]).presentationDetents([.medium, .large])
+            }
         }
+    }
+
+    /// Paper: the week on an A4 sheet for the fridge, with the shopping list on the next page
+    /// if wanted. Printed directly, or as a PDF for Files, Mail or a printer elsewhere.
+    private var printing: some View {
+        VStack(spacing: 0) {
+            Toggle(isOn: $includeShopping) {
+                Label("Include the shopping list", systemImage: "cart")
+                    .font(.body.weight(.semibold)).foregroundStyle(AppTheme.ink)
+            }
+            .tint(AppTheme.accent)
+            .frame(minHeight: 52)
+            .padding(.horizontal, 16)
+            Divider().padding(.leading, 52)
+            Button {
+                PrintDocuments.print(makePDF(), jobName: documentName)
+            } label: {
+                Label("Print", systemImage: "printer").shareRow()
+            }
+            .accessibilityIdentifier("share.print")
+            Divider().padding(.leading, 52)
+            Button {
+                pdfFile = PrintDocuments.file(makePDF(), named: documentName).map(SharedFile.init)
+            } label: {
+                Label("Save or send as PDF", systemImage: "doc.richtext").shareRow()
+            }
+            .accessibilityIdentifier("share.pdf")
+        }
+        .mealCard()
+    }
+
+    private var documentName: String {
+        L10n.string("Week %ld", Calendar.current.component(.weekOfYear, from: plan.startDate))
+    }
+
+    private func makePDF() -> Data {
+        let pages = PrintDocuments.pages(
+            week: PrintDocuments.week(store: store, nextWeek: nextWeek),
+            shopping: includeShopping ? PrintDocuments.shoppingList(store: store) : nil
+        )
+        return PrintDocuments.pdf(pages)
     }
 
     @ViewBuilder private var preview: some View {
@@ -51,7 +103,7 @@ struct WeekShareView: View {
                 .frame(maxHeight: 440)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
                 .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
-                .accessibilityLabel(PlanTextExporter.weeklyPlan(store.plan, meals: store.meals))
+                .accessibilityLabel(PlanTextExporter.weeklyPlan(plan, meals: store.meals))
         } else {
             ProgressView().frame(height: 440)
         }
@@ -59,14 +111,14 @@ struct WeekShareView: View {
 
     private var links: some View {
         VStack(spacing: 0) {
-            ShareLink(item: store.weekPoster.emojiSummary(link: AppLinks.appStoreURL)) {
+            ShareLink(item: poster.emojiSummary(link: AppLinks.appStoreURL)) {
                 Label("Share as emoji", systemImage: "face.smiling").shareRow()
             }
             Divider().padding(.leading, 52)
-            ShareLink(item: PlanTextExporter.weeklyPlan(store.plan, meals: store.meals)) {
+            ShareLink(item: PlanTextExporter.weeklyPlan(plan, meals: store.meals)) {
                 Label("Share as text", systemImage: "text.alignleft").shareRow()
             }
-            let dinners = store.plannedMeals
+            let dinners = store.plannedMeals(nextWeek: nextWeek)
             if !dinners.isEmpty, let link = RecipeShare.link(meals: dinners, household: store.household.name) {
                 Divider().padding(.leading, 52)
                 ShareLink(
@@ -93,7 +145,7 @@ struct WeekShareView: View {
 
     /// Drawn at three times the point size: 1080 × 1920, a full-screen story.
     private func render() {
-        let poster = WeekPoster(content: store.weekPoster, appLink: AppLinks.appStoreURL)
+        let poster = WeekPoster(content: self.poster, appLink: AppLinks.appStoreURL)
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: poster)
         renderer.scale = 3

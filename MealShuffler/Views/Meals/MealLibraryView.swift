@@ -64,11 +64,23 @@ struct MealLibraryView: View {
     @State private var isPickingPhotos = false
     @State private var showingCollections = false
     @State private var showingFreezer = false
+    @State private var showingHistory = false
+    @State private var showingRecipeFiles = false
     /// "Add to the week" from an open recipe, presented over it.
     @State private var addingToWeek: Meal?
     @AppStorage("meals.layout") private var layout: LibraryLayout = .grid
 
-    private let columns = [GridItem(.flexible(), spacing: AppTheme.Space.m), GridItem(.flexible(), spacing: AppTheme.Space.m)]
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// The card picture grows a little with the text, so a two-line name is not squeezed
+    /// under a picture sized for the smallest text.
+    @ScaledMetric(relativeTo: .subheadline) private var cardArtwork: CGFloat = 112
+
+    /// Two columns, or one at the accessibility text sizes, where two cards side by side
+    /// leave each name a word per line.
+    private var columns: [GridItem] {
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: AppTheme.Space.m), count: count)
+    }
 
     private var filteredMeals: [Meal] {
         let collectionIDs = collection.flatMap { store.householdTools.collections[$0] }
@@ -137,6 +149,7 @@ struct MealLibraryView: View {
                     .accessibilityLabel("Add recipe")
                     .accessibilityIdentifier("meals.add")
                 }
+                ToolbarItem(placement: .topBarTrailing) { placesMenu }
             }
             .sheet(item: $sheet, onDismiss: {
                 reloadDrafts()
@@ -208,6 +221,8 @@ struct MealLibraryView: View {
         }
         .navigationDestination(isPresented: $showingCollections) { RecipeCollectionsView() }
         .navigationDestination(isPresented: $showingFreezer) { FreezerView() }
+        .navigationDestination(isPresented: $showingHistory) { MealHistoryView() }
+        .navigationDestination(isPresented: $showingRecipeFiles) { LibraryTransferView() }
     }
 
     // MARK: - Filters
@@ -252,13 +267,6 @@ struct MealLibraryView: View {
                 ForEach(store.customTagsInUse, id: \.self) { name in Text(name).tag(name as String?) }
             }
             Toggle("Needs review", isOn: $reviewOnly)
-            Button { showingCollections = true } label: {
-                Label("Collections", systemImage: "folder")
-            }
-            // Always reachable, because the freezer screen is also where a batch is added.
-            Button { showingFreezer = true } label: {
-                Label("Freezer", systemImage: "snowflake")
-            }
         } label: {
             Image(systemName: hasExtraFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease")
                 .chipStyle(selected: hasExtraFilters)
@@ -283,6 +291,26 @@ struct MealLibraryView: View {
         }
         .accessibilityLabel(L10n.string("View: %@", layout.name))
         .accessibilityIdentifier("meals.layout")
+    }
+
+    /// The places that belong to the cookbook but are not filters: what was cooked, the
+    /// household's collections, the freezer, and recipe files in and out. Collections and the
+    /// freezer used to sit inside the filter menu; history was only reachable from a shelf that
+    /// shows while browsing, once something had been cooked.
+    private var placesMenu: some View {
+        Menu {
+            Button { showingHistory = true } label: { Label("History", systemImage: "clock.arrow.circlepath") }
+            Button { showingCollections = true } label: { Label("Collections", systemImage: "folder") }
+            // Always reachable, because the freezer screen is also where a batch is added.
+            Button { showingFreezer = true } label: { Label("Freezer", systemImage: "snowflake") }
+            Button { showingRecipeFiles = true } label: {
+                Label("Recipe files", systemImage: "square.and.arrow.up.on.square")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+        .accessibilityLabel(L10n.string("More in Meals"))
+        .accessibilityIdentifier("meals.more")
     }
 
     private var sortMenu: some View {
@@ -364,7 +392,7 @@ struct MealLibraryView: View {
             Button { sheet = .detail(meal) } label: {
                 VStack(alignment: .leading, spacing: 0) {
                     MealArtwork(meal: meal)
-                        .frame(height: 112)
+                        .frame(height: min(cardArtwork, 160))
                         .clipped()
                     VStack(alignment: .leading, spacing: 3) {
                         Text(meal.name)
@@ -493,7 +521,8 @@ struct MealLibraryView: View {
                 case .photos: afterDismiss = .photos; sheet = nil
                 }
             }
-            .presentationDetents([.medium])
+            // Large too: at the bigger text sizes the five sources do not fit half a screen.
+            .presentationDetents([.medium, .large])
         case .capture(let capture):
             CapturedRecipeImportView(capture: capture) { draft in
                 sheet = .editor(existing: nil, draft: draft)

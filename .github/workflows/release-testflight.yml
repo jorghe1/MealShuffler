@@ -16,6 +16,8 @@ name: Release to TestFlight
 #   variable CODEMAGIC_APP_ID     the id in https://codemagic.io/app/<app id>
 #
 # Re-run a release (for example after fixing the secret) with "Run workflow" and the tag name.
+# GitHub only offers "Run workflow" once this file is on the default branch (main), and a tag
+# push only runs it if the tagged commit contains this file.
 on:
   push:
     tags: ["ios-*"]
@@ -52,15 +54,22 @@ jobs:
             exit 1
           fi
 
+      # The scripts come from this workflow's own commit; the version comes from the tag. On a
+      # tag push they are the same commit. On "Run workflow" they are not, and the tag may
+      # predate ci/check-release-tag.sh (ios-0.6.1 does).
+      - name: Check out this workflow's commit
+        uses: actions/checkout@v4
+
       - name: Check out the tag
         uses: actions/checkout@v4
         with:
           ref: refs/tags/${{ env.TAG }}
+          path: release-tag
 
       - name: Check tag against MARKETING_VERSION
         run: |
-          echo "Tag $TAG is commit $(git rev-parse HEAD)"
-          bash ci/check-release-tag.sh "$TAG"
+          echo "Tag $TAG is commit $(git -C release-tag rev-parse HEAD)"
+          PROJECT_SPEC=release-tag/project.yml bash ci/check-release-tag.sh "$TAG"
 
       - name: Start ios-testflight on Codemagic
         id: start

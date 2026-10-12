@@ -67,6 +67,20 @@ API token stored as a GitHub secret.
 
 If either value is missing, the workflow fails and repeats these steps in its summary.
 
+Two GitHub rules to know:
+
+- A tag push runs the workflow **as it exists in the tagged commit**. Tags on commits from
+  before this workflow was added (`ios-0.6.1` and older) start nothing when pushed.
+- **Run workflow** only appears once `release-testflight.yml` is on the default branch
+  (`main`). It then checks out the tag you name and runs the check with the scripts from
+  `main`, so it also works for older tags.
+
+So `ios-0.6.1` can be built through GitHub once this is merged to `main`. Before that, start
+`iOS · TestFlight` on the tag by hand in Codemagic. Codemagic builds a tag with the
+`codemagic.yaml` **in that tag**, so `ios-0.6.1` still uses the old configuration (tag
+trigger, `PROJECT_BUILD_NUMBER` as the build number); the new build-number logic applies from
+the first tag cut after this change.
+
 Optional: add `APP_STORE_APPLE_ID` (the numeric Apple ID under App Store Connect → App
 Information) to the `ios_signing` group. `ci/set-build-number.sh` then skips looking the app
 up by bundle id. It works without it.

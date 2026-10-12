@@ -14,6 +14,9 @@ struct DeviceBackupDocument: FileDocument {
     let files: [String: Data]
 
     init(state: AppStateSnapshot, files: [String: Data]) throws {
+        // A decoded snapshot is repaired already; this one may come straight from memory.
+        var state = state
+        state.repairOutOfRangeValues()
         self.state = state; self.files = files
         try validate()
     }
@@ -40,10 +43,9 @@ struct DeviceBackupDocument: FileDocument {
     func validate() throws {
         try state.validateStructure()
         let stateBytes = try JSONEncoder().encode(state).count
+        // The shape of the state itself is `validateStructure`'s job, above; only sizes here.
         guard stateBytes <= 100_000_000, files.count <= 20_000, files.keys.allSatisfy(Self.validName),
-              files.values.reduce(0, { $0 + $1.count }) + stateBytes <= Self.maximumBytes,
-              (1...20).contains(state.householdSize), state.plan.meals.count <= 7,
-              Set(state.plan.meals.map(\.day)).count == state.plan.meals.count else { throw CocoaError(.fileReadTooLarge) }
+              files.values.reduce(0, { $0 + $1.count }) + stateBytes <= Self.maximumBytes else { throw CocoaError(.fileReadTooLarge) }
         let photos = Dictionary(uniqueKeysWithValues: files.filter { $0.key.hasPrefix("library__source-") }.map { (String($0.key.dropFirst(9)), $0.value) })
         try RecipeLibraryArchive(meals: state.customMeals, images: photos).validate()
     }
@@ -105,13 +107,50 @@ struct DeviceBackupDocument: FileDocument {
         return try Self(state: state, files: files)
     }
 
-    func restoreFiles() throws {
-        try validate()
-        for (name, data) in files {
-            guard let entry = Self.roots.first(where: { name.hasPrefix($0.key) }) else { throw CocoaError(.fileReadCorruptFile) }
-            try FileManager.default.createDirectory(at: entry.value, withIntermediateDirectories: true)
-            try data.write(to: entry.value.appendingPathComponent(String(name.dropFirst(entry.key.count))), options: .atomic)
+    /// Puts the backup in place: files first, then the state, and the files back out again
+    /// if the state cannot be saved.
+    ///
+    /// The files used to be written and left whatever happened next, so a restore whose state
+    /// failed to save -- a full disk, a file from a newer app -- left this device's household
+    /// with the backup's photos and drafts in place of its own. Files still go first because
+    /// the restore re-reads the recipe inbox, which has to find the backup's captures there.
+    @MainActor
+    func restore(into store: AppStore, roots: [String: URL] = DeviceBackupDocument.roots) throws {
+        let placed = try restoreFiles(into: roots)
+        do { try store.restoreSnapshot(state) } catch {
+            placed.rollBack()
+            throw error
         }
+        placed.commit()
+    }
+
+    /// Writes every file into place, keeping each one it replaces until the caller commits
+    /// or rolls back.
+    func restoreFiles(into roots: [String: URL] = DeviceBackupDocument.roots) throws -> RestoredFiles {
+        try validate()
+        // Every name is resolved before anything on disk is touched.
+        var targets: [(destination: URL, root: URL, data: Data)] = []
+        for (name, data) in files {
+            guard let entry = roots.first(where: { name.hasPrefix($0.key) }) else { throw CocoaError(.fileReadCorruptFile) }
+            targets.append((entry.value.appendingPathComponent(String(name.dropFirst(entry.key.count))), entry.value, data))
+        }
+        let placed = RestoredFiles()
+        do {
+            // All staged before any is moved, so running out of space fails here, while every
+            // original is still where it was.
+            var staged: [(file: URL, destination: URL, scratch: URL)] = []
+            for target in targets {
+                let scratch = try placed.scratch(for: target.root)
+                let file = scratch.appendingPathComponent("new-" + target.destination.lastPathComponent)
+                try target.data.write(to: file, options: .atomic)
+                staged.append((file, target.destination, scratch))
+            }
+            for item in staged { try placed.move(item.file, into: item.destination, asideIn: item.scratch) }
+        } catch {
+            placed.rollBack()
+            throw error
+        }
+        return placed
     }
 
     @discardableResult static func retainRecovery(_ state: AppStateSnapshot) throws -> URL {
@@ -123,9 +162,10 @@ struct DeviceBackupDocument: FileDocument {
         return url
     }
 
-    /// Recovery packages hold every photo, and one is written per restore. Three is enough to
-    /// undo a mistake; more only fills the phone.
-    static let recoveryKept = 3
+    /// Recovery packages hold every photo, and one is written per restore -- two per iCloud
+    /// conflict kept local, one for each side. At three, two conflict resolutions in a row
+    /// pushed out the copy taken before a full restore, which is the one most worth having.
+    static let recoveryKept = 10
 
     static func pruneRecovery(in root: URL, keeping count: Int) {
         let keys: [URLResourceKey] = [.creationDateKey, .contentModificationDateKey]
@@ -139,6 +179,64 @@ struct DeviceBackupDocument: FileDocument {
         for package in packages.dropFirst(count) {
             try? FileManager.default.removeItem(at: package.url)
         }
+    }
+}
+
+/// A restore's files: in place, but revocable until the state they belong to is saved.
+///
+/// Every file a restore replaces is moved aside rather than overwritten, into a scratch
+/// folder beside its own so each move is a rename on the same volume. `commit()` throws the
+/// originals away; `rollBack()` puts them back and removes what the restore added.
+final class RestoredFiles {
+    private var scratchByRoot: [URL: URL] = [:]
+    /// Originals moved aside: where they lived, and where they are now.
+    private var replaced: [(original: URL, aside: URL)] = []
+    /// Files that did not exist before the restore.
+    private var added: [URL] = []
+
+    fileprivate func scratch(for root: URL) throws -> URL {
+        if let existing = scratchByRoot[root] { return existing }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let scratch = root.deletingLastPathComponent()
+            .appendingPathComponent(".restore-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+        scratchByRoot[root] = scratch
+        return scratch
+    }
+
+    fileprivate func move(_ file: URL, into destination: URL, asideIn scratch: URL) throws {
+        let manager = FileManager.default
+        if manager.fileExists(atPath: destination.path) {
+            let aside = scratch.appendingPathComponent("old-" + destination.lastPathComponent)
+            try manager.moveItem(at: destination, to: aside)
+            replaced.append((destination, aside))
+        } else {
+            added.append(destination)
+        }
+        try manager.moveItem(at: file, to: destination)
+    }
+
+    /// The restore stands: the originals are no longer needed.
+    func commit() {
+        removeScratch()
+        replaced = []; added = []
+    }
+
+    /// The restore failed: every file is as it was before it began.
+    func rollBack() {
+        let manager = FileManager.default
+        for url in added { try? manager.removeItem(at: url) }
+        for item in replaced.reversed() {
+            try? manager.removeItem(at: item.original)
+            try? manager.moveItem(at: item.aside, to: item.original)
+        }
+        removeScratch()
+        replaced = []; added = []
+    }
+
+    private func removeScratch() {
+        for scratch in scratchByRoot.values { try? FileManager.default.removeItem(at: scratch) }
+        scratchByRoot = [:]
     }
 }
 
@@ -190,7 +288,7 @@ struct DeviceBackupView: View {
                 guard let pending else { return }
                 do {
                     try DeviceBackupDocument.retainRecovery(store.makeSnapshot())
-                    try pending.restoreFiles(); try store.restoreSnapshot(pending.state)
+                    try pending.restore(into: store)
                     message = L10n.string("Backup restored."); loadRecovery()
                 } catch { message = error.localizedDescription }
                 self.pending = nil

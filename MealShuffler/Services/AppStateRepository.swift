@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// The on-disk shape of the app.
 ///
@@ -14,7 +15,7 @@ struct AppStateSnapshot: Codable {
     let hasCompletedOnboarding: Bool
     let memberPreferences: [UUID: [UUID: MealPreference]]
     let rules: [PlanningRule]
-    let plan: WeeklyPlan
+    var plan: WeeklyPlan
     let checkedGroceryIDs: Set<String>
     let stockedGroceryIDs: Set<String>
     let manualGroceryItems: [ManualGroceryItem]
@@ -23,12 +24,12 @@ struct AppStateSnapshot: Codable {
     let aisleOrder: [GroceryAisle]
     let customMeals: [Meal]
     let favoriteMealIDs: Set<UUID>
-    let dayContexts: [Weekday: DayPlanContext]
+    var dayContexts: [Weekday: DayPlanContext]
     let feedbackEvents: [MealFeedbackEvent]
-    let householdSize: Int
+    var householdSize: Int
     let household: Household
-    let archivedWeeks: [ArchivedWeek]
-    let nextWeekPlan: WeeklyPlan?
+    var archivedWeeks: [ArchivedWeek]
+    var nextWeekPlan: WeeklyPlan?
     var dinnerReminderEnabled: Bool
     var dinnerReminderHour: Int
     /// A second, earlier reminder timed off the recipe's own prep time.
@@ -101,21 +102,98 @@ struct AppStateSnapshot: Codable {
         self.groceryReminderHour = groceryReminderHour
     }
 
+    /// Refuses a snapshot whose shape no repair can make sense of: a week with two Mondays,
+    /// two recipes or two people sharing an identity, a library past any real size.
+    ///
+    /// Numbers out of range are not here. They have an obvious nearest legal value, and
+    /// `repairOutOfRangeValues()` moves them there; refusing them cost the household
+    /// everything for one bad field.
     func validateStructure() throws {
         let weeks = [plan] + (nextWeekPlan.map { [$0] } ?? []) + archivedWeeks.map(\.plan)
-        guard (1...20).contains(householdSize), customMeals.count <= 2000,
-              tools.freezer.allSatisfy({ $0.portions.isFinite && $0.portions > 0 && $0.portions <= 1000 }),
+        guard customMeals.count <= 2000,
               Set(customMeals.map(\.id)).count == customMeals.count,
               Set(household.members.map(\.id)).count == household.members.count,
-              weeks.allSatisfy({ week in
-                  week.meals.count <= 7 && Set(week.meals.map(\.day)).count == week.meals.count && week.meals.allSatisfy {
-                      (0...1000).contains($0.servings) && ($0.portionScale.map { $0.isFinite && (0.25...2).contains($0) } ?? true)
-                  }
-              }),
-              (Array(dayContexts.values) + Array(nextWeekContexts.values)).allSatisfy({
-                  (1...20).contains($0.diners) && (0...12).contains($0.extraServings)
-                      && ($0.portionScale.map { $0.isFinite && (0.25...2).contains($0) } ?? true)
-              }) else { throw CocoaError(.fileReadCorruptFile) }
+              weeks.allSatisfy({ $0.meals.count <= 7 && Set($0.meals.map(\.day)).count == $0.meals.count })
+        else { throw CocoaError(.fileReadCorruptFile) }
+    }
+
+    /// Brings every out-of-range number back into range, one field at a time.
+    ///
+    /// Validation used to be all or nothing. One diner count of 21 -- from an older build
+    /// with a looser stepper, a hand-edited backup, a sync from a device with different
+    /// limits -- failed the file *and* its backup, because both carried the same value. The
+    /// household then started empty, with its data parked in an `unreadable-` file that
+    /// nothing reads back. Clamping loses one number; refusing lost the plan, the library and
+    /// the history.
+    ///
+    /// Returns a line per repair, for the log.
+    @discardableResult
+    mutating func repairOutOfRangeValues() -> [String] {
+        var repairs: [String] = []
+        func clamp(_ value: Int, to range: ClosedRange<Int>, _ field: String) -> Int {
+            let clamped = min(max(value, range.lowerBound), range.upperBound)
+            if clamped != value { repairs.append("\(field) \(value) -> \(clamped)") }
+            return clamped
+        }
+        // nil means "the default scale", so that is where an unreadable scale goes.
+        func scale(_ value: Double?, _ field: String) -> Double? {
+            guard let value else { return nil }
+            guard value.isFinite else { repairs.append("\(field) \(value) -> default"); return nil }
+            let clamped = min(max(value, 0.25), 2)
+            if clamped != value { repairs.append("\(field) \(value) -> \(clamped)") }
+            return clamped
+        }
+        func repairedWeek(_ week: WeeklyPlan, _ field: String) -> WeeklyPlan {
+            var week = week
+            for index in week.meals.indices {
+                let day = week.meals[index].day.rawValue
+                week.meals[index].servings = clamp(week.meals[index].servings, to: 0...1000, "\(field).\(day).servings")
+                week.meals[index].portionScale = scale(week.meals[index].portionScale, "\(field).\(day).portionScale")
+            }
+            return week
+        }
+        func repairedContexts(_ contexts: [Weekday: DayPlanContext], _ field: String) -> [Weekday: DayPlanContext] {
+            var contexts = contexts
+            for (day, context) in contexts {
+                var context = context
+                context.diners = clamp(context.diners, to: 1...20, "\(field).\(day.rawValue).diners")
+                context.extraServings = clamp(context.extraServings, to: 0...12, "\(field).\(day.rawValue).extraServings")
+                context.portionScale = scale(context.portionScale, "\(field).\(day.rawValue).portionScale")
+                contexts[day] = context
+            }
+            return contexts
+        }
+
+        householdSize = clamp(householdSize, to: 1...20, "householdSize")
+        plan = repairedWeek(plan, "plan")
+        nextWeekPlan = nextWeekPlan.map { repairedWeek($0, "nextWeekPlan") }
+        archivedWeeks = archivedWeeks.map { week -> ArchivedWeek in
+            let fixed = repairedWeek(week.plan, "archivedWeeks")
+            guard fixed != week.plan else { return week }
+            // The initializer re-derives the recipe snapshots from a meal list; keep the
+            // ones the week was archived with instead.
+            var copy = ArchivedWeek(id: week.id, plan: fixed, archivedAt: week.archivedAt)
+            copy.recipeSnapshots = week.recipeSnapshots
+            return copy
+        }
+        dayContexts = repairedContexts(dayContexts, "dayContexts")
+        nextWeekContexts = repairedContexts(nextWeekContexts, "nextWeekContexts")
+        // A batch with nothing left in it is already gone -- consuming the last portion
+        // removes it -- so dropping one is the same outcome, not a loss.
+        let freezer = tools.freezer.compactMap { batch -> FreezerBatch? in
+            guard batch.portions.isFinite, batch.portions > 0 else {
+                repairs.append("freezer portions \(batch.portions) -> removed")
+                return nil
+            }
+            var batch = batch
+            if batch.portions > 1000 {
+                repairs.append("freezer portions \(batch.portions) -> 1000")
+                batch.portions = 1000
+            }
+            return batch
+        }
+        if freezer != tools.freezer { tools.freezer = freezer }
+        return repairs
     }
 
     // Written explicitly because `preferences` is a decode-only legacy key with no matching
@@ -202,8 +280,17 @@ struct AppStateSnapshot: Codable {
                 ?? restoredHousehold.id
             memberPreferences = flat.isEmpty ? [:] : [owner: flat]
         }
+        // Repaired here, inside the decoder, so every reader -- the state file, its backups,
+        // the widget, a device backup, iCloud -- gets the same repaired household.
+        let repairs = repairOutOfRangeValues()
+        if !repairs.isEmpty {
+            Self.log.notice("Repaired saved state: \(repairs.joined(separator: "; "), privacy: .public)")
+        }
         try validateStructure()
     }
+
+    /// Numbers and field names only, never household content, so the repairs can be public.
+    static let log = Logger(subsystem: "no.mealshuffler", category: "state")
 }
 
 /// Where the app's state lives.
@@ -256,9 +343,17 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
             .appendingPathComponent(directoryName, isDirectory: true)
     }
 
-    init(directory: URL, migratingFrom legacyDefaults: UserDefaults? = AppGroup.defaults) {
+    /// The clock that decides which day a daily copy belongs to. Replaceable in tests.
+    private let now: @Sendable () -> Date
+
+    init(
+        directory: URL,
+        migratingFrom legacyDefaults: UserDefaults? = AppGroup.defaults,
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
         fileURL = directory.appendingPathComponent(Self.fileName)
         self.legacyDefaults = legacyDefaults
+        self.now = now
     }
 
     func load() -> AppStateSnapshot? {
@@ -268,10 +363,64 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
         }
         if let data = try? Data(contentsOf: backupURL),
            let snapshot = try? AppStateSnapshot.decoding(data) { return snapshot }
+        // Newest first: the most recent day that still reads is the least work lost.
+        for url in dailyBackupURLs {
+            if let data = try? Data(contentsOf: url),
+               let snapshot = try? AppStateSnapshot.decoding(data) { return snapshot }
+        }
         return adoptStateWrittenBeforeTheFileExisted()
     }
 
     private var backupURL: URL { fileURL.appendingPathExtension("backup") }
+    private var directory: URL { fileURL.deletingLastPathComponent() }
+
+    // MARK: - Daily copies
+
+    /// How many days of copies are kept.
+    static let dailyBackupsKept = 7
+
+    /// `.backup` is the state one save ago, and a save follows every edit within 400 ms. A
+    /// mistake that still decodes -- the wrong recipes deleted, a bad version synced in from
+    /// another device -- has replaced the only backup with itself before anyone notices. A
+    /// copy taken once a day, a week deep, is a version from before the mistake.
+    ///
+    /// Newest first. The date in the name sorts as text, so no file dates are read.
+    var dailyBackupURLs: [URL] {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        return names.filter(Self.isDailyBackupName).sorted(by: >).map { directory.appendingPathComponent($0) }
+    }
+
+    /// `state-2026-10-12.json`, in the device's own day. Gregorian whatever the user's
+    /// calendar, so the names keep sorting by date.
+    static func dailyBackupName(for date: Date, timeZone: TimeZone = .current) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let day = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "state-%04ld-%02ld-%02ld.json", day.year ?? 0, day.month ?? 0, day.day ?? 0)
+    }
+
+    static func isDailyBackupName(_ name: String) -> Bool {
+        guard name.hasPrefix("state-"), name.hasSuffix(".json") else { return false }
+        let date = Array(name.dropFirst("state-".count).dropLast(".json".count))
+        guard date.count == 10 else { return false }
+        return date.indices.allSatisfy { index in
+            index == 4 || index == 7 ? date[index] == "-" : ("0"..."9").contains(date[index])
+        }
+    }
+
+    /// Keeps the day's first readable state, at most once a day.
+    ///
+    /// What is copied is the state being replaced, not the one being written: that is the
+    /// household as the day found it, so a mistake made in today's first edit is not also
+    /// today's copy. Best effort -- a full disk should cost a copy, never the save itself.
+    private func writeDailyBackupIfNeeded(_ existing: Data) {
+        let url = directory.appendingPathComponent(Self.dailyBackupName(for: now()))
+        guard !FileManager.default.fileExists(atPath: url.path) else { return }
+        guard (try? existing.write(to: url, options: .atomic)) != nil else { return }
+        for old in dailyBackupURLs.dropFirst(Self.dailyBackupsKept) {
+            try? FileManager.default.removeItem(at: old)
+        }
+    }
 
     var recoveryNotice: String? {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
@@ -296,6 +445,7 @@ struct FileStateRepository: AppStateRepository, @unchecked Sendable {
             }
             if (try? AppStateSnapshot.decoding(existing)) != nil {
                 try existing.write(to: backupURL, options: .atomic)
+                writeDailyBackupIfNeeded(existing)
             } else {
                 try existing.write(to: fileURL.appendingPathExtension("unreadable-\(UUID().uuidString)"), options: .atomic)
             }

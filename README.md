@@ -13,6 +13,9 @@ Hva som er levert, hva som kommer i neste versjon og hva som venter, står samle
 - [DESIGN.md](DESIGN.md) — designsystemet (`AppTheme`), fanene, knappestiler, bildepolicy og
   arbeidsflytkontrakten.
 - [docs/ROADMAP.md](docs/ROADMAP.md) — status og backlog.
+- [docs/PRODUCT_DIRECTION.md](docs/PRODUCT_DIRECTION.md) — beslutninger, valg av KI-modell,
+  hva som må på plass før lansering og hva som kommer senere.
+- [docs/NAVIGATION.md](docs/NAVIGATION.md) — hvor hver funksjon hører hjemme, og hvorfor.
 - [docs/APP_STORE.md](docs/APP_STORE.md) — forslag til App Store-tekster, skjermbilder,
   personvernsvar og notater til App Review.
 - [docs/PRIVACY.md](docs/PRIVACY.md) — personvernerklæringen (norsk og engelsk).

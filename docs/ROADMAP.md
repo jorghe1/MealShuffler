@@ -56,6 +56,9 @@ backend required, recipe service and iCloud sharing off.
 - Familie: household, portions, tastes, reminders and sharing; settings behind a gear.
 - Design tokens and three button styles in `AppTheme` (see [DESIGN.md](../DESIGN.md)).
 
+Decisions, the import model choice, the launch checklist and what comes later are collected
+in [PRODUCT_DIRECTION.md](PRODUCT_DIRECTION.md).
+
 ## Added in 0.7.1
 
 - **The recipe service is live** (Cloudflare Worker, workers.dev for now) and set in the build:

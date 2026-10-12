@@ -22,7 +22,7 @@ test("privacy and support pages are public HTML in the requested language", asyn
     ["/privacy", undefined, "en", /<h1>Privacy policy<\/h1>/],
     ["/privacy?lang=nb", "en-GB", "nb", /<h1>Personvernerklæring<\/h1>/],
     ["/privacy?lang=en", "nb-NO", "en", /<h1>Privacy policy<\/h1>/],
-    ["/privacy", "nb-NO,nb;q=0.9,en;q=0.8", "nb", /Gjelder fra: 9\. oktober 2026/],
+    ["/privacy", "nb-NO,nb;q=0.9,en;q=0.8", "nb", /Gjelder fra: 12\. oktober 2026/],
     ["/support", "no", "nb", /<h1>Hjelp for Meal Shuffler<\/h1>/],
     ["/support", "nn-NO", "nb", /Påminnelsene kommer ikke/],
     ["/support", "en-US,en;q=0.9", "en", /<h1>Meal Shuffler support<\/h1>/],
@@ -45,11 +45,40 @@ test("privacy and support pages are public HTML in the requested language", asyn
 
 test("the privacy page states the facts App Review and users ask about", async () => {
   const html = await (await get("/privacy?lang=en")).text();
-  for (const fact of [/Effective date: 9 October 2026/, /no advertising, no analytics and no tracking/,
+  for (const fact of [/Effective date: 12 October 2026/, /no advertising, no analytics and no tracking/,
     /does not use it to train its models/, /Anthropic's Claude/, /off until you turn it on in Settings/,
-    /Bring!'s servers fetch/, /Manage\s+Storage/, /does not knowingly\s+collect personal information from children/]) {
+    /Bring!'s servers then fetch/, /Manage\s+Storage/, /does not knowingly\s+collect personal information from children/]) {
     assert.match(html, fact);
   }
+});
+
+test("the privacy page discloses the install ID, the IP key and the Bring! query string", async () => {
+  // What the Worker actually reads (index.ts: withinRateLimits, rateLimitAddressKey) and where the
+  // Bring! list travels (share.ts: /v1/bring/list?d=). Both languages say the same things.
+  const facts: Record<"en" | "nb", RegExp[]> = {
+    en: [/<code>X-Install-Id<\/code>/, /stays the same until you delete the app/, /\/64/,
+      /about a minute/, /never the random ID or your IP\s+address/, /after "\?"/,
+      /Bring! receives the address, with the list in it, from your phone/,
+      /never the address or the list/, /travels with the shared data/],
+    nb: [/<code>X-Install-Id<\/code>/, /den samme til du sletter appen/, /\/64/,
+      /omtrent ett minutt/, /aldri den tilfeldige ID-en eller\s+IP-adressen din/, /etter «\?»/,
+      /Bring! mottar adressen, med listen i, fra telefonen din/,
+      /aldri adressen eller listen/, /følger denne tilfeldige koden med de delte dataene/],
+  };
+  for (const language of ["en", "nb"] as const) {
+    const html = await (await get(`/privacy?lang=${language}`)).text();
+    for (const fact of facts[language]) assert.match(html, fact, `${language}: ${fact}`);
+  }
+});
+
+test("the served policy carries the same effective dates as docs/PRIVACY.md", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const markdown = await readFile(new URL("../../docs/PRIVACY.md", import.meta.url), "utf8");
+  const english = /^Effective date: (.+)$/m.exec(markdown)?.[1];
+  const norwegian = /^Gjelder fra: (.+)$/m.exec(markdown)?.[1];
+  assert.ok(english && norwegian, "docs/PRIVACY.md states both effective dates");
+  assert.match(await (await get("/privacy?lang=en")).text(), new RegExp(`Effective date: ${english}\\.`));
+  assert.match(await (await get("/privacy?lang=nb")).text(), new RegExp(`Gjelder fra: ${norwegian}\\.`));
 });
 
 test("unknown paths still 404 and the info pages answer only GET", async () => {

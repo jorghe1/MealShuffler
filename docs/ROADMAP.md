@@ -256,6 +256,10 @@ the list. A two-account acceptance run on two physical iPhones with distinct App
 ([ICLOUD_SHARING.md](ICLOUD_SHARING.md)), then the production schema deployed before
 TestFlight. Remove the old snapshot sync once this replaces it.
 
+**Design:** [ADR 0001 — entity sync and splitting the store](adr/0001-entity-sync-and-store-split.md):
+entity model, merge policy per entity, deterministic rollover, migration from the blob, the
+`AppStore` split and the phased plan with its "before turning sync on" gate.
+
 ### App Clip and universal links
 
 **Why.** Share links open a web page or `mealshuffler://`. Universal links open the app

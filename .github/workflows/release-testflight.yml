@@ -1,0 +1,201 @@
+name: Release to TestFlight
+
+# Pushing a tag `ios-X.Y.Z` is the release. This workflow is what turns it into a Codemagic
+# build: it checks the tag against MARKETING_VERSION, then starts the `ios-testflight`
+# workflow through the Codemagic REST API and waits until Codemagic has actually picked the
+# build up.
+#
+# Why not Codemagic's own tag trigger: that needs a GitHub -> Codemagic webhook, and there is
+# none. Tags ios-0.5.0 and ios-0.6.1 were pushed and nothing built. An API call made from here
+# either starts a build or fails red on the tag's commit, so a release can no longer vanish
+# silently. codemagic.yaml has no `triggering` on ios-testflight for the same reason, so a
+# webhook added later cannot double-build.
+#
+# One-time setup (docs/CODEMAGIC.md, "Releasing"):
+#   secret   CODEMAGIC_API_TOKEN  Codemagic > Team/User settings > Integrations > Codemagic API
+#   variable CODEMAGIC_APP_ID     the id in https://codemagic.io/app/<app id>
+#
+# Re-run a release (for example after fixing the secret) with "Run workflow" and the tag name.
+# GitHub only offers "Run workflow" once this file is on the default branch (main), and a tag
+# push only runs it if the tagged commit contains this file.
+on:
+  push:
+    tags: ["ios-*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build, e.g. ios-0.6.1"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-testflight-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  start-codemagic-build:
+    name: Start Codemagic ios-testflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Only ever used through "$TAG" in shell, never interpolated into a script.
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      CODEMAGIC_WORKFLOW_ID: ios-testflight
+      # How long to wait for the build to leave the queue before giving up on proving it.
+      POLL_SECONDS: "600"
+    steps:
+      - name: Check tag name
+        run: |
+          if ! printf '%s\n' "$TAG" | grep -Eq '^ios-[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+            echo "::error::'$TAG' is not a release tag. Release tags look like ios-0.6.1."
+            exit 1
+          fi
+
+      # The scripts come from this workflow's own commit; the version comes from the tag. On a
+      # tag push they are the same commit. On "Run workflow" they are not, and the tag may
+      # predate ci/check-release-tag.sh (ios-0.6.1 does).
+      - name: Check out this workflow's commit
+        uses: actions/checkout@v4
+
+      - name: Check out the tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          path: release-tag
+
+      - name: Check tag against MARKETING_VERSION
+        run: |
+          echo "Tag $TAG is commit $(git -C release-tag rev-parse HEAD)"
+          PROJECT_SPEC=release-tag/project.yml bash ci/check-release-tag.sh "$TAG"
+
+      - name: Start ios-testflight on Codemagic
+        id: start
+        env:
+          CODEMAGIC_API_TOKEN: ${{ secrets.CODEMAGIC_API_TOKEN }}
+          CODEMAGIC_APP_ID: ${{ vars.CODEMAGIC_APP_ID }}
+        run: |
+          missing=""
+          [ -n "$CODEMAGIC_API_TOKEN" ] || missing="$missing secret CODEMAGIC_API_TOKEN;"
+          [ -n "$CODEMAGIC_APP_ID" ] || missing="$missing variable CODEMAGIC_APP_ID;"
+          if [ -n "$missing" ]; then
+            {
+              echo "### Codemagic is not connected"
+              echo
+              echo "Missing:$missing"
+              echo
+              echo "1. Codemagic > Team settings (or User settings) > Integrations > Codemagic API > Show: copy the token."
+              echo "2. Open the app in Codemagic; the id is the part after /app/ in the URL."
+              echo "3. GitHub > Settings > Secrets and variables > Actions:"
+              echo "   - Secrets tab: New repository secret CODEMAGIC_API_TOKEN = the token"
+              echo "   - Variables tab: New repository variable CODEMAGIC_APP_ID = the app id"
+              echo "4. Re-run this workflow (Actions > Release to TestFlight > Run workflow, tag $TAG)."
+              echo
+              echo "See docs/CODEMAGIC.md, section Releasing."
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::Codemagic is not connected:$missing see the job summary."
+            exit 1
+          fi
+
+          body="$(jq -n \
+            --arg appId "$CODEMAGIC_APP_ID" \
+            --arg workflowId "$CODEMAGIC_WORKFLOW_ID" \
+            --arg tag "$TAG" \
+            '{appId: $appId, workflowId: $workflowId, tag: $tag}')"
+          echo "POST https://api.codemagic.io/builds $body"
+
+          # No --retry: a POST that reached Codemagic but lost its answer would start a
+          # second build. A failure here is safe to re-run by hand.
+          status="$(curl -sS -o response.json -w '%{http_code}' --max-time 60 \
+            -X POST https://api.codemagic.io/builds \
+            -H "Content-Type: application/json" \
+            -H "x-auth-token: $CODEMAGIC_API_TOKEN" \
+            -d "$body")" || status="000"
+
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "Codemagic answered HTTP $status:"
+            cat response.json 2>/dev/null || true
+            echo
+            case "$status" in
+              401|403) hint="The token was rejected. Copy it again from Codemagic > Integrations > Codemagic API." ;;
+              404) hint="Codemagic does not know app id '$CODEMAGIC_APP_ID'. Check the CODEMAGIC_APP_ID variable against the app URL." ;;
+              400|422) hint="Codemagic rejected the request. Check that codemagic.yaml at $TAG has a workflow '$CODEMAGIC_WORKFLOW_ID' and that the tag is pushed." ;;
+              *) hint="Codemagic could not be reached or failed. Re-run this workflow." ;;
+            esac
+            echo "::error::Could not start the Codemagic build (HTTP $status). $hint"
+            exit 1
+          fi
+
+          build_id="$(jq -r '.buildId // empty' response.json)"
+          if [ -z "$build_id" ]; then
+            echo "Unexpected response:"; cat response.json; echo
+            echo "::error::Codemagic accepted the request but returned no buildId."
+            exit 1
+          fi
+
+          url="https://codemagic.io/app/$CODEMAGIC_APP_ID/build/$build_id"
+          echo "build_id=$build_id" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Started Codemagic build $build_id for $TAG"
+          echo "$url"
+          {
+            echo "### Codemagic build started for \`$TAG\`"
+            echo
+            echo "- Build id: \`$build_id\`"
+            echo "- Link: $url"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The REST API documents only POST /builds; GET /builds/<id> is what the Codemagic UI and
+      # older docs use. If it cannot be read, the build was still created (we have its id), so
+      # this warns instead of failing. A build that Codemagic marks failed or canceled within
+      # the window does fail the job, so a tag check that trips on Codemagic shows up here.
+      - name: Wait for Codemagic to pick the build up
+        env:
+          CODEMAGIC_API_TOKEN: ${{ secrets.CODEMAGIC_API_TOKEN }}
+          BUILD_ID: ${{ steps.start.outputs.build_id }}
+          BUILD_URL: ${{ steps.start.outputs.url }}
+        run: |
+          deadline=$(( $(date +%s) + POLL_SECONDS ))
+          last=""
+          unreadable=0
+          while :; do
+            code="$(curl -sS -o build.json -w '%{http_code}' --max-time 30 \
+              -H "x-auth-token: $CODEMAGIC_API_TOKEN" \
+              "https://api.codemagic.io/builds/$BUILD_ID")" || code="000"
+            state=""
+            if [ "$code" = "200" ]; then
+              state="$(jq -r '(.build.status // .status // empty)' build.json 2>/dev/null || true)"
+            fi
+            if [ -z "$state" ]; then
+              unreadable=$((unreadable + 1))
+              if [ "$unreadable" -ge 5 ]; then
+                echo "::warning::Could not read the build status (HTTP $code). The build was created: $BUILD_URL"
+                exit 0
+              fi
+            else
+              unreadable=0
+              [ "$state" = "$last" ] || echo "$(date -u +%H:%M:%S) status: $state"
+              last="$state"
+              case "$state" in
+                queued|preparing) ;;
+                failed|canceled|cancelled|timeout|skipped)
+                  echo "::error::Codemagic build $state: $BUILD_URL"
+                  echo "- Status: **$state**" >> "$GITHUB_STEP_SUMMARY"
+                  exit 1
+                  ;;
+                *)
+                  echo "Codemagic is running the build ($state): $BUILD_URL"
+                  echo "- Status when this job finished: \`$state\`" >> "$GITHUB_STEP_SUMMARY"
+                  exit 0
+                  ;;
+              esac
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::warning::Build still '${last:-unknown}' after ${POLL_SECONDS}s (concurrency limit or no free machine?). It stays queued: $BUILD_URL"
+              echo "- Status when this job finished: \`${last:-unknown}\` (still waiting)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 20
+          done

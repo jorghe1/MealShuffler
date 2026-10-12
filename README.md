@@ -197,6 +197,12 @@ Prosjektet har også Codemagic-workflows for usignert simulator-test og signert
 TestFlight-opplasting. Se [docs/IPHONE_TESTING.md](docs/IPHONE_TESTING.md) for
 engangsoppsett og første test på en fysisk iPhone.
 
+En release er en tag `ios-X.Y.Z` som er lik `MARKETING_VERSION` i `project.yml`.
+GitHub Actions (`Release to TestFlight`) sjekker versjonen og starter
+TestFlight-bygget i Codemagic via API-et — det finnes ingen webhook. Det krever
+engangsoppsettet `CODEMAGIC_API_TOKEN` (secret) og `CODEMAGIC_APP_ID` (variabel)
+i GitHub; se [docs/CODEMAGIC.md](docs/CODEMAGIC.md#how-a-release-starts).
+
 Appen følger språkinnstillingen i iOS. Engelsk innhold er kildetekst, mens norsk
 Bokmål ligger i `nb.lproj`. Dynamisk tekst fra planmotor, eksport og feilmeldinger
 går gjennom samme lokaliseringslag som SwiftUI-visningene.

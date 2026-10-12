@@ -100,15 +100,33 @@ bare ligger på Fiks-applikasjonen, opprett samme gruppe for Meal Shuffler.
    Developer.
 2. Opprett app-posten i App Store Connect med samme bundle-ID.
 3. Legg repositoryet til i Codemagic og scan `codemagic.yaml`.
-4. Start workflow `iOS · Simulator smoke test` manuelt først.
-5. Når den er grønn, start `iOS · TestFlight` manuelt eller push en release-tag:
+4. Start workflow `iOS · Simulator smoke test` manuelt hvis du vil se at den
+   bygger på Codemagic (GitHub Actions bygger og tester allerede hver push).
+5. Engangsoppsett for release-tagger (det finnes ingen webhook mellom GitHub og
+   Codemagic, så en tag starter ingenting av seg selv):
+   - Codemagic → Team settings (eller User settings) → Integrations →
+     Codemagic API → Show: kopier tokenet.
+   - Åpne appen i Codemagic og kopier app-ID-en fra adressen
+     `https://codemagic.io/app/<app-id>/...`.
+   - GitHub → Settings → Secrets and variables → Actions: legg til
+     hemmeligheten `CODEMAGIC_API_TOKEN` (fanen Secrets) og variabelen
+     `CODEMAGIC_APP_ID` (fanen Variables).
+6. Øk `MARKETING_VERSION` i `project.yml`, commit, og push en tag med samme
+   versjon:
 
 ```sh
-git tag ios-0.1.0
-git push origin ios-0.1.0
+git tag ios-0.6.2
+git push origin ios-0.6.2
 ```
 
-Workflowen genererer Xcode-prosjektet, kjører testene, lager/bruker
+Taggen starter GitHub Actions-workflowen `Release to TestFlight`
+(`.github/workflows/release-testflight.yml`). Den sjekker at taggen er lik
+`MARKETING_VERSION`, starter `ios-testflight` i Codemagic via REST-API-et og
+skriver ut lenken til bygget. En tag som ikke bygget kan startes på nytt med
+**Run workflow** og tag-navnet. Detaljer, og hvorfor vi valgte API-et framfor
+webhook, står i [CODEMAGIC.md](CODEMAGIC.md).
+
+Codemagic-workflowen genererer Xcode-prosjektet, kjører testene, lager/bruker
 distribusjonssertifikat og provisioning profile, bygger IPA og laster den opp.
 Når Apple er ferdig med å prosessere bygget, opprett en intern testgruppe under
 TestFlight → Internal Testing, legg til bygget og Apple-ID-en din, og installer

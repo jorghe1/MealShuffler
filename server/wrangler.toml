@@ -25,6 +25,21 @@ type = "ratelimit"
 namespace_id = "1002"
 simple = { limit = 40, period = 60 }
 
+# Workers Logs keeps the Worker's own one-line JSON logs (route label, status, duration) for
+# monitoring, and nothing that could carry user data:
+#   - redact_query_string: the Bring! list travels in /v1/bring/list?d=... A logged URL would
+#     be a logged shopping list.
+#   - invocation_logs = false: the per-request metadata record (URL, headers such as
+#     X-Install-Id and CF-Connecting-IP) is not kept.
+# docs/PRIVACY.md promises both. Do not loosen this, add Logpush or a Tail Worker, or save
+# `wrangler tail` output without changing that policy first.
+[observability]
+enabled = true
+redact_query_string = true
+
+[observability.logs]
+invocation_logs = false
+
 # Set with: wrangler secret put ANTHROPIC_API_KEY
 # Never commit the key; the whole point of the proxy is keeping it out of the IPA.
 

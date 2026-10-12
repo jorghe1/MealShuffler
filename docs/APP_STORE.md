@@ -235,6 +235,51 @@ and is not "collected".
 If online recipe reading is removed from a build entirely, "Data Not Collected" becomes
 accurate, but only after the manifest and PRIVACY.md are changed to match.
 
+### Why these answers (Apple's definitions)
+
+What actually leaves the phone, from the code: `RemoteRecipeExtractor` sends the recipe source
+plus `X-Install-Id` (`DeviceIdentity.current`, a random UUID minted on first launch and kept in
+the App Group defaults until the app is deleted) to `POST /v1/recipes/extract`. The Worker keys
+two Cloudflare rate limiters on that ID and on the client IP (IPv6 cut to its /64,
+`rateLimitAddressKey` in `server/src/index.ts`), with 60-second windows, and sends Anthropic the
+recipe content only. `BringExport.listLink` puts the shopping list in the query string of
+`/v1/bring/list?d=…` and opens Bring!'s deeplink with that URL; the Worker answers it
+`no-store` and logs a fixed label.
+
+- **Device ID, declared, though arguably not "collected".** Apple counts data as collected when
+  it leaves the device in a way that lets the developer or a partner access it *for longer than
+  needed to service the request in real time*. The install ID lives in a one-minute rate-limit
+  counter and is never stored or logged, so "not collected" is defensible. It is declared
+  anyway because it is a stable per-install identifier that the app sends on purpose, the
+  manifest already lists it (`NSPrivacyCollectedDataTypeDeviceID`), and over-declaring an
+  unlinked, non-tracking identifier costs a line on the label while under-declaring is what
+  review rejects. Apple's own examples put "prevent fraud, implement security measures" under
+  App Functionality, which is exactly rate limiting.
+- **Not linked.** Apple treats data as linked when it is tied to the user's identity (an
+  account, or details that identify them). There is no account; the Worker never stores the ID
+  next to anything, never sends it to Anthropic, and the recipe content is never kept with it.
+  The same UUID also stamps `updatedBy` on custom meals (`Models/Meal.swift`) and travels in the
+  household's iCloud share, but that is the user's own iCloud, which the developer cannot read.
+- **Not tracking.** It is not an advertising identifier, never leaves our service, and is not
+  combined with third-party data. `NSPrivacyTracking` stays false and there are no tracking
+  domains. (`BringExport` deliberately omits the hashed IDFA Bring!'s app-to-app API asks for.)
+- **User content, declared.** Recipe links, text and photos are forwarded to Anthropic, a
+  third-party processor whose retention we do not control, so the strict real-time exemption
+  is not something we can promise for them. Not linked and not tracking for the reasons above.
+- **IP address, not a separate type.** Apple has no IP data type; IP becomes "Coarse Location"
+  only when used to derive location. It is used only as a rate-limit key and not stored.
+- **Bring! list, covered by Other User Content.** The list passes through the Worker in real
+  time (not stored, not logged, `no-store`) and goes to Bring! at the user's explicit request,
+  outside our control, like opening a link. If review sees it as collection, the existing
+  "Other User Content — App Functionality — not linked" row already describes it; nothing new
+  needs declaring. This depends on request URLs staying out of Cloudflare logs (operator
+  requirements at the top of [PRIVACY.md](PRIVACY.md); `server/wrangler.toml` sets
+  `redact_query_string` and turns invocation logs off).
+
+`MealShuffler/PrivacyInfo.xcprivacy` declares exactly these three types with the same answers
+(not linked, no tracking, App Functionality). The widget and share extension manifests declare
+none, which is correct: neither sends anything.
+
 **Privacy policy URL:** the Worker's `/privacy` (served from [PRIVACY.md](PRIVACY.md) via
 `server/src/info.ts`), or another host if the Worker is not deployed for 0.6.0.
 

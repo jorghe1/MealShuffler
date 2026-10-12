@@ -241,9 +241,13 @@ replaced by per-entity sync in the next release. Setup and the acceptance test a
   minutes cost money): unsigned simulator build and XCTest, plus an informational
   `ui-smoke` job (`MealShufflerUITests` scheme, allowed to fail) that uploads screenshots.
   Check the workflow file for the current triggers; it is being changed in phase 5.
-- **Codemagic** ([CODEMAGIC.md](CODEMAGIC.md), `codemagic.yaml`): `ios-smoke` runs unsigned
-  build and tests on every push and PR; `ios-testflight` runs on tags matching `ios-*`,
-  signs all three bundles and uploads to TestFlight.
+- **Codemagic** ([CODEMAGIC.md](CODEMAGIC.md), `codemagic.yaml`): no workflow triggers
+  itself (there is no GitHub → Codemagic webhook). `ios-smoke` (unsigned build and tests) is
+  started by hand. `ios-testflight` signs all three bundles and uploads to TestFlight; it is
+  started by `.github/workflows/release-testflight.yml` when a tag `ios-X.Y.Z` is pushed,
+  which first checks the tag against `MARKETING_VERSION` (`ci/check-release-tag.sh`) and then
+  calls the Codemagic REST API. The build number comes from App Store Connect
+  (`ci/set-build-number.sh`).
 
 ## Repo hygiene
 
@@ -259,7 +263,8 @@ Deferred to the next ("network") release. Reasons and prerequisites are in
 
 - AI fallback for rule parsing on the Worker, for sentences the grammar cannot read.
 - `CKSyncEngine` per-entity iCloud sync with push, and notifications when a partner changes
-  the plan. Replaces the whole-household snapshot sync above.
+  the plan. Replaces the whole-household snapshot sync above. Design:
+  [ADR 0001](adr/0001-entity-sync-and-store-split.md).
 - App Clip and universal links (AASA) so share links open the app or a clip directly.
 - Worker hardening for real traffic: App Attest, per-install quotas, KV caching of
   extractions, and a model evaluation set.

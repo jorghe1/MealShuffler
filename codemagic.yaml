@@ -11,16 +11,12 @@ workflows:
 
     # Unsigned, so this needs nothing from Apple Developer -- it answers "does it
     # compile and do the tests pass" without any App ID, profile or App Group setup.
-    # Run it before ios-testflight, always.
-    triggering:
-      events:
-        - push
-        - pull_request
-      branch_patterns:
-        - pattern: "*"
-          include: true
-          source: true
-      cancel_previous_builds: true
+    #
+    # Manual only: no `triggering` block on purpose. GitHub Actions (ios-validation.yml)
+    # already builds and tests every push to main and claude/** for free, so a push trigger
+    # here would only spend Codemagic minutes on the same answer -- and there is no
+    # GitHub -> Codemagic webhook anyway (see docs/CODEMAGIC.md). Start it by hand when
+    # you want Codemagic's exact Xcode image to compile a branch.
 
     environment:
       xcode: 26.4
@@ -54,23 +50,29 @@ workflows:
         XCODE_PROJECT: "MealShuffler.xcodeproj"
         XCODE_SCHEME: "MealShuffler"
 
-    triggering:
-      events:
-        - tag
-      tag_patterns:
-        - pattern: "ios-*"
-          include: true
-      cancel_previous_builds: true
+    # No `triggering` block on purpose. Pushing an `ios-*` tag runs
+    # .github/workflows/release-testflight.yml, which checks the tag against
+    # MARKETING_VERSION and starts this workflow through the Codemagic REST API with the
+    # tag. That works without a GitHub -> Codemagic webhook (there is none). A tag trigger
+    # here would build every release twice the day someone adds the webhook back.
+    # Starting it by hand from the Codemagic UI still works (see docs/CODEMAGIC.md).
 
     scripts:
+      # First, before anything slow: a tag that does not match MARKETING_VERSION would upload
+      # under the wrong version. Branch builds started by hand have no CM_TAG and pass.
+      - name: Check release tag against MARKETING_VERSION
+        script: bash ci/check-release-tag.sh
+
       - name: Generate and validate the Xcode project
         script: bash ci/bootstrap-ios.sh
 
       - name: Run unit tests before signing
         script: bash ci/test-ios.sh
 
-      - name: Set monotonic build number
-        script: agvtool new-version -all "$PROJECT_BUILD_NUMBER"
+      # max(latest App Store Connect build + 1, PROJECT_BUILD_NUMBER). Codemagic's counter
+      # alone resets if the app is re-added and then collides with builds Apple already has.
+      - name: Set build number from App Store Connect
+        script: bash ci/set-build-number.sh
 
       - name: Fetch or create App Store signing files
         script: |

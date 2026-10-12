@@ -83,7 +83,7 @@ const NAV = {
 const PRIVACY: Record<InfoLanguage, InfoPage> = {
   en: {
     title: "Privacy policy",
-    lead: `Effective date: 9 October 2026. Meal Shuffler is a dinner planner for families. It keeps
+    lead: `Effective date: 12 October 2026. Meal Shuffler is a dinner planner for families. It keeps
 your meal planning on your phone: there is no account, no advertising, no analytics and no tracking.
 A few optional features send specific content off your phone when you use them. This policy describes
 each of them.`,
@@ -96,7 +96,10 @@ and no tracking SDKs.</p>
       { heading: "iCloud sharing with your household", body: `<p>If you use iCloud sharing, the data you
 share is stored in your own iCloud account using Apple's CloudKit (private and shared databases), and
 only the people you invite can see it. The developer cannot read it. Apple handles it under Apple's
-privacy policy.</p>` },
+privacy policy.</p>
+<p>Inside your data, each recipe you add or change is marked with your phone's random install ID
+(described below), so the app can tell which phone made a change. When you share through iCloud, that
+random code travels with the shared data. It is not your name or anything else about you.</p>` },
       { heading: "Reading recipes online (optional, off by default)", body: `<p>Online recipe reading is
 off until you turn it on in Settings in the app. While it is off, recipes are read on your phone.</p>
 <p>When it is on and you import a recipe, the app sends the recipe link, the text you pasted or the
@@ -106,12 +109,22 @@ API, which reads the recipe and returns it in a structured form, and the service
 to the app.</p>
 <ul>
 <li>The service does not store what you send or the recipe it returns.</li>
-<li>Anthropic processes the content to return the result and does not use it to train its models.</li>
-<li>The app sends a random ID created on your phone, which is not linked to your name, your Apple ID or
-anything else about you, and the service sees your IP address. Both are used only for rate limiting,
-to protect the service from abuse.</li>
+<li>Anthropic processes the content to return the result and does not use it to train its models.
+The service sends Anthropic only the recipe content, never the random ID or your IP address.</li>
+<li><strong>A random install ID.</strong> The first time the app starts, it creates a random ID for
+this installation. It is not made from anything about you or your phone — not your name, your Apple ID
+or your phone's hardware — and it stays the same until you delete the app. The app sends it with every
+online recipe request (in a header named <code>X-Install-Id</code>), and with nothing else.</li>
+<li><strong>Your IP address.</strong> Like any web service, the recipe service sees the IP address a
+request comes from. For IPv6 addresses it uses only the network part (the first half, known as the
+/64), which points to a home connection or mobile network rather than one device.</li>
+<li>The ID and the address are used only to count requests, so that one phone or one connection cannot
+overload the service (rate limiting). Cloudflare keeps those counts for about a minute. Neither value is
+stored, logged, combined with the recipe or anything else, or used to identify you.</li>
 <li>The service's own logs record only the kind of request, the result status and how long it took.
 They never contain the recipe, the link, your IP address or the random ID.</li>
+<li>The service runs on Cloudflare, which carries the network traffic to it under Cloudflare's own
+privacy policy.</li>
 </ul>` },
       { heading: "Importing a recipe from a website", body: `<p>When you import a recipe from a link, the
 app contacts that website directly from your phone, as a browser would, and loads the recipe's picture
@@ -123,10 +136,18 @@ any server. If someone opens the link without the app, the Meal Shuffler service
 reads the content from the link in their browser. Nothing is uploaded or stored. Anyone who has the
 link can read what is in it, so share it only with the people you mean to.</p>` },
       { heading: "Sending your shopping list to Bring!", body: `<p>If you choose "Send the list to
-Bring!", the app puts the shopping list in a link and passes it to Bring!. Bring!'s servers fetch that
-link from the Meal Shuffler service, which reads the list from the link and returns it as a page Bring!
-can import, without storing it. From then on, Bring! processes the list under its own privacy
-policy.</p>` },
+Bring!", the app puts the shopping list — its title and each item with its amount — into a web address
+on the Meal Shuffler service, and opens Bring! with that address. The list sits in the part of the
+address after "?". Unlike the part after "#" used for sharing with friends, that part is sent to
+servers:</p>
+<ul>
+<li>Bring! receives the address, with the list in it, from your phone.</li>
+<li>Bring!'s servers then fetch the address from the Meal Shuffler service, which reads the list from it
+and returns it as a page Bring! can import.</li>
+</ul>
+<p>The Meal Shuffler service does not store the list, tells browsers and caches not to keep the page,
+and its logs record only that a list page was served — never the address or the list. The random
+install ID is not sent. From then on, Bring! processes the list under its own privacy policy.</p>` },
       { heading: "Deleting your data", body: `<p>Deleting the app deletes the data stored on your phone.
 Data kept in iCloud can be removed in the iOS Settings app under your name (Apple ID) → iCloud → Manage
 Storage. The recipe service keeps nothing, so there is nothing to delete there.</p>` },
@@ -139,7 +160,7 @@ published here with a new effective date.</p>` },
   },
   nb: {
     title: "Personvernerklæring",
-    lead: `Gjelder fra: 9. oktober 2026. Meal Shuffler er en middagsplanlegger for familier.
+    lead: `Gjelder fra: 12. oktober 2026. Meal Shuffler er en middagsplanlegger for familier.
 Planleggingen holdes på telefonen din: Det finnes ingen konto, ingen reklame, ingen analyse og ingen
 sporing. Noen valgfrie funksjoner sender bestemt innhold fra telefonen når du bruker dem. Denne
 erklæringen beskriver hver av dem.`,
@@ -152,7 +173,11 @@ ingen sporings-SDK-er.</p>
       { heading: "iCloud-deling i husstanden", body: `<p>Hvis du bruker iCloud-deling, lagres det du
 deler i din egen iCloud-konto med Apples CloudKit (private og delte databaser), og bare de du
 inviterer, kan se det. Utvikleren kan ikke lese det. Apple behandler det etter Apples
-personvernerklæring.</p>` },
+personvernerklæring.</p>
+<p>I dataene dine merkes hver oppskrift du legger til eller endrer, med den tilfeldige
+installasjons-ID-en til telefonen (beskrevet nedenfor), slik at appen vet hvilken telefon som gjorde
+endringen. Når du deler via iCloud, følger denne tilfeldige koden med de delte dataene. Den er ikke
+navnet ditt eller noe annet om deg.</p>` },
       { heading: "Lese oppskrifter på nett (valgfritt, av som standard)", body: `<p>Lesing av
 oppskrifter på nett er av til du slår det på under Innstillinger i appen. Så lenge det er av, leses
 oppskriftene på telefonen.</p>
@@ -164,13 +189,25 @@ resultatet tilbake til appen.</p>
 <ul>
 <li>Tjenesten lagrer ikke det du sender, eller oppskriften den returnerer.</li>
 <li>Anthropic behandler innholdet for å returnere resultatet og bruker det ikke til å trene modellene
-sine.</li>
-<li>Appen sender en tilfeldig ID som lages på telefonen og ikke er knyttet til navnet ditt, Apple-ID-en
-din eller noe annet om deg, og tjenesten ser IP-adressen din. Begge brukes bare til å begrense antall
-forespørsler, for å beskytte tjenesten mot misbruk.</li>
+sine. Tjenesten sender bare oppskriftsinnholdet til Anthropic, aldri den tilfeldige ID-en eller
+IP-adressen din.</li>
+<li><strong>En tilfeldig installasjons-ID.</strong> Første gang appen starter, lager den en tilfeldig ID
+for denne installasjonen. Den lages ikke av noe om deg eller telefonen din — ikke navnet ditt,
+Apple-ID-en din eller maskinvaren i telefonen — og den er den samme til du sletter appen. Appen sender
+den med hver forespørsel om å lese en oppskrift på nett (i en header som heter
+<code>X-Install-Id</code>), og ikke med noe annet.</li>
+<li><strong>IP-adressen din.</strong> Som enhver nettjeneste ser oppskriftstjenesten IP-adressen en
+forespørsel kommer fra. For IPv6-adresser bruker den bare nettverksdelen (den første halvdelen, kalt
+/64), som peker på en hjemmeforbindelse eller et mobilnett heller enn én enhet.</li>
+<li>ID-en og adressen brukes bare til å telle forespørsler, slik at én telefon eller én forbindelse ikke
+kan overbelaste tjenesten (begrensning av antall forespørsler). Cloudflare holder på disse tellingene i
+omtrent ett minutt. Ingen av verdiene lagres, logges, kobles til oppskriften eller noe annet, eller
+brukes til å identifisere deg.</li>
 <li>Tjenestens egne logger registrerer bare hva slags forespørsel det var, resultatstatusen og hvor
 lang tid den tok. De inneholder aldri oppskriften, lenken, IP-adressen din eller den tilfeldige
 ID-en.</li>
+<li>Tjenesten kjører hos Cloudflare, som frakter nettrafikken til den etter Cloudflares egen
+personvernerklæring.</li>
 </ul>` },
       { heading: "Importere en oppskrift fra et nettsted", body: `<p>Når du importerer en oppskrift fra
 en lenke, kontakter appen nettstedet direkte fra telefonen, slik en nettleser gjør, og henter
@@ -182,9 +219,18 @@ Hvis noen åpner lenken uten appen, viser Meal Shuffler-tjenesten en side som le
 i nettleseren deres. Ingenting lastes opp eller lagres. Alle som har lenken, kan lese innholdet, så del
 den bare med dem du mener å dele med.</p>` },
       { heading: "Sende handlelisten til Bring!", body: `<p>Hvis du velger «Send listen til Bring!»,
-legger appen handlelisten i en lenke og gir den til Bring!. Serverne til Bring! henter lenken fra Meal
-Shuffler-tjenesten, som leser listen fra lenken og returnerer den som en side Bring! kan importere,
-uten å lagre den. Deretter behandler Bring! listen etter sin egen personvernerklæring.</p>` },
+legger appen handlelisten — tittelen og hver vare med mengde — inn i en nettadresse hos Meal
+Shuffler-tjenesten, og åpner Bring! med den adressen. Listen ligger i delen av adressen etter «?». I
+motsetning til delen etter «#» som brukes ved deling med venner, sendes denne delen til servere:</p>
+<ul>
+<li>Bring! mottar adressen, med listen i, fra telefonen din.</li>
+<li>Serverne til Bring! henter deretter adressen fra Meal Shuffler-tjenesten, som leser listen fra den
+og returnerer den som en side Bring! kan importere.</li>
+</ul>
+<p>Meal Shuffler-tjenesten lagrer ikke listen, ber nettlesere og mellomlagre om ikke å beholde siden,
+og loggene registrerer bare at en listeside ble levert — aldri adressen eller listen. Den tilfeldige
+installasjons-ID-en sendes ikke. Deretter behandler Bring! listen etter sin egen
+personvernerklæring.</p>` },
       { heading: "Slette dataene dine", body: `<p>Når du sletter appen, slettes dataene som er lagret på
 telefonen. Data i iCloud kan fjernes i Innstillinger-appen under navnet ditt (Apple-ID) → iCloud →
 Administrer lagring. Oppskriftstjenesten lagrer ingenting, så der er det ingenting å slette.</p>` },

@@ -46,6 +46,47 @@ jobs:
               print("ok", path)
           PY
 
+  release:
+    name: Release scripts and CI config
+    runs-on: ubuntu-latest
+    # The release path only runs on a tag, against Codemagic, where a typo costs a signed
+    # build or silently starts nothing. These checks are what can be proven on Linux first.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shellcheck release scripts
+        run: shellcheck -S warning ci/check-release-tag.sh ci/set-build-number.sh
+
+      - name: Parse codemagic.yaml and workflows
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import glob, yaml
+          for path in ["codemagic.yaml", *sorted(glob.glob(".github/workflows/*.yml"))]:
+              with open(path, encoding="utf-8") as handle:
+                  yaml.safe_load(handle)
+              print("ok", path)
+          with open("codemagic.yaml", encoding="utf-8") as handle:
+              workflows = yaml.safe_load(handle)["workflows"]
+          # Releases are started by release-testflight.yml through the API; a trigger here
+          # would build twice as soon as a webhook exists.
+          for name, workflow in workflows.items():
+              assert "triggering" not in workflow, f"{name} has a triggering block"
+          assert "ios-testflight" in workflows
+          PY
+
+      - name: Release tag must match MARKETING_VERSION
+        run: |
+          version="$(sed -n -E 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"?([^"[:space:]#]+)"?.*$/\1/p' project.yml | head -n 1)"
+          bash ci/check-release-tag.sh "ios-$version"
+          if bash ci/check-release-tag.sh "ios-0.0.0-not-this"; then
+            echo "check-release-tag.sh accepted a mismatched tag"; exit 1
+          fi
+          if bash ci/check-release-tag.sh "ios-0.0.0"; then
+            echo "check-release-tag.sh accepted a mismatched tag"; exit 1
+          fi
+          DRY_RUN=1 PROJECT_BUILD_NUMBER=7 bash ci/set-build-number.sh | grep -q "Build number: 7 "
+
   server:
     name: Recipe service
     runs-on: ubuntu-latest

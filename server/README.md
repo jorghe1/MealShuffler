@@ -220,6 +220,13 @@ predate both, so the committed source could not have compiled. Nothing in CI was
   path logs an error's name and status rather than its message, which can carry the request
   back out with it. Keep it that way unless there is a reason not to, and say so in the
   privacy policy.
+- **Request URLs must never be logged for `/v1/bring/list`**: the shopping list is in its
+  query string. `wrangler.toml` sets `observability.redact_query_string = true` and
+  `observability.logs.invocation_logs = false` (so `X-Install-Id` and `CF-Connecting-IP` are
+  not kept either). Check the dashboard agrees after the first deploy, and do not add Logpush,
+  a Tail Worker or zone request logs on a custom domain without stripping the query. The
+  operator requirements at the top of [`docs/PRIVACY.md`](../docs/PRIVACY.md) list what the
+  policy depends on.
 - The per-IP limiter is a floor, not an identity. App Attest or DeviceCheck is the real
   answer if this ever gets popular enough to be worth abusing.
 

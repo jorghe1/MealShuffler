@@ -82,13 +82,13 @@ struct RulesView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(
                     item: HouseRulesShare.link(rules: store.rules, household: store.household.name, meals: store.meals),
-                    subject: Text("Our house rules"),
+                    subject: Text(L10n.household("Our house rules")),
                     message: Text(HouseRulesShare.message(rules: store.rules, household: store.household.name, meals: store.meals, context: store.matchContext))
                 ) {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .disabled(HouseRulesShare.shareableRules(store.rules, meals: store.meals).isEmpty)
-                .accessibilityLabel("Share our house rules")
+                .accessibilityLabel(L10n.household("Share our house rules"))
             }
         }
         .sheet(isPresented: $showingBuilder) { AddRuleView().environment(store) }

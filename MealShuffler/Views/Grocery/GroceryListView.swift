@@ -68,7 +68,7 @@ struct GroceryListView: View {
                 }
             } footer: {
                 if hasDinnersWithoutIngredients {
-                    Label("Some dinners have no ingredients saved. Check their recipes before shopping.", systemImage: "exclamationmark.triangle")
+                    Label(L10n.household("Some dinners have no ingredients saved. Check their recipes before shopping."), systemImage: "exclamationmark.triangle")
                         .foregroundStyle(AppTheme.warning)
                 }
             }
@@ -122,7 +122,7 @@ struct GroceryListView: View {
                         Text(L10n.string("Already at home (%ld)", store.stockedItems.count)).foregroundStyle(AppTheme.muted)
                     }
                 } footer: {
-                    Text("Swipe an item to set it aside as already at home. Things you always have go in pantry staples, in the menu above.")
+                    Text(L10n.household("Swipe an item to set it aside as already at home. Things you always have go in pantry staples, in the menu above."))
                 }
             }
         }

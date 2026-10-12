@@ -1,0 +1,8 @@
+/* One-person households: the same keys as Localizable.strings, worded for one person
+   ("my") instead of a family ("our"). Read through L10n.household(_:). */
+"Our house rules" = "My house rules";
+"Share our house rules" = "Share my house rules";
+"Send our house rules" = "Send my house rules";
+"Shuffle a week with our rules in Meal Shuffler:" = "Shuffle a week with my rules in Meal Shuffler:";
+"Our dinner week" = "My dinner week";
+"Our favorites" = "My favorites";

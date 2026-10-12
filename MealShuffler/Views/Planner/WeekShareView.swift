@@ -133,10 +133,10 @@ struct WeekShareView: View {
                 Divider().padding(.leading, 52)
                 ShareLink(
                     item: HouseRulesShare.link(rules: store.rules, household: store.household.name, meals: store.meals),
-                    subject: Text("Our house rules"),
+                    subject: Text(L10n.household("Our house rules")),
                     message: Text(HouseRulesShare.message(rules: store.rules, household: store.household.name, meals: store.meals, context: store.matchContext))
                 ) {
-                    Label("Send our house rules", systemImage: "list.bullet.clipboard").shareRow()
+                    Label(L10n.household("Send our house rules"), systemImage: "list.bullet.clipboard").shareRow()
                 }
             }
         }

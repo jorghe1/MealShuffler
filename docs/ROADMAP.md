@@ -56,6 +56,15 @@ backend required, recipe service and iCloud sharing off.
 - Familie: household, portions, tastes, reminders and sharing; settings behind a gear.
 - Design tokens and three button styles in `AppTheme` (see [DESIGN.md](../DESIGN.md)).
 
+## Added in 0.7.1
+
+- **The recipe service is live** (Cloudflare Worker, workers.dev for now) and set in the build:
+  "Send the list to Bring!", online recipe reading after opt-in, and the share landing pages
+  work. Extraction runs on Haiku 5.5, picked with `server/eval/` (24 Norwegian recipes).
+- **A separate key for the service.** It no longer sees the ID that marks recipes.
+- **"du" for one person.** With one member and usually one at dinner, copy that says "dere" and
+  "våre" says "du" and "mine" (`L10n.household`, `Solo.strings`).
+
 ## Added in 0.7.0
 
 Second TestFlight round. Navigation is planned in [NAVIGATION.md](NAVIGATION.md): each tab

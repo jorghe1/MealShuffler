@@ -68,10 +68,10 @@ struct FirstWeekStepView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Here's your week")
+            Text(L10n.household("Here's your week"))
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
                 .foregroundStyle(AppTheme.ink)
-            Text("Built from what you liked. Nothing is fixed — change any of it later.")
+            Text(L10n.household("Built from what you liked. Nothing is fixed — change any of it later."))
                 .foregroundStyle(AppTheme.muted).lineSpacing(3)
         }
         .padding(.top, 20)

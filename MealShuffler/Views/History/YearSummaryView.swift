@@ -109,7 +109,7 @@ struct YearPoster: View {
 
             if !summary.top.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Our favorites")
+                    Text(L10n.household("Our favorites"))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(Self.green)
                     ForEach(Array(summary.top.enumerated()), id: \.element) { index, dish in

@@ -57,7 +57,7 @@ struct SettingsView: View {
             Button("Start over", role: .destructive) { store.resetForPreview() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Rules and custom meals are kept, but taste choices and the weekly plan are reset.")
+            Text(L10n.household("Rules and custom meals are kept, but taste choices and the weekly plan are reset."))
         }
     }
 }

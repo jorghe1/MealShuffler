@@ -35,8 +35,8 @@ final class AppStore {
     var favoriteMealIDs: Set<UUID> { didSet { save() } }
     var dayContexts: [Weekday: DayPlanContext] { didSet { planningRevision += 1; save() } }
     var feedbackEvents: [MealFeedbackEvent] { didSet { save() } }
-    var householdSize: Int { didSet { save() } }
-    var household: Household { didSet { save() } }
+    var householdSize: Int { didSet { save(); updateAddress() } }
+    var household: Household { didSet { save(); updateAddress() } }
     var archivedWeeks: [ArchivedWeek] { didSet { groceryCache = nil; save() } }
     var nextWeekPlan: WeeklyPlan? { didSet { planningRevision += 1; groceryCache = nil; save() } }
     var dinnerReminderEnabled: Bool { didSet { save() } }
@@ -202,6 +202,7 @@ final class AppStore {
         shoppingAmounts = Dictionary(builtGroceryItems
             .map { ($0.id, $0.quantity) }, uniquingKeysWith: +)
         inviteNotice = nil
+        updateAddress()
         pendingCaptures = RecipeInbox.all()
         rollOverIfNeeded()
         refreshConflicts()
@@ -1563,6 +1564,11 @@ final class AppStore {
         let patternChanged = updated.homePattern != household.members[index].homePattern
         household.members[index] = updated
         if patternChanged { rescalePlanServings() }
+    }
+
+    /// One person at the table and on the list is addressed as "du"; a family as "dere".
+    private func updateAddress() {
+        L10n.speaksToOne = householdSize == 1 && household.members.count <= 1
     }
 
     /// A day nobody has planned by hand: the usual table, less whoever's home pattern has them

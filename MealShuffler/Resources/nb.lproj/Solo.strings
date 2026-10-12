@@ -1,0 +1,18 @@
+/* One-person households: the same keys as Localizable.strings, worded for one person
+   ("du", "mine") instead of a family ("dere", "våre"). Read through L10n.household(_:). */
+"Tell us what you like and which rules matter. Then we'll create a thoughtful week in one tap." = "Fortell oss hva du liker og hvilke regler som gjelder. Så lager vi en gjennomtenkt uke på ett trykk.";
+"What do you like?" = "Hva liker du?";
+"Your history shapes the shuffle: meals you cook often come up a little more, and meals you cooked recently are held back for a while." = "Historikken påvirker forslagene. Retter du liker å lage, foreslås oftere, mens retter du nylig har laget, velges sjeldnere.";
+"Rules and custom meals are kept, but taste choices and the weekly plan are reset." = "Regler og egne retter beholdes, men smakene du har valgt og ukeplanen nullstilles.";
+"Here's your week" = "Her er uka di";
+"Built from what you liked. Nothing is fixed — change any of it later." = "Satt sammen ut fra det du likte. Ingenting er låst, og alt kan endres senere.";
+"Longest since you cooked it, first. Long-press to put one on a day." = "Rettene du ikke har laget på lengst tid, vises først. Trykk og hold for å legge en på en dag.";
+"Some dinners have no ingredients saved. Check their recipes before shopping." = "Noen middager mangler ingredienser. Kontroller oppskriftene før du handler.";
+"Our house rules" = "Husreglene mine";
+"Share our house rules" = "Del husreglene mine";
+"Send our house rules" = "Send husreglene mine";
+"Shuffle a week with our rules in Meal Shuffler:" = "Stokk en uke med reglene mine i Meal Shuffler:";
+"Our dinner week" = "Middagsuka mi";
+"Days, limits, foods to avoid, day plans and variety all work. Several rules can go on one line." = "Dager, grenser, matvarer du unngår, dagsplaner og variasjon fungerer. Flere regler kan stå på én linje.";
+"Swipe an item to set it aside as already at home. Things you always have go in pantry staples, in the menu above." = "Sveip en vare for å legge den til side som noe du har hjemme. Det du alltid har, legger du i «Basisvarer» i menyen øverst.";
+"Our favorites" = "Favorittene mine";

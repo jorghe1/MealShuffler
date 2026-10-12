@@ -76,7 +76,7 @@ struct WeekPosterContent: Equatable {
         let isDefaultName = household.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || household == L10n.string("My family")
         return WeekPosterContent(
-            heading: isDefaultName ? L10n.string("Our dinner week") : household,
+            heading: isDefaultName ? L10n.household("Our dinner week") : household,
             weekLabel: WeekAnchor.label(forWeekStarting: plan.startDate),
             days: days,
             activeRuleCount: active.count,

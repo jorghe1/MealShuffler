@@ -208,7 +208,7 @@ enum HouseRulesShare {
     /// The message that travels with the link, readable on its own.
     static func message(rules: [PlanningRule], household: String, meals: [Meal], context: MealMatcher.MatchContext) -> String {
         let lines = payload(rules: rules, household: household, meals: meals, context: context).lines.map { "• " + $0 }
-        return ([L10n.string("House rules from %@:", household)] + lines + ["", L10n.string("Shuffle a week with our rules in Meal Shuffler:")])
+        return ([L10n.string("House rules from %@:", household)] + lines + ["", L10n.household("Shuffle a week with our rules in Meal Shuffler:")])
             .joined(separator: "\n")
     }
 

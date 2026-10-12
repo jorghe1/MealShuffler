@@ -117,7 +117,7 @@ struct MealHistoryView: View {
             } header: {
                 Text("Due a turn")
             } footer: {
-                Text("Longest since you cooked it, first. Long-press to put one on a day.")
+                Text(L10n.household("Longest since you cooked it, first. Long-press to put one on a day."))
             }
 
             Section("Archived weeks") {
@@ -154,7 +154,7 @@ struct MealHistoryView: View {
             }
 
             Section {
-                Text("Your history shapes the shuffle: meals you cook often come up a little more, and meals you cooked recently are held back for a while.")
+                Text(L10n.household("Your history shapes the shuffle: meals you cook often come up a little more, and meals you cooked recently are held back for a while."))
                     .font(.caption).foregroundStyle(AppTheme.muted)
             }
 

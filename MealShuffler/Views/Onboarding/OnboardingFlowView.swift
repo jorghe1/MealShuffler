@@ -65,7 +65,7 @@ private struct WelcomeStepView: View {
                 Text("Dinner plans itself.")
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .foregroundStyle(AppTheme.ink)
-                Text("Tell us what you like and which rules matter. Then we'll create a thoughtful week in one tap.")
+                Text(L10n.household("Tell us what you like and which rules matter. Then we'll create a thoughtful week in one tap."))
                     .font(.title3)
                     .foregroundStyle(AppTheme.muted)
                     .lineSpacing(5)
@@ -102,7 +102,7 @@ private struct TasteSwipeView: View {
         ScrollView {
         VStack(spacing: 18) {
             VStack(spacing: 6) {
-                Text("What do you like?")
+                Text(L10n.household("What do you like?"))
                     .font(.system(.title, design: .rounded, weight: .bold))
                     .foregroundStyle(AppTheme.ink)
                 Text(L10n.string("Preferences for %@", store.household.members.first(where: { $0.role == .owner })?.displayName ?? L10n.string("Me")))

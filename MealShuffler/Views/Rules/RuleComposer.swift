@@ -203,7 +203,7 @@ struct RuleComposer: View {
             Label(L10n.string("Added: %@", justAdded), systemImage: "checkmark.seal.fill")
                 .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
         } else {
-            Text("Days, limits, foods to avoid, day plans and variety all work. Several rules can go on one line.")
+            Text(L10n.household("Days, limits, foods to avoid, day plans and variety all work. Several rules can go on one line."))
                 .font(.caption).foregroundStyle(AppTheme.muted)
         }
         suggestionRow

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 enum L10n {
     static func portions(_ value: Double) -> String {
@@ -37,6 +38,25 @@ enum L10n {
         "Likes %ld dishes": (0, "Likes %ld dish"),
         "Time not specified · %ld servings": (0, "Time not specified · %ld serving")
     ]
+    private static let soloHousehold = OSAllocatedUnfairLock(initialState: false)
+
+    /// Whether the household is one person, so copy that says "dere" and "våre" to a family
+    /// says "du" and "mine" instead. Set by the store whenever the household changes.
+    static var speaksToOne: Bool {
+        get { soloHousehold.withLock { $0 } }
+        set { soloHousehold.withLock { $0 = newValue } }
+    }
+
+    /// Copy addressed to the household. A one-person household reads the wording in
+    /// Solo.strings under the same key; everyone else, and any key not there, reads the usual.
+    static func household(_ key: String) -> String {
+        if speaksToOne {
+            let solo = Bundle.main.localizedString(forKey: key, value: nil, table: "Solo")
+            if solo != key { return solo }
+        }
+        return string(key)
+    }
+
     static func string(_ key: String, _ arguments: CVarArg...) -> String {
         var selectedKey = key
         if let (index, singular) = singularForms[key], arguments.indices.contains(index), arguments[index] as? Int == 1 { selectedKey = singular }
